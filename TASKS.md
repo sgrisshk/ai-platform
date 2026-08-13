@@ -54,13 +54,23 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** DATA_ENGINEER
 - **Reviewer:** STATISTICS
 - **Priority:** P0
-- **Status:** READY
+- **Status:** IN_REVIEW
 - **Depends on:** TASK-001
 - **Goal:** Generate 10,000 bookings across 24 months with a fixed seed and hidden ground truth.
 - **Scope:** Seasonality, managers, suppliers, customer segments, discounts, payments, cancellations, refunds, support costs, gross profit, and contribution margin; at least 8 harmful patterns, 5 confounding traps, drift, heterogeneous effects, selection bias, leakage fields, missingness, and a dirty-data variant.
 - **Outputs:** `synthetic_data/{raw,reference,metadata,evaluation}/`, clean/dirty CSVs, schema and feature-timing metadata, hidden ground truth, corruption/config manifests, evaluator, and `SIMULATION_REPORT.md`.
 - **Critical rule:** ML Discovery must never receive hidden ground truth before candidates are persisted.
 - **Done when:** Generation is reproducible, configured patterns/traps exist, time splits work, public inputs contain no answer leakage, and tests pass.
+- **Implementation evidence:** Deterministic generator, 10,000-row clean/dirty artifacts,
+  schema/timing/split/corruption/checksum manifests, restricted ground truth, blind-evaluation
+  guard, analytics tests, and `SIMULATION_REPORT.md` completed on 2026-08-13. Statistics
+  review is tracked by `HANDOFF-006`.
+- **Review outcome (2026-08-13, STATISTICS):** Approved in substance — mechanisms, traps, drift,
+  heterogeneity, selection bias, and leakage fields are suitable and do not overstate
+  identifiability. Two artifact changes required before `DONE`: per-pattern realized effect sizes
+  in the hidden ground truth (without them `TASK-022`/`TASK-028` cannot score direction or impact
+  error) and a stable customer identifier (without it `repeat_purchase_180d` cannot be linked and
+  customer-level clustering is impossible). Carried as `HANDOFF-010`.
 
 ### TASK-004 — Benchmark difficulty presets
 
@@ -133,9 +143,14 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-010
 - **Goal:** Build versioned analytical datasets with separate features, outcomes, identifiers, and metadata plus transformation configuration and lineage.
+- **Evidence:** Synthetic analytical dataset `travel-bookings-analytical-v1.0.0` contains four
+  physically separate, row-aligned CSV partitions; a typed schema, source/artifact SHA-256 lineage,
+  feature timing, customer clustering key, chronological splits, missingness diagnostics, and an
+  explicit pending TASK-013 outcome contract. Completed 2026-08-13 by explicit founder direction;
+  production customer-input canonicalization under TASK-010 remains blocked and is not implied.
 
 ### TASK-012 — Temporal split builder
 
@@ -153,9 +168,24 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** STATISTICS
 - **Implementation support:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-011
 - **Goal:** Version explicit definitions for actual gross profit, contribution margin/value percentage, cancellation, refund, support cost, and repeat purchase.
+- **Evidence:** Outcome contract v1.0.0 preregistered on 2026-08-13 in `docs/outcome_contract.md`
+  and `packages/analytics/src/policy_analytics/outcomes/` (`contract.py` = versioned definitions,
+  `aggregation.py` = pure group-summary/sign-convention arithmetic), pinned to the delivered
+  analytical dataset `travel-bookings-analytical-v1.0.0` (dataset identity
+  `490c65655aff645ec8da845cff257f23edfccea4abe609553b576b5b800f91e8`). Primary outcome is
+  `contribution_margin_eur` (0% missingness, verified against `outcomes.csv`); six secondary/
+  decomposition outcomes plus `repeat_purchase_180d` as MNAR-bounded exploratory only (9.72%
+  overall missingness, 45.7% among cancelled bookings vs. 7.2% otherwise — an empirically confirmed
+  outcome-dependent selection trap). Harm-direction sign convention and deterministic historical
+  exposure formula are given so `TASK-016` can rank across outcomes without inventing semantics.
+  14 contract tests (including two pinned to the live dataset artifact), ruff, and pyright were
+  executed and pass. Closes the outcome-contract half of `HANDOFF-003`.
+- **Not included:** The real-customer outcome contract (`OQ-002`, still open) and right-censoring/
+  outcome-maturation handling for live data — both explicitly out of scope, see
+  `docs/outcome_contract.md` §1 and §7.
 
 ### TASK-014 — Baseline business statistics
 
@@ -171,10 +201,19 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-011, TASK-013
 - **Goal:** Use simple interpretable methods first—shallow trees, boosting with rule extraction, and subgroup discovery—to return 10–20 harmful candidate patterns.
 - **Candidate contract:** Conditions, support, N, raw difference, deterministic economic exposure, stability indicators, and warnings.
+- **Evidence:** Deterministic interpretable beam-search engine and CLI in
+  `packages/analytics/src/policy_analytics/discovery/engine.py` and `scripts/run_discovery.py`;
+  methodology in `docs/discovery_engine_v0.md`; 2026-08-13 run artifact
+  `artifacts/discovery/task-015-candidates.json` contains 15 immutable candidate conjunctions from
+  6,945 evaluated hypotheses, pinned to analytical dataset identity
+  `490c65655aff645ec8da845cff257f23edfccea4abe609553b576b5b800f91e8` and outcome contract v1.0.0.
+  Conditions were selected on development only; validation/future splits are diagnostics. No
+  hidden-ground-truth artifact was opened, but this full-checkout run does not satisfy ADR-008 and
+  therefore does not close TASK-017. Statistics validation is requested in HANDOFF-016.
 
 ### TASK-016 — Candidate ranking v0
 
@@ -199,9 +238,11 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** STATISTICS
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** none
 - **Goal:** Predefine sample-size, uncertainty, temporal/segment stability, multiple testing, confounding, leakage, selection, seasonality, evidence grades, and policy-readiness rules.
+- **Evidence:** Contract v1.0.0 preregistered on 2026-08-13 in `docs/validation_contract.md` and `packages/analytics/src/policy_analytics/validation/` (16 ordered gates, thresholds, cumulative evidence requirements, language rules, readiness matrix, backtest methodology). 26 contract tests, ruff, and pyright were executed and pass. See ADR-007.
+- **Not included:** Applying the contract to candidates (TASK-019), which requires persisted candidates from TASK-017.
 
 ### TASK-019 — Validation framework implementation
 
@@ -284,6 +325,8 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Status:** BLOCKED
 - **Depends on:** TASK-025
 - **Goal:** Explain what was found, population, impact, raw/adjusted effect, evidence, stability, alternatives, warnings, and next step in business language.
+- **UX specification:** `docs/product/finding-detail-screen.md` (complete; written ahead of the backend so TASK-024 can be scoped against real UI requirements). Status remains `BLOCKED` — implementation still requires TASK-025 → TASK-024 to exist. See `HANDOFF-008` (field requirements to Architect) and `HANDOFF-009` (implementation handoff to Architect).
+- **Note (2026-08-13):** Pickup attempted by an ad hoc "Frontend" dispatch (no `agents/FRONTEND.md` or Frontend role exists in `AGENTS.md`). Confirmed still correctly `BLOCKED`: no approved Product spec/content exists, and `TASK-025`/`TASK-024` remain `BLOCKED` so no real findings API exists. See `HANDOFF-004` (spec, to PRODUCT) and `HANDOFF-005` (API + role placement, to ARCHITECT). No implementation was made against invented product semantics or an invented API contract.
 
 ## Phase 10 — Blind benchmark evaluation
 
@@ -379,12 +422,22 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 
 ## Phase 14 — First real customer data
 
+### TASK-057 — Secure first real pilot customer
+- **Owner:** CUSTOMER_DISCOVERY
+- **Support:** FOUNDER_STRATEGY
+- **Priority:** P0
+- **Status:** TODO
+- **Depends on:** none
+- **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
+- **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.
+- **Done when:** A named customer agreement (or documented equivalent commitment) and a dataset-access plan are recorded in `DECISIONS.md`, unblocking `TASK-037`.
+
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
 - **Support:** ARCHITECT
 - **Priority:** P0
 - **Status:** BLOCKED
-- **Depends on:** Real customer agreement
+- **Depends on:** TASK-057
 - **Goal:** Review storage, logs, access, backups, local copies, secrets, and deletion before any real data enters the system.
 
 ### TASK-038 — Customer dataset ingestion
@@ -421,6 +474,15 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 - **Status:** BLOCKED
 - **Depends on:** TASK-041
 - **Goal:** Capture known/new, actionability, relevance, trust objections, and desired follow-up.
+- **Note (2026-08-13):** Customer Discovery confirmed this is still correctly `BLOCKED`, not
+  `IN_PROGRESS` (a request referenced this work as "TASK-041," which in this registry is Customer
+  statistical validation, owned by Statistics). No real customer agreement is recorded in
+  `DECISIONS.md`, and `TASK-037` through `TASK-041` have not started — no real dataset, discovery
+  run, or validated candidate exists, so no review can be conducted against synthetic or invented
+  findings. This resolves the open question in `memory/HANDOFFS.md#HANDOFF-014` (Founder → Customer
+  Discovery), which independently asked whether any real customer engagement exists — it does not.
+  A review protocol was prepared in advance (`docs/customer_findings_review_protocol.md`) so
+  execution can start immediately once preconditions are met.
 
 ## MILESTONE-M3 — First real discovery
 
