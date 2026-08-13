@@ -130,8 +130,11 @@ blocks a credible `TASK-017` run.
 **Resolution (2026-08-13, Architect):** Resolved with ADR-008 and
 `docs/blind_benchmark_protocol.md`. A strict allowlist builder creates a fresh workspace outside the
 trusted checkout; it omits hidden truth, generator/evaluator implementation, corruption and
-generation manifests, and evaluation artifacts. The evaluation identity signs the exact candidate
-SHA-256 plus bundle ID with an evaluator-only HMAC key. Evaluation verifies that receipt before it
+generation manifests, private benchmark metadata, and evaluation artifacts. The single command
+`make export-public-benchmark destination=...` rebuilds the analytical dataset and emits only its
+four approved partitions plus sanitized schema, feature-timing, outcome, and run metadata. The
+evaluation identity signs the exact candidate SHA-256 plus bundle ID with an evaluator-only HMAC
+key. Evaluation verifies that receipt before it
 opens hidden truth and rejects missing/forged receipts or modified candidates. Adversarial tests
 cover restricted-file injection and post-commit candidate mutation. Discovery must be launched as
 a separate actor scoped only to the generated workspace; handing it the full checkout or signing
@@ -178,11 +181,14 @@ SHA-256 lineage, exact schemas, the approved decision-time set, `booking_date` a
 timestamp, `customer_id` as clustering key, and chronological split labels. No post-decision,
 outcome, identifier, metadata, or unknown field appears in `features.csv`.
 
-`outcomes.csv` is physically separate and exposes the available outcome bundle without choosing a
-target: `primary_outcome` is null and the outcome contract status is `PENDING_TASK_013`. Therefore
-this resolves the TASK-011 dataset dependency, but TASK-015 must not target an outcome until
-Statistics completes TASK-013. Hidden ground truth and generator source remain outside the
-permitted discovery inputs until blind candidate persistence.
+`outcomes.csv` is physically separate. Statistics subsequently completed TASK-013, so the rebuilt
+manifest now attaches outcome contract v1.0.0 and records its Statistics-selected primary outcome;
+Data Engineering did not choose or reinterpret it. Exact discovery input root:
+`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`. Aggregate entrypoint:
+`manifest.json`; dedicated contracts: `feature_manifest.json`, `outcome_columns_manifest.json`,
+`excluded_columns_manifest.json`, and `version_metadata.json`. Reproduce with
+`make analytical-dataset`. Hidden ground truth and generator source remain outside the permitted
+discovery inputs until blind candidate persistence.
 
 ## HANDOFF-003
 
@@ -264,7 +270,7 @@ data remain explicitly out of scope — see `docs/outcome_contract.md` §1 and �
 
 **Blocking:** NO — does not block finalizing the UX spec, but should be resolved before `TASK-024` implementation locks the schema, since a second schema change would re-trigger frontend rework.
 
-**Resolution:** Pending.
+**Resolution:** Pending Architect implementation. Progress 2026-08-13 (Product): `FINDING_PRODUCT_CONTRACT.md` now supplies the full concrete answer — a required/optional/qualified-only field list mapped directly onto `ValidationReport`/`EffectEstimate` field names, so Architect isn't choosing between Product's and Statistics' proposals. It also confirms this handoff's questions (1)–(6) are satisfied by fields `ValidationReport` already defines in code; only question (7) (finding-lifecycle status) remains genuinely undecided — same conclusion `HANDOFF-012` reached independently from the Statistics side. Superseding inline list; `HANDOFF-012` remains the parallel Statistics-side answer and the two are cross-checked as compatible in the contract's header.
 
 ## HANDOFF-009
 
@@ -288,7 +294,7 @@ data remain explicitly out of scope — see `docs/outcome_contract.md` §1 and �
 
 **Blocking:** YES — blocks closing `TASK-027`, but does not block anything else; TASK-025/TASK-024 remain the actual critical-path blockers.
 
-**Resolution:** Pending completion of `TASK-025`.
+**Resolution:** Pending completion of `TASK-025`. Progress 2026-08-13 (Product): `FINDING_PRODUCT_CONTRACT.md` is now the authoritative source for copy rules — the exact permitted-verb wording ladder (quoted verbatim from `LANGUAGE_RULES` in code), the never-shown-without-qualification list, and the finalized `policy_readiness`-driven action matrix (§9), which supersedes this spec's own §7. Implement against the contract's wording, not hand-authored phrasing, once `TASK-025` unblocks.
 
 ## HANDOFF-004
 
@@ -371,7 +377,7 @@ of validation itself.
 **Created:** 2026-08-13
 **From:** STATISTICS
 **To:** DATA_ENGINEER
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Supply the benchmark and analytical-dataset artifacts the validation contract requires.
 
@@ -410,10 +416,11 @@ timing, and grouped missingness.
 **Blocking:** YES — items 1 and 2 block `TASK-003` closure, `TASK-022`, and `TASK-028`; item 3
 blocks `TASK-019`. Item 4 is not blocking.
 
-**Resolution:** Pending. Progress on 2026-08-13: item 2 is delivered; item 3 now has the clustering
-key, chronological labels, full timing lineage, overall/split missingness, and a deterministic
-helper for candidate-specific exposed/unexposed missingness once ML Discovery supplies immutable
-exposure membership. Item 1 remains blocking; item 4 remains deferred to TASK-004.
+**Resolution (2026-08-13):** Items 1–3 are delivered. Hidden truth now contains paired realized
+effects for every pattern/outcome from identical-seed replay with only that pattern disabled;
+nominal loss constants are not substituted for effects. The stable `customer_id`, clustering key,
+chronological labels, timing lineage, split/overall missingness, and candidate-specific grouped
+missingness helper are present. Item 4 was explicitly non-blocking and remains scoped to TASK-004.
 
 ## HANDOFF-011
 
@@ -499,6 +506,39 @@ review.
 
 **Resolution:** Pending.
 
+## HANDOFF-027
+
+**Created:** 2026-08-13
+**From:** DATA_ENGINEER
+**To:** ML_DISCOVERY
+**Status:** RESOLVED
+
+**Task:** Deliver the versioned TASK-012 split contract for blind discovery.
+
+**Context:** TASK-011 dataset `travel-bookings-analytical-v1.0.0` now carries deterministic,
+non-overlapping chronological membership under split config
+`travel-bookings-temporal-split-v1.0.0`. Statistics already fixed discovery usage in TASK-013
+v1.1.0, so Data Engineering did not choose new statistical windows.
+
+**Question:** None; this is a completed input handoff.
+
+**Files:**
+
+- `synthetic_data/analytical/travel-bookings-analytical-v1.0.0/feature_manifest.json`
+- `synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_manifest.json`
+- `synthetic_data/analytical/travel-bookings-analytical-v1.0.0/split_membership.csv`
+
+**Expected output:** ML Discovery must use only the 4,999 rows whose `split_label` is
+`development` for condition fitting, selection, tuning, and ranking. Validation and future
+holdout rows are diagnostic-only and cannot modify candidate conditions.
+
+**Blocking:** NO — delivered.
+
+**Resolution:** Dataset ID
+`98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`; input root
+`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/`; reproduce with
+`make temporal-splits`. Hidden evaluation artifacts remain outside the blind allowlist.
+
 ## HANDOFF-012
 
 **Created:** 2026-08-13
@@ -577,14 +617,20 @@ customer-grounded materiality threshold to replace the placeholder.
 **Blocking:** NO — the placeholder is usable for synthetic work; it must be replaced before any
 real-customer finding is published.
 
-**Resolution:** Pending.
+**Resolution:** Partially resolved 2026-08-13 (Product). The action-matrix half is done:
+`FINDING_PRODUCT_CONTRACT.md` §9 finalizes it, driven by `policy_readiness` alone (redundant to also
+gate on evidence level, since readiness already encodes it), and `docs/product/finding-detail-screen.md`
+§7 now points there instead of keeping its own copy. The materiality-threshold half remains open —
+Product cannot produce a real number from synthetic data; it requires an actual pilot customer's
+economics, which does not exist until `TASK-057` delivers one, and belongs jointly with Customer
+Discovery per `OQ-004`'s ownership. Redirected, not answered — see `HANDOFF-021`.
 
 ## HANDOFF-015
 
 **Created:** 2026-08-13
 **From:** STATISTICS
 **To:** DATA_ENGINEER
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Note:** Originally logged as `HANDOFF-014`, colliding with the existing Founder Strategy →
 Customer Discovery `HANDOFF-014` above; renumbered for a unique ID since `TASKS.md` (`TASK-042`
@@ -615,5 +661,424 @@ identity hash is unaffected by a metadata-only change).
 
 **Blocking:** NO — `docs/outcome_contract.md` is authoritative regardless; this is a consistency
 improvement so the manifest does not read as stale.
+
+**Resolution (2026-08-13, Data Engineer):** Attached Statistics-owned outcome contract v1.0.0 in
+the aggregate and standalone outcome manifests. `primary_outcome` is
+`contribution_margin_eur`, copied from `PRIMARY_OUTCOME_ID`; definitions, directions, units,
+missing-data policies, cohort rule, and comparison rule are copied from the executable TASK-013
+contract without reinterpretation. Dataset identity remains
+`490c65655aff645ec8da845cff257f23edfccea4abe609553b576b5b800f91e8` because it identifies source
+rows plus timing schema; attaching versioned metadata does not change partition bytes. Each
+metadata artifact has its own SHA-256 in `manifest.json.supporting_artifacts`.
+
+## HANDOFF-020
+
+**Created:** 2026-08-13
+**From:** PRODUCT
+**To:** STATISTICS
+**Status:** OPEN
+
+**Task:** Resolve five wording/presentation questions raised while writing `FINDING_PRODUCT_CONTRACT.md`, deliberately not answered by Product because they touch statistical meaning, not just display.
+
+**Context:** `FINDING_PRODUCT_CONTRACT.md` builds the Finding v0 field contract directly from `ValidationReport`/`LANGUAGE_RULES`/`docs/validation_contract.md` and invents no thresholds. A handful of presentation choices remain that could misrepresent methodology if Product decided them alone.
+
+**Question:**
+
+1. Standardized wording when an impact interval crosses zero — is there a preferred phrase (parallel to the backtest section's "no measurable net effect," `docs/validation_contract.md` §9), and should it also apply outside backtests, to ordinary economic-impact display?
+2. Should `adjusted_p_value` / `family_size` ever be customer-facing, or stay analyst/audit-only? Product has no position; this is a Statistics + Architect call.
+3. Display wording for `NOT_EVALUATED` gates (graded identically to `FAIL` per `GateOutcome`): "not yet evaluated" (reads as pending) or "failed" (reads as checked-and-rejected)? These leave different impressions of the same programmatic outcome.
+4. The contract's §1 groups `controlled_variables` ("adjusted for") and `potential_confounders` ("considered and still possible") as two lists under one "what was checked" business narrative. Confirm this framing doesn't misrepresent the methodology to a reader who conflates the two.
+5. Confirm the finding-lifecycle status vocabulary question (candidate/validated/rejected/superseded, distinct from `ResourceStatus`) — already open via `HANDOFF-008`/`HANDOFF-012` — is being tracked for `TASK-024` and isn't falling through between the two handoffs.
+
+**Files:**
+
+- `FINDING_PRODUCT_CONTRACT.md` (§10)
+- `docs/validation_contract.md`
+- `packages/analytics/src/policy_analytics/validation/contract.py` (`LANGUAGE_RULES`, `GateOutcome`)
+- `packages/analytics/src/policy_analytics/validation/report.py` (`ValidationReport`)
+
+**Expected output:** Answers to (1)–(4), and confirmation on (5); update `FINDING_PRODUCT_CONTRACT.md` §10 accordingly once answered.
+
+**Blocking:** NO — the contract is usable as drafted; these refine wording precision before `TASK-024`/`TASK-025` implementation locks in copy.
+
+**Resolution:** Pending.
+
+## HANDOFF-021
+
+**Created:** 2026-08-13
+**From:** PRODUCT
+**To:** CUSTOMER_DISCOVERY
+**Status:** OPEN
+
+**Task:** Supply (or confirm the continued absence of) the real customer economics needed to replace the materiality-threshold placeholder — the half of `HANDOFF-013` (Statistics → Product) that Product cannot answer.
+
+**Context:** `HANDOFF-013` asked Product for the real materiality threshold behind `OQ-004` (`min_material_annual_impact = 25000`, `min_material_outcome_share = 0.005`, currently placeholders). Product finalized the action-matrix half of that handoff in `FINDING_PRODUCT_CONTRACT.md` §9/§11, but the threshold itself requires an actual pilot customer's P&L — data this repository does not have. `agents/PRODUCT.md` explicitly does not own customer willingness/economics; `agents/CUSTOMER_DISCOVERY.md` does. `TASK-057` (secure first real pilot customer, `ADR-010`) is the current bottleneck and, per `HANDOFF-014`'s resolution, has not started.
+
+**Question:** Is there any real customer economic data (even partial — approximate annual booking volume, typical margin, or a customer's own stated "not worth it below €X" figure) available from Customer Discovery's work so far? If not — expected, given `TASK-057` is still `TODO` — please confirm explicitly so `OQ-004` stays correctly `OPEN` rather than silently stale, and flag this handoff as one of the concrete outputs `TASK-057` should produce once a pilot customer exists.
+
+**Files:**
+
+- `memory/OPEN_QUESTIONS.md` (`OQ-004`)
+- `memory/HANDOFFS.md#HANDOFF-013`
+- `FINDING_PRODUCT_CONTRACT.md` (§11)
+- `TASKS.md` (`TASK-057`)
+
+**Expected output:** Either real customer economics recorded (updating `OQ-004` and reversioning the validation contract's thresholds, which is then a further handoff back to Statistics), or explicit confirmation that none exists yet, keeping the placeholder in force for synthetic work only.
+
+**Blocking:** NO — the placeholder remains usable for synthetic work; this must resolve before any real-customer finding is published.
+
+**Resolution:** Pending.
+
+## HANDOFF-017
+
+**Created:** 2026-08-13
+**From:** CODE_REVIEWER
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Close repository-readiness gaps in the blind execution boundary, CI, and local tooling
+before the analytical pipeline proceeds.
+
+**Context:** Readiness review confirmed that an ML Discovery agent launched in the normal shared
+repository can directly read both `synthetic_data/evaluation/hidden_ground_truth.json` and the
+generator source that encodes every pattern. ADR-008 is credible only when Discovery is a separate
+actor scoped exclusively to the exported workspace. The documented export command currently fails
+with `ModuleNotFoundError: policy_schemas`. Candidate commitment also accepts any caller-supplied
+manifest with a matching bundle ID; it does not prove that the evaluator issued or validated that
+manifest. CI does not regenerate committed benchmark/analytical artifacts and fail on drift, nor
+does it test Alembic downgrade/model-to-migration drift.
+
+**Question:** What enforced launcher/identity boundary will guarantee that Discovery receives only
+the allowlisted workspace, how will issued bundle manifests be authenticated or registered before
+candidate signing, and which CI/local-setup checks will make the documented workflow executable?
+
+**Files:** `.github/workflows/ci.yml`, `Makefile`, `docs/blind_benchmark_protocol.md`,
+`packages/analytics/src/policy_analytics/blind_isolation.py`, `scripts/prepare_blind_workspace.py`,
+`apps/api/migrations/`
+
+**Expected output:** A working isolated blind-run entrypoint; evaluator verification of an issued
+and validated bundle; CI checks for generated-artifact drift and migration consistency; documented
+successful commands.
+
+**Blocking:** YES — blocks a credible `TASK-017` blind run and repository readiness for analytics.
+
+**Resolution (2026-08-13, Architect implementation):** Blind export now has complete package paths,
+requires an evaluator-owned key, and emits a coordinator-signed exact-allowlist manifest.
+Candidate commitment rejects forged/incomplete manifests. `make blind-shell workspace=...` launches
+a no-network, read-only-root container with only the issued workspace mounted; a repository-scoped
+agent is explicitly ineligible. CI smoke-tests export, generated-artifact drift, repository data,
+Alembic check, downgrade, and upgrade. Local PostgreSQL integration and migration round-trip passed.
+
+## HANDOFF-018
+
+**Created:** 2026-08-13
+**From:** CODE_REVIEWER
+**To:** DATA_ENGINEER
+**Status:** RESOLVED
+
+**Task:** Make analytical dataset versioning immutable and fully content-addressed, and tighten the
+repository data-commit boundary.
+
+**Context:** `build_analytical_dataset` writes into an existing fixed version directory with
+`exist_ok=True` and overwrites partitions/manifests. Its `dataset_identity_sha256` hashes only the
+version label, source CSV, and timing manifest; it excludes transformation code/version/config,
+outcome contract, and output partition hashes. A changed transformation can therefore replace
+`travel-bookings-analytical-v1.0.0` while retaining the same identity. Separately, `.gitignore`
+unignores every CSV anywhere under `synthetic_data/`, so a mistakenly placed customer export could
+become committable without a fixture allowlist or provenance guard.
+
+**Question:** What immutable version/identity contract should bind source, timing, transformation,
+configuration, contracts, and output bytes, and which exact synthetic paths may be committed while
+all other data remains denied by default?
+
+**Files:** `.gitignore`, `packages/analytics/src/policy_analytics/analytical_dataset.py`,
+`synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json`
+
+**Expected output:** Fail-on-existing immutable writes or atomic creation of a new content-addressed
+version; complete lineage identity; explicit synthetic artifact allowlist and tests/CI guard against
+customer/private data commits.
+
+**Blocking:** YES — blocks treating the current analytical dataset identity as immutable lineage.
+
+**Resolution (2026-08-13, Data Engineer implementation):** Analytical builds now fail if the target
+version directory exists. The reproducibility command builds into a temporary directory and only
+accepts an existing version when every generated byte matches. Dataset identity binds source,
+timing, complete transformation config, transformation implementation hash, outcome contract
+version, schema version, and all partition hashes. Manifest paths are relative. `.gitignore` and
+`scripts/check_repository_data.py` restrict tracked data to seven explicit synthetic fixtures; CI
+enforces the allowlist. The strengthened `v1.0.0` identity is
+`98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c`.
+
+## HANDOFF-019
+
+**Created:** 2026-08-13
+**From:** CODE_REVIEWER
+**To:** STATISTICS
+**Status:** RESOLVED
+
+**Task:** Finish the benchmark truth fields required before downstream validation begins.
+
+**Context:** During the readiness review the outcome contract and its tests changed concurrently;
+the final reviewed snapshot passes the Python outcome-contract tests and Ruff. Existing
+`HANDOFF-010` still records the unresolved need for per-pattern realized counterfactual effects in
+hidden ground truth, required by later direction and impact-error evaluation. This review does not
+assess unimplemented statistical methods.
+
+**Question:** Can Statistics confirm that `HANDOFF-010` item 1 remains a blocker before `TASK-003`
+is closed and accept the eventual ground-truth effect representation?
+
+**Files:** `packages/analytics/src/policy_analytics/outcomes/contract.py`,
+`tests/analytics/test_outcome_contract.py`, `synthetic_data/evaluation/hidden_ground_truth.json`,
+`memory/HANDOFFS.md` (`HANDOFF-010`)
+
+**Expected output:** An explicit acceptance/rejection of the ground-truth effect representation
+needed by later benchmark evaluation.
+
+**Blocking:** YES — `TASK-003` remains `IN_REVIEW` and later benchmark direction/impact-error
+evaluation lacks approved truth effects.
+
+**Resolution (2026-08-13, Statistics):** Confirmed — `HANDOFF-010` item 1 (per-pattern realized ATE
+per outcome, from a counterfactual regeneration pass with each pattern's effect disabled under the
+same seed/draws) remains an open blocker on `TASK-003` closure, `TASK-022`, and `TASK-028`, exactly
+as recorded there. Nothing in the concurrent outcome-contract work (v1.0.0 or the v1.1.0 amendment
+in this session, ADR-011) substitutes for it or narrows its scope: this item is about ground-truth
+*injected* effects for benchmark scoring, not about the outcome *definition* discovery/validation
+consume — the two are independent artifacts. No eventual ground-truth effect representation is
+being pre-approved here; when Data Engineer delivers a regeneration, Statistics reviews the actual
+representation (units, per-outcome breakdown, sign convention matching this outcome contract's
+`harm_multiplier`) before accepting it, per the original `HANDOFF-010`/`HANDOFF-006` review
+standard. Item 2 of `HANDOFF-010` (customer identifier) is separately confirmed delivered.
+
+## HANDOFF-022
+
+**Created:** 2026-08-13
+**From:** CUSTOMER_DISCOVERY
+**To:** FOUNDER_STRATEGY
+**Status:** OPEN
+
+**Task:** Resolve four ICP/positioning decisions raised by `CUSTOMER_DATA_ACQUISITION_PLAN.md`
+before real data starts arriving from prospects outside travel agencies.
+
+**Context:** `TASK-057` and the entire built pipeline (canonical schema, synthetic benchmark,
+outcome contract) are travel-agency-specific. The requested acquisition plan targets three
+verticals — travel agencies, recruitment/staffing agencies, and B2B wholesale distributors — to
+source 20 prospects toward 3–5 real historical datasets for research, explicitly not validating
+product sales. This widens data-acquisition scope beyond what `TASK-057`'s text and the current
+canonical schema (`TASK-010`, travel-booking specific) assume, without any registry decision
+having been made about that widening.
+
+**Question:**
+1. Does non-travel data get run through the existing pipeline (requiring new canonical-schema/
+   outcome-contract work per vertical before any real discovery run), or is it collected now and
+   analyzed manually/exploratorily outside the productized pipeline until one vertical is chosen?
+2. Should Product predefine an outcome-definition template per vertical before outreach starts
+   (multiplying `OQ-002`/`OQ-004` by three), or should Customer Discovery gather data first and
+   resolve outcome definition per prospect afterward?
+3. Should outreach mention a possible future product/pilot pricing at all, even softly, or stay
+   strictly "independent research, no product" as currently drafted — this affects the data-use
+   agreement wording and the narrative later used for `TASK-048`/fundraising materials?
+4. Should travel agencies remain the clear #1 outreach priority (only vertical the pipeline
+   actually supports today), with recruitment/distribution run as secondary validation of
+   generality, or should all three be run at genuinely equal priority as currently drafted?
+
+**Files:** `CUSTOMER_DATA_ACQUISITION_PLAN.md`, `TASKS.md` (`TASK-057`, `TASK-010`), `DECISIONS.md`
+(`ADR-010`), `memory/OPEN_QUESTIONS.md` (`OQ-002`, `OQ-004`)
+
+**Expected output:** A decision (recorded in `DECISIONS.md` if durable) on scope sequencing and
+positioning, so outreach in the two non-travel verticals doesn't produce data with nowhere
+approved to go.
+
+**Blocking:** NO — outreach can start under the travel-agency track regardless; this blocks
+committing real effort to the recruitment/distribution tracks in `CUSTOMER_DATA_ACQUISITION_PLAN.md`
+§2.2/§2.3 in parallel rather than sequentially.
+
+**Resolution (2026-08-13, implementation delivered for Statistics review):** The executable outcome
+contract and tests are internally consistent and pass. Hidden truth now includes per-pattern,
+per-outcome paired realized effects from identical-seed replay with only the selected pattern
+disabled, including the estimand and paired record count. Nominal loss constants are not reported
+as realized effects. This delivers `HANDOFF-010` item 1; Statistics retains authority to accept the
+representation when completing TASK-003 review.
+
+## HANDOFF-023
+
+**Created:** 2026-08-13
+**From:** STATISTICS
+**To:** ML_DISCOVERY
+**Status:** OPEN
+
+**Task:** Adopt outcome contract v1.1.0 for any future discovery/ranking work; no action required on the existing `TASK-015` run.
+
+**Context:** `TASK-013` is amended to v1.1.0 (ADR-011, `docs/outcome_contract.md` §9,
+`packages/analytics/src/policy_analytics/outcomes/contract.py`). This does not reopen the primary
+outcome, direction, or sign convention — it makes explicit, and machine-readable as
+`DISCOVERY_CONTRACT`, several rules that were previously implicit: an empirically verified
+`valid_range` per outcome (for anomaly-flagging, never clipping), a no-winsorization/no-transform
+rule at discovery time, an explicit per-outcome aggregation rule, the mandatory search-fit split,
+the minimum-support floor (imported from the validation contract's own gate G03, not a second
+number), the excluded explanatory-variable classifications, and missing-outcome handling specific
+to discovery.
+
+**Verification already performed:** All 15 candidates in
+`artifacts/discovery/task-015-candidates.json` were checked against every new rule and are
+compliant — every condition uses only `DECISION_TIME` features (from `feature_manifest.json`'s 18
+approved columns), every candidate has `n_exposed >= 50` on `development`, and conditions were fit
+on `development` only with `validation`/`future_holdout` used strictly as diagnostics, matching
+`HANDOFF-011`'s resolution. **No rerun of `TASK-015` is required.**
+
+**Question:** None outstanding — this is a confirmatory handoff, not a decision request. For
+`TASK-016` (candidate ranking) and any future discovery iteration: use `DISCOVERY_CONTRACT` as the
+single source for the search-split rule, support floor, and excluded-feature list rather than
+re-deriving them; candidate descriptions must stay within the causal-language limits in
+`docs/outcome_contract.md` §9.4 even before validation assigns an evidence level. Separately,
+`HANDOFF-016` (your request that Statistics validate the persisted candidates under `TASK-018`)
+remains open and unaffected by this amendment — it is not addressed here.
+
+**Files:**
+
+- `docs/outcome_contract.md` (§9)
+- `packages/analytics/src/policy_analytics/outcomes/contract.py` (`DISCOVERY_CONTRACT`)
+- `artifacts/discovery/task-015-candidates.json`
+
+**Expected output:** Acknowledgement; use `DISCOVERY_CONTRACT` for `TASK-016` and any future
+discovery runs.
+
+**Blocking:** NO — informational; the existing `TASK-015` artifact already complies.
+
+**Resolution:** Pending.
+
+## HANDOFF-024
+
+**Created:** 2026-08-13
+**From:** ARCHITECT
+**To:** PRODUCT
+**Status:** OPEN
+
+**Task:** Finalize the Finding lifecycle enum and deterministic summary/title contract for
+TASK-024.
+
+**Context:** `docs/finding_persistence_contract.md` separates immutable CandidatePattern,
+ValidationReport, and promoted Finding. The existing `ResourceStatus` describes jobs and cannot
+represent Finding lifecycle. `FINDING_PRODUCT_CONTRACT.md`, HANDOFF-008, and HANDOFF-012 all flag
+the lifecycle vocabulary as unresolved. The persistence migration cannot make a Finding status
+column non-null or expose it through API schemas until Product fixes the allowed states and
+transitions. Product also requires a deterministic plain-language summary, but its exact template
+and whether title is stored or derived are not fixed.
+
+**Question:** What exact Finding lifecycle enum and transition rules should TASK-024 persist? Is
+the business summary/title stored as a versioned deterministic snapshot, derived on every read, or
+both; and what template version identifies it?
+
+**Files:**
+
+- `docs/finding_persistence_contract.md`
+- `FINDING_PRODUCT_CONTRACT.md`
+- `docs/product/finding-detail-screen.md`
+- `apps/api/app/findings/contracts.py`
+
+**Expected output:** Final enum values/transitions and a versioned deterministic summary/title
+contract suitable for Pydantic, database constraints, and API serialization.
+
+**Blocking:** YES — blocks locking and implementing the TASK-024 Finding table/API shape, but does
+not block CandidatePattern or ValidationReport table preparation.
+
+**Resolution:** Pending.
+
+## HANDOFF-025
+
+**Created:** 2026-08-13
+**From:** ARCHITECT
+**To:** STATISTICS
+**Status:** OPEN
+
+**Task:** Finalize the versioned TASK-023 economic-impact output consumed by Finding persistence.
+
+**Context:** Product requires affected records, per-record effect with interval, historical impact
+with interval, outcome name/unit, materiality result, and explicitly gated annualization.
+`EconomicImpactPersistence` in `apps/api/app/findings/contracts.py` is only a storage envelope for
+those already-requested fields; Architect has not defined their estimators or semantics. TASK-023
+is still BLOCKED on TASK-021 and has no executable result contract/version.
+
+**Question:** Confirm or replace the proposed envelope fields and define the authoritative
+versioned TASK-023 result, including sign convention, interval propagation/method, relationship
+between exposed and affected records, materiality output, and when annualized impact is present.
+
+**Files:**
+
+- `docs/finding_persistence_contract.md`
+- `apps/api/app/findings/contracts.py`
+- `FINDING_PRODUCT_CONTRACT.md`
+- `docs/validation_contract.md`
+
+**Expected output:** A Statistics-owned executable economic-impact result contract and tests that
+TASK-024 can persist without interpreting or recomputing statistical meaning.
+
+**Blocking:** YES — blocks implementing non-null Finding impact persistence and therefore blocks
+TASK-024 completion.
+
+**Resolution:** Pending.
+
+## HANDOFF-026
+
+**Created:** 2026-08-13
+**From:** CUSTOMER_DISCOVERY
+**To:** FOUNDER_STRATEGY
+**Status:** OPEN
+
+**Task:** Decide how real-world outreach for `TASK-057` actually gets executed, given Customer
+Discovery (running as an AI agent in this repository) has no outbound communication channel.
+
+**Context:** Requested to obtain at least 3 serious conversations with real potential data
+partners, using the offer text now recorded in `CUSTOMER_PIPELINE.md`. This session has no
+connected email or calling tool (Gmail MCP is present but unauthenticated), no named list of real
+companies, and — independent of tooling — a real reply-and-conversation cycle takes real-world
+days, which cannot complete inside one agent turn regardless of what's connected. Result: 0 of 3
+required conversations obtained; `CUSTOMER_PIPELINE.md` is a ready tracker and template with zero
+real rows, not a report of activity that happened. `CUSTOMER_DATA_ACQUISITION_PLAN.md` (materials,
+scripts, discovery-call questions) already exists and is unaffected by this gap — the gap is purely
+about who/what actually sends the first message and receives the reply.
+
+**Question:** Pick an execution path (not mutually exclusive): (1) the founder personally sends the
+prepared outreach using their own network/contacts and reports real responses back to Customer
+Discovery to log in `CUSTOMER_PIPELINE.md`; (2) authorize the Gmail connector (via claude.ai
+connector settings) so outreach can be drafted and sent from this session, understanding replies
+still won't arrive within a single turn; (3) Customer Discovery researches a concrete named target
+list (real companies, public contact info) via web search to hand off, without sending anything
+itself. Which should happen first, and does the founder have existing warm contacts in travel
+agencies, recruitment agencies, or B2B distribution worth prioritizing over cold outreach?
+
+**Files:** `CUSTOMER_PIPELINE.md`, `CUSTOMER_DATA_ACQUISITION_PLAN.md`, `TASKS.md` (`TASK-057`)
+
+**Expected output:** A chosen execution path (or combination) so `TASK-057` can move past zero
+real contacts; if a channel is authorized, note it in `DECISIONS.md` given it's a durable
+capability change, not just a task update.
+
+**Blocking:** YES — blocks `TASK-057` producing any real conversation regardless of how good the
+prepared materials are.
+
+**Resolution:** Pending.
+
+## HANDOFF-027
+
+**Created:** 2026-08-13
+**From:** FOUNDER_STRATEGY
+**To:** STATISTICS
+**Status:** OPEN
+
+**Task:** Confirm the numeric tier thresholds in `BENCHMARK_DECISION_GATE.md` (STRONG/PROMISING/WEAK/FAILED, using `TASK-028`'s six metrics) don't conflict with `docs/validation_contract.md`, before `TASK-017`/`TASK-028` run.
+
+**Context:** Founder pre-registered a business decision gate ahead of the first blind benchmark evaluation, per explicit instruction that success criteria must be fixed before ground truth is opened (`ADR-012`). The gate reuses this repository's existing denominators (9 patterns, P05/P07 excluded from recall per §11, 5 traps) and existing weighting philosophy (trap promotion and leakage as hard disqualifiers, matching §10), but the specific numeric bands (e.g. "≥60% Top-K precision = STRONG", "≤25% median impact error = STRONG") are Founder's business judgment about how much evidence justifies real-customer risk, not a statistical methodology decision Founder is positioned to make alone.
+
+**Question:** Do the six metric definitions, the "true pattern match" matching-statistic delegation to `TASK-028`, the hard-disqualifier list, and the numeric band cutoffs conflict with anything already fixed in `docs/validation_contract.md` (gate thresholds, `min_e_value`, materiality placeholders, or the §10 acceptance test)? Are the band cutoffs themselves statistically defensible given benchmark scale (10k bookings, per-pattern n from 23–333), or should any be widened/narrowed before they bind a real decision?
+
+**Files:**
+
+- `BENCHMARK_DECISION_GATE.md`
+- `docs/validation_contract.md` (§4–§11)
+- `DECISIONS.md` (`ADR-012`)
+- `synthetic_data/evaluation/hidden_ground_truth.json` (counts only, already reflected in the gate document)
+
+**Expected output:** Either confirmation that the gate is usable as drafted, or specific requested threshold changes, recorded before `TASK-028` executes — this handoff should resolve before ground truth is opened, same as the gate itself.
+
+**Blocking:** YES — the gate governs whether `TASK-038` (real customer ingestion) may proceed off this benchmark's result; it should not bind a real decision without Statistics' methodological sign-off.
 
 **Resolution:** Pending.

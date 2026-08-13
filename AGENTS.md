@@ -82,6 +82,29 @@ All deterministic numbers must come from executable code. All analysis must be r
 
 Every feature requires tests, types, error handling, and documentation when behavior changes. Do not modify unrelated files.
 
+## Blind benchmark rule
+
+ML Discovery agents performing benchmark evaluation **must not run in the full repository checkout**.
+
+A valid blind run must:
+
+1. start in a newly created isolated workspace;
+2. be launched through the approved blind-workspace command;
+3. contain only explicitly allowlisted public benchmark inputs;
+4. use a fresh agent session that has never had access to the full repository or hidden benchmark artifacts.
+
+Example:
+
+```sh
+make blind-shell workspace=.blind/run-001
+```
+
+An ML Discovery agent that has previously operated in the full repository checkout is permanently ineligible for that benchmark run.
+
+Blindness cannot be restored retroactively by deleting files, changing instructions, or asking the agent to ignore previously accessible information.
+
+Discovery outputs must be frozen through the approved commitment process before hidden ground truth is exposed to any evaluation process. The complete operational protocol is defined in `docs/blind_benchmark_protocol.md` and the architecture decision is recorded in `DECISIONS.md` (ADR-008).
+
 ## Completion protocol
 
 Before marking a task complete:

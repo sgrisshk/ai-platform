@@ -34,7 +34,7 @@ Only deliberate, durable decisions belong here. New entries are append-only; sup
 
 ## ADR-003 — Polars is the primary dataframe engine
 
-**Date:** 2026-08-13  
+**Date:** 2026-08-13
 **Status:** Accepted
 
 **Decision:** Use Polars for deterministic data transformations; pandas is allowed only for necessary compatibility.
@@ -49,7 +49,7 @@ Only deliberate, durable decisions belong here. New entries are append-only; sup
 
 ## ADR-004 — Numerical truth is deterministic
 
-**Date:** 2026-08-13  
+**Date:** 2026-08-13
 **Status:** Accepted
 
 **Decision:** LLMs may assist semantic mapping, hypotheses, interpretation, and prose, but cannot be the source of numerical or statistical truth.
@@ -158,3 +158,33 @@ protocol can later use CI artifacts or external storage without changing its fil
 **Reason:** The core hypothesis can only be tested against real customer data. Build work beyond what a credible first pilot requires has no evidence value until at least one real dataset exists. Making acquisition an owned, done-conditioned `P0` task prevents it from being silently deprioritized in favor of engineering work that produces easier, more visible progress.
 
 **Consequences:** `TASK-037` now formally depends on `TASK-057`. `TASK-045` (repeatability assessment, i.e. the requested "TASK-044") stays `BLOCKED`, and no go/no-go verdict on repeatability, pricing, or fundraising traction will be produced before `MILESTONE-M3` succeeds. Founder Strategy tracks `TASK-057` alongside the ingestion-contract critical path as a joint top priority.
+
+## ADR-011 — Outcome contract v1.1.0: explicit discovery-time statistical contract
+
+**Date:** 2026-08-13
+**Status:** Accepted
+
+**Decision:** Extend the outcome contract (ADR-009) to v1.1.0 without reopening the primary-outcome choice: add an empirically verified `valid_range` per outcome, an explicit no-winsorization/no-transformation-at-discovery rule, an explicit per-outcome aggregation rule, and a machine-readable `DiscoveryStatisticalContract` (`DISCOVERY_CONTRACT` in `packages/analytics/src/policy_analytics/outcomes/contract.py`) fixing the search-fit split, the minimum-support floor, excluded explanatory-variable classifications, and missing-outcome handling for discovery specifically — as distinct from validation's later treatment of the same concerns.
+
+**Context:** The v1.0.0 contract fixed *what* the outcome is but left several discovery-time operating rules implicit or split across the outcome and validation contracts: how to detect an anomalous outcome value, whether transformations are permitted before ranking, which split candidates may be tuned on, and what the minimum support for even proposing a candidate is. `TASK-015` had already run and, by inspection, complied with every one of these rules in practice — but compliance was accidental (a consequence of good engineering judgment), not contractually required, which is not sufficient for a preregistered contract meant to bind future runs and future agents.
+
+**Alternatives:** Leave these rules implicit in code comments and prior conversation; duplicate the validation contract's support floor as a second, independently maintained number; let ML Discovery infer the search-split rule from the split labels without an explicit prohibition on using later splits to select candidates.
+
+**Reason:** A rule that is only true by accident stops being true the next time someone runs discovery without having read this exact history. The support floor is imported from the validation contract's own `ValidationThresholds.min_exposed_records`, not restated, so the two cannot silently drift to different numbers. The search-split rule is stated explicitly because using `validation`/`future_holdout` to select candidates would invalidate the validation contract's own temporal-stability gate (G10) by leaking the exact period that gate is designed to test.
+
+**Consequences:** `TASK-015`'s existing persisted candidates (`artifacts/discovery/task-015-candidates.json`) were checked against every new rule and found compliant: all 15 candidates use only `DECISION_TIME` features, all have `n_exposed >= 50` on development, and conditions were fit on development only. No rerun is required. Any future discovery or ranking run must construct its statistical contract from `DISCOVERY_CONTRACT`, not from local judgment. `valid_range` values are empirical claims about the pinned dataset instance and are re-verified by `tests/analytics/test_outcome_contract.py` against the live artifact; they must be re-derived, not copied, if the dataset is regenerated.
+
+## ADR-012 — Pre-registered benchmark decision gate (STRONG/PROMISING/WEAK/FAILED)
+
+**Date:** 2026-08-13
+**Status:** Accepted
+
+**Decision:** Before the first blind discovery run (`TASK-017`) is scored, fix a business decision gate — `BENCHMARK_DECISION_GATE.md` — that converts `TASK-028`'s six metrics (Top-K precision, economic-weighted recall, confounder trap rejection, leakage violations, effect direction accuracy, economic impact estimation error) into one of four verdicts and a bound action: STRONG → proceed toward real customer data; PROMISING → one targeted synthetic iteration, no approach change; WEAK → no real data, iterate; FAILED → no real data, and after two failed independent runs on the same metric with a confirmed non-fixable cause, a mandatory core-discovery-approach review. Any leakage violation, any promoted confounding trap, or any materially-sized wrong-direction finding is a hard disqualifier that forces FAILED regardless of the other five metrics.
+
+**Context:** Ground truth (`synthetic_data/evaluation/hidden_ground_truth.json`) is confirmed unopened as of this commit — `TASK-017`/`TASK-028` are `BLOCKED`, and `TASK-015` was reverted to `BLOCKED` pending a rerun against the current pinned dataset identity and formal `TASK-012` split contract. `docs/validation_contract.md` §10 already fixes a qualitative acceptance test for the validation methodology, but nothing translates its output into a founder-level go/no-go on spending a real customer relationship on this mechanism. Recording the criteria after seeing results would let success standards move to fit whatever the run produced, which the discipline in `ADR-007` explicitly exists to prevent.
+
+**Alternatives:** Grade the benchmark informally after the fact; let Statistics' per-finding evidence levels alone stand in for a benchmark-level verdict; wait for a real customer dataset before defining what "good enough" means.
+
+**Reason:** The two cheapest, most decision-relevant unknowns for this company are whether the mechanism works and whether a customer exists (`30_DAY_VALIDATION_PLAN.md`). This gate makes the first one falsifiable and immune to post-hoc goalpost-moving, at zero customer cost, before any real data is touched.
+
+**Consequences:** No real-customer dataset may be ingested (`TASK-038`) on the strength of a benchmark run graded below STRONG or PROMISING-with-improvement under this gate. The tier thresholds are Founder-set business judgment; `HANDOFF-027` asks Statistics to confirm they don't conflict with `docs/validation_contract.md` before `TASK-028` runs. `BENCHMARK_DECISION_GATE.md` is append-only after this date — results are added under its "Post-benchmark comparison" section, never substituted into the criteria above it.

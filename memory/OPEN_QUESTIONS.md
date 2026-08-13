@@ -43,3 +43,4 @@
 - **Why it matters:** Gate G15 decides which findings are publishable at all. The current thresholds (`min_material_annual_impact = 25000`, `min_material_outcome_share = 0.005`) are placeholders calibrated to benchmark scale, not to any real business. Too low floods the customer with noise; too high hides real money.
 - **Blocking:** Not blocking synthetic work. Blocks publishing any real-customer finding.
 - **Resolution condition:** A customer-grounded threshold is recorded and the contract is reversioned; depends on the same economics as `OQ-002`. Tracked as `HANDOFF-013`.
+- **Note (2026-08-13, Product):** `FINDING_PRODUCT_CONTRACT.md` §11 confirms Product cannot supply a real number from synthetic data alone; redirected to Customer Discovery as `HANDOFF-021`, gated on `TASK-057`.
