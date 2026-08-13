@@ -40,7 +40,7 @@ No immutable ingestion contract or canonical travel-booking mapping exists. Real
 
 ## Next milestone
 
-Approve the immutable ingestion contract and implement leakage-safe canonical field classification against the synthetic fixture.
+Build the hidden-ground-truth synthetic benchmark while approving the immutable ingestion and statistical evidence contracts (`TASK-003`, `TASK-005`, and `TASK-018`).
 
 ## Success criterion
 
@@ -49,4 +49,3 @@ The later pilot succeeds only if at least one validated finding is new, economic
 ## Kill signal
 
 Across multiple suitable datasets, the system repeatedly produces only obvious, unstable, economically immaterial, or non-actionable relationships.
-

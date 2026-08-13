@@ -9,7 +9,7 @@ All unresolved cross-role work is recorded here. Status values are `OPEN`, `IN_P
 **To:** DATA_ENGINEER  
 **Status:** OPEN
 
-**Task:** Define the immutable ingestion contract for `TASK-001`.
+**Task:** Define the immutable ingestion contract for `TASK-005`.
 
 **Context:** The repository foundation, metadata models, PostgreSQL migration, API skeleton, security baseline, and synthetic travel fixture exist. Upload handling and customer-data storage intentionally do not exist. Architecture requires raw → normalized → analytical reproducibility and explicit feature timing.
 
@@ -27,5 +27,4 @@ All unresolved cross-role work is recorded here. Status values are `OPEN`, `IN_P
 
 **Blocking:** YES — blocks `TASK-002` and acceptance of real customer data.
 
-**Resolution:** Pending.
-
+**Resolution:** Pending. This blocks `TASK-006` through `TASK-009`.

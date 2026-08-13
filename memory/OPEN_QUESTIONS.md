@@ -27,5 +27,4 @@
 - **Question:** What minimum validation and stability requirements map evidence levels to `EXPERIMENT_ONLY`, `SHADOW_POLICY`, and `HIGH_CONFIDENCE`?
 - **Why it matters:** Prevents discovery results from being promoted directly into business rules.
 - **Blocking:** Blocks finding/policy workflow and discovery acceptance criteria.
-- **Resolution condition:** `TASK-003` produces a reviewed contract and the decision is recorded.
-
+- **Resolution condition:** `TASK-018` produces a reviewed contract and the decision is recorded.
