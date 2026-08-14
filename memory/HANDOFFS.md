@@ -663,6 +663,17 @@ bearer authentication, received HTTP 401, exited before Discovery work, and is n
 `FAILED`. The coordinator process currently has no exported `OPENAI_API_KEY`. After the old key is
 revoked and a replacement is exported without disclosing it, Architect/coordinator must issue and
 verify new unique run `task-015-official-20260814-007`; `…-006` must not be retried or reused.
+Second readiness update 2026-08-14: `…-007` also received HTTP 401 before Discovery work and is
+irreversibly `FAILED`. A value stored only in `.env` is not automatically exported by Make; the
+replacement must be verified as present in the exact coordinator shell and visible inside a
+non-discovery container preflight without printing it. After successful credential preflight,
+issue and verify new unique run `task-015-official-20260814-008`; do not retry `…-007`.
+Third readiness update 2026-08-14: `…-008` also received HTTP 401 before Discovery work and is
+irreversibly `FAILED`. Presence-only checks are no longer sufficient. Before any `…-009` issuance,
+the human credential owner must demonstrate HTTP 200 from an authenticated OpenAI API preflight in
+the exact coordinator shell and HTTP 200 from the pinned blind container receiving only the same
+environment variable. Do not print or persist the credential or response headers. No new run may
+be issued merely to test authentication.
 
 ## HANDOFF-034
 

@@ -249,8 +249,11 @@ Do not mark work `DONE` without executing its required checks and completion pro
   dataset/contracts/splits/provenance/timing/candidate-count/language requirements. Discovery did
   not execute. Run `…-002` remains audit-only; `…-003`/`…-004` are failed issuance attempts;
   `…-005` is a failed CLI launch caused by the obsolete `--full-auto` flag; `…-006` is the failed
-  unauthenticated launch. None is eligible. After credential rotation, issue and verify unique run
-  `task-015-official-20260814-007`, then perform fresh Blind Discovery execution and freeze.
+  unauthenticated launch; `…-007` is a second failed HTTP-401 launch before Discovery work. None
+  is eligible; `…-008` is a third failed HTTP-401 launch before Discovery work. After credential
+  rotation, require authenticated HTTP-200 preflights from both the exact coordinator shell and
+  pinned container before issuing unique run `task-015-official-20260814-009`. Do not issue runs
+  merely to test authentication. Only then perform fresh Blind Discovery execution and freeze.
 - **Evidence:** Deterministic interpretable beam-search engine and CLI in
   `packages/analytics/src/policy_analytics/discovery/engine.py` and `scripts/run_discovery.py`;
   methodology in `docs/analytics/discovery-engine-v0.md`; 2026-08-13 run artifact

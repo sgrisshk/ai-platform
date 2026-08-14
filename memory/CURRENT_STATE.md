@@ -41,10 +41,15 @@ contract. The evaluator key remains external and is not mounted or passed to Dis
 did not execute: `…-006` attempted provider launch without usable bearer authentication, received
 HTTP 401, and is now irreversibly `FAILED`. TASK-015 remains `BLOCKED` on `HANDOFF-036`: the
 exposed provider key must be revoked/replaced by a human and the replacement exported into the
-coordinator environment without disclosure. Then new unique run `…-007` must be issued and
-verified; `…-006` cannot be retried. Run `…-005` failed before agent execution because its launcher
-used a removed Codex CLI flag; the corrected launcher uses the pinned CLI's supported ephemeral
-automation flags. The earlier persisted artifact
+coordinator environment without disclosure. Run `…-007` also failed with HTTP 401 before Discovery
+work; a key stored only in `.env` is not automatically exported by Make. After a non-secret
+coordinator/container credential-visibility preflight succeeds, new unique run `…-008` must be
+issued and verified; however, `…-008` also failed with HTTP 401 before Discovery work. Presence-
+only credential checks are no longer sufficient: both the exact coordinator shell and pinned
+container must receive HTTP 200 from an authenticated OpenAI API preflight before `…-009` may be
+issued. Failed runs cannot be retried. Run `…-005` failed before agent execution
+because its launcher used a removed Codex CLI flag; the corrected launcher uses the pinned CLI's
+supported ephemeral automation flags. The earlier persisted artifact
 (15 candidates, 6,945 evaluated hypotheses, fit on `development` only) came from a full-checkout
 run that does not satisfy ADR-008. Statistics ran the full
 `TASK-018` validation contract against that artifact anyway, as a dry run of the validation
