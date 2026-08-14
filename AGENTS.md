@@ -57,7 +57,8 @@ You may continue portions that remain within your responsibility.
 - **Architect:** repository, boundaries, backend infrastructure, persistence, APIs, CI/CD, deployment, and dependency strategy.
 - **Founder Strategy:** company/product thesis, scope discipline, prioritization, and cheapest credible validation.
 - **Data Engineer:** ingestion, canonicalization, validation, lineage, transformations, data quality, and time-availability classification.
-- **ML Discovery:** interpretable candidate-pattern discovery and ranking; never causal proof.
+- **ML Discovery:** full-checkout coordinator for isolated blind candidate discovery; never the official blind actor and never causal proof.
+- **Blind Discovery:** fresh isolated actor limited to `TASK-015`/`TASK-016` candidate generation from allowlisted workspace inputs; never validation or evaluation.
 - **Statistics:** uncertainty, robustness, confounding, causal methodology, and evidence classification.
 - **Code Reviewer:** adversarial correctness, security, privacy, architecture, test, and regression review.
 - **Product:** product behavior, UX, finding/policy semantics, workflow, and prioritization.
@@ -82,6 +83,14 @@ All deterministic numbers must come from executable code. All analysis must be r
 
 Every feature requires tests, types, error handling, and documentation when behavior changes. Do not modify unrelated files.
 
+## Documentation placement
+
+Do not add scoped Markdown documents to the repository root. The root is reserved for `README.md`, `AGENTS.md`, `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TASKS.md`, `CONTRIBUTING.md`, and `SECURITY.md`.
+
+Place new documents according to `docs/README.md`: architecture, analytics, benchmark, customer, product, strategy, or operations. Role contracts belong in `agents/`; durable state belongs in `memory/`; package- or dataset-local documentation may stay beside the thing it documents.
+
+When moving a document, update every reference in code, tasks, decisions, handoffs, and memory in the same change. Do not leave duplicate compatibility files that create competing sources of truth.
+
 ## Blind benchmark rule
 
 ML Discovery agents performing benchmark evaluation **must not run in the full repository checkout**.
@@ -103,7 +112,7 @@ An ML Discovery agent that has previously operated in the full repository checko
 
 Blindness cannot be restored retroactively by deleting files, changing instructions, or asking the agent to ignore previously accessible information.
 
-Discovery outputs must be frozen through the approved commitment process before hidden ground truth is exposed to any evaluation process. The complete operational protocol is defined in `docs/blind_benchmark_protocol.md` and the architecture decision is recorded in `DECISIONS.md` (ADR-008).
+Discovery outputs must be frozen through the approved commitment process before hidden ground truth is exposed to any evaluation process. The complete operational protocol is defined in `docs/benchmark/blind-benchmark-protocol.md` and the architecture decision is recorded in `DECISIONS.md` (ADR-008).
 
 ## Completion protocol
 

@@ -58,15 +58,15 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Depends on:** TASK-001
 - **Goal:** Generate 10,000 bookings across 24 months with a fixed seed and hidden ground truth.
 - **Scope:** Seasonality, managers, suppliers, customer segments, discounts, payments, cancellations, refunds, support costs, gross profit, and contribution margin; at least 8 harmful patterns, 5 confounding traps, drift, heterogeneous effects, selection bias, leakage fields, missingness, and a dirty-data variant.
-- **Outputs:** `synthetic_data/{raw,reference,metadata,evaluation}/`, clean/dirty CSVs, schema and feature-timing metadata, hidden ground truth, corruption/config manifests, evaluator, and `SIMULATION_REPORT.md`.
+- **Outputs:** `synthetic_data/{raw,reference,metadata,evaluation}/`, clean/dirty CSVs, schema and feature-timing metadata, hidden ground truth, corruption/config manifests, evaluator, and `docs/benchmark/simulation-report.md`.
 - **Critical rule:** ML Discovery must never receive hidden ground truth before candidates are persisted.
 - **Blind boundary:** `make export-public-benchmark destination=...` rebuilds an allowlist-only
   artifact containing the approved analytical partitions and sanitized public metadata; see
-  ADR-008 and `docs/blind_benchmark_protocol.md`. HANDOFF-007 is resolved.
+  ADR-008 and `docs/benchmark/blind-benchmark-protocol.md`. HANDOFF-007 is resolved.
 - **Done when:** Generation is reproducible, configured patterns/traps exist, time splits work, public inputs contain no answer leakage, and tests pass.
 - **Implementation evidence:** Deterministic generator, 10,000-row clean/dirty artifacts,
   schema/timing/split/corruption/checksum manifests, restricted ground truth, blind-evaluation
-  guard, analytics tests, and `SIMULATION_REPORT.md` completed on 2026-08-13. Statistics
+  guard, analytics tests, and `docs/benchmark/simulation-report.md` completed on 2026-08-13. Statistics
   review is tracked by `HANDOFF-006`.
 - **Review outcome (2026-08-13, STATISTICS):** Approved in substance — mechanisms, traps, drift,
   heterogeneity, selection bias, and leakage fields are suitable and do not overstate
@@ -74,6 +74,13 @@ Do not mark work `DONE` without executing its required checks and completion pro
   in the hidden ground truth (without them `TASK-022`/`TASK-028` cannot score direction or impact
   error) and a stable customer identifier (without it `repeat_purchase_180d` cannot be linked and
   customer-level clustering is impossible). Carried as `HANDOFF-010`.
+- **Artifact remediation (2026-08-14, DATA_ENGINEER):** The private hidden truth now records a
+  complete per-pattern `true_effect` object: configured mechanism, identical-draw replay effect for
+  the TASK-013 primary outcome, direction/sign convention, affected N/support, realized economic
+  impact, valid interval, outcome, and units. Fixed-seed regeneration produced restricted SHA-256
+  `5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506`; leakage tests confirm the
+  fields are absent from public, analytical, and blind-export artifacts. Final Statistics
+  acceptance is requested in `HANDOFF-030`; status remains `IN_REVIEW` until that review resolves.
 
 ### TASK-004 — Benchmark difficulty presets
 
@@ -182,7 +189,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Status:** DONE
 - **Depends on:** TASK-011
 - **Goal:** Version explicit definitions for actual gross profit, contribution margin/value percentage, cancellation, refund, support cost, and repeat purchase.
-- **Evidence:** Outcome contract v1.0.0 preregistered on 2026-08-13 in `docs/outcome_contract.md`
+- **Evidence:** Outcome contract v1.0.0 preregistered on 2026-08-13 in `docs/analytics/outcome-contract.md`
   and `packages/analytics/src/policy_analytics/outcomes/` (`contract.py` = versioned definitions,
   `aggregation.py` = pure group-summary/sign-convention arithmetic), pinned to the delivered
   analytical dataset `travel-bookings-analytical-v1.0.0` (dataset identity
@@ -209,7 +216,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
   Engineer) confirmed already fulfilled; new confirmatory handoff to ML Discovery below.
 - **Not included:** The real-customer outcome contract (`OQ-002`, still open) and right-censoring/
   outcome-maturation handling for live data — both explicitly out of scope, see
-  `docs/outcome_contract.md` §1 and §7.
+  `docs/analytics/outcome-contract.md` §1 and §7.
 
 ### TASK-014 — Baseline business statistics
 
@@ -229,16 +236,24 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Depends on:** TASK-011, TASK-012, TASK-013, HANDOFF-007
 - **Goal:** Use simple interpretable methods first—shallow trees, boosting with rule extraction, and subgroup discovery—to return 10–20 harmful candidate patterns.
 - **Candidate contract:** Conditions, support, N, raw difference, deterministic economic exposure, stability indicators, and warnings.
-- **Readiness check (2026-08-13, ML Discovery):** TASK-011, TASK-012, and TASK-013 are `DONE`;
-  HANDOFF-007 is `RESOLVED`. Operational readiness remains `BLOCKED`: no issued public blind
-  workspace exists, and the fail-closed exporter refused issuance because the evaluator-owned
-  `BLIND_EVALUATION_KEY` was unavailable. ML Discovery must not create, receive, or retain that
-  key. An evaluation/coordinator identity must issue and sign the allowlist workspace, then launch
-  a fresh isolated Discovery actor with only that workspace mounted. No analytical rows were read,
-  candidates frozen, AnalysisRun updated, or TASK-016 work started during this check.
+- **Operational readiness (2026-08-14, ML Discovery Orchestrator):** Runner readiness is complete,
+  but launch is `BLOCKED` on `HANDOFF-036`: the previously exposed provider credential still
+  requires human revocation/replacement, and the coordinator process currently has no exported
+  `OPENAI_API_KEY`. Signed run `task-015-official-20260814-006` attempted launch without usable
+  bearer authentication, received HTTP 401, exited before Discovery work, and is irreversibly
+  `FAILED`; it cannot be verified, retried, or reused. Its manifest SHA-256 was
+  `f2981fbc8ff55ba31ba4f4124d3a7bab38d0c844b0024832bdc1e024700d6a10`; bundle ID was
+  `4bb19187c3dc2f286e0a2326aacc54bf8c8959461a75d607ef5bdf0b10b1216d`. The runner pins image
+  `policy-blind-agent@sha256:f42e3cdaf1e6a766e312e6a28c2a9d377b7137bb8643379dcf3588a01398cf1d`
+  and output schema v1.1.0. Verify/launch reject current-source drift; freeze validates signed
+  dataset/contracts/splits/provenance/timing/candidate-count/language requirements. Discovery did
+  not execute. Run `…-002` remains audit-only; `…-003`/`…-004` are failed issuance attempts;
+  `…-005` is a failed CLI launch caused by the obsolete `--full-auto` flag; `…-006` is the failed
+  unauthenticated launch. None is eligible. After credential rotation, issue and verify unique run
+  `task-015-official-20260814-007`, then perform fresh Blind Discovery execution and freeze.
 - **Evidence:** Deterministic interpretable beam-search engine and CLI in
   `packages/analytics/src/policy_analytics/discovery/engine.py` and `scripts/run_discovery.py`;
-  methodology in `docs/discovery_engine_v0.md`; 2026-08-13 run artifact
+  methodology in `docs/analytics/discovery-engine-v0.md`; 2026-08-13 run artifact
   `artifacts/discovery/task-015-candidates.json` contains 15 immutable candidate conjunctions from
   6,945 evaluated hypotheses, pinned to analytical dataset identity
   `98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c` and outcome contract v1.0.0.
@@ -272,17 +287,80 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Status:** DONE
 - **Depends on:** none
 - **Goal:** Predefine sample-size, uncertainty, temporal/segment stability, multiple testing, confounding, leakage, selection, seasonality, evidence grades, and policy-readiness rules.
-- **Evidence:** Contract v1.0.0 preregistered on 2026-08-13 in `docs/validation_contract.md` and `packages/analytics/src/policy_analytics/validation/` (16 ordered gates, thresholds, cumulative evidence requirements, language rules, readiness matrix, backtest methodology). 26 contract tests, ruff, and pyright were executed and pass. See ADR-007.
+- **Evidence:** Contract v1.0.0 preregistered on 2026-08-13 in `docs/analytics/validation-contract.md` and `packages/analytics/src/policy_analytics/validation/` (16 ordered gates, thresholds, cumulative evidence requirements, language rules, readiness matrix, backtest methodology). 26 contract tests, ruff, and pyright were executed and pass. See ADR-007.
 - **Not included:** Applying the contract to candidates (TASK-019), which requires persisted candidates from TASK-017.
+- **Known limitation (2026-08-14, ADR-014), fixed (2026-08-14, ADR-015):** First real application
+  (`TASK-019` dry run) found gate G05's bootstrap p-value method structurally unable to pass BH
+  correction at family sizes in the low thousands, regardless of true effect size. Fixed same day
+  in contract **v1.1.0**: G05's p-value source is now `normal_approx_two_sided_p` on the bootstrap
+  standard error (`math.erfc`-based, no resolution floor), mathematically verified sufficient to
+  roughly `family_size = 100,000` with ~300 decades of headroom. Regression tests
+  (`tests/analytics/test_g05_multiplicity_fix.py`, synthetic/mathematical only, no ground truth)
+  prove the old method's structural failure, the new method passing a strong synthetic effect, and
+  the new method still rejecting a null synthetic effect. The already-frozen v1.0.0 dry-run
+  artifact was not touched or re-graded. See `docs/analytics/validation-contract.md` §4a.
 
 ### TASK-019 — Validation framework implementation
 
 - **Owner:** STATISTICS
 - **Implementation support:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** IN_PROGRESS
 - **Depends on:** TASK-017, TASK-018
 - **Goal:** Apply the standardized validation contract to persisted candidates.
+- **Dry-run evidence (2026-08-14, Statistics):** Implemented and ran the full 16-gate engine
+  (`packages/analytics/src/policy_analytics/validation/apply.py`, CLI
+  `scripts/validate_candidates.py`) against the persisted `TASK-015` artifact, freezing
+  `artifacts/validation/task-019-validation-report.json`. Per candidate: cluster bootstrap
+  (customer_id, 2000 reps, seed 20260813) for uncertainty; BH correction at family_size=6945 from
+  the discovery manifest; stratified (manager × supplier) confounding adjustment with an E-value;
+  customer_segment heterogeneity check; three-split temporal-stability check; a seasonality
+  concentration check; a 12-perturbation robustness battery (leave-one-manager-out, winsorized
+  outcome, alternative outcome, threshold perturbation); and a combined-cohort bootstrap CI for
+  economic materiality. The adjustment/heterogeneity covariates (manager, supplier,
+  customer_segment) were chosen from generic booking-domain reasoning before running anything, not
+  from `hidden_ground_truth.json` or `synthetic_benchmark.py` — neither file was opened. 12 unit
+  tests plus one real-artifact integration test pass; ruff and pyright are clean.
+  **Result: all 15 candidates DOWNGRADE to `LEVEL_1_DESCRIPTIVE`** (`policy_readiness =
+  EXPERIMENT_ONLY`); none PASS, none REJECT. Every candidate fails gate G05 (multiple comparisons)
+  and G13/G14 (no design, not randomized — expected and correct for observational data); several
+  also fail G12 (robustness) or G06 (CAND-014 only, confounding).
+- **Why this does not close the task:** (1) **Blind-protocol non-satisfaction.** Per TASK-015's own
+  readiness note, the candidate artifact was produced in a full-checkout run that does not satisfy
+  ADR-008/TASK-017; grading its statistical soundness is not the same as completing a blind
+  discovery test, and this run must not be represented as one. (2) **Founder readiness block.**
+  TASK-015 carries an explicit instruction not to advance this pipeline until TASK-012 completes
+  and readiness is rechecked from the approved blind workspace; this validation does not lift that
+  block. (3) **A newly discovered G05 methodology defect.** Every candidate's bootstrap p-value
+  sits at the 2000-replicate resolution floor (~0.0005), which cannot pass BH correction at
+  family_size=6945 for any candidate regardless of true effect size — the floor exceeds
+  alpha·rank/family_size for every rank once family_size is in the low thousands. A supplementary
+  normal-approximation diagnostic (same bootstrap SE, no scipy) puts every candidate's p-value
+  below 1e-6, meaning this is very likely an estimator-precision artifact, not real absence of
+  significance — but the preregistered method was applied faithfully and was not changed after
+  seeing this outcome. See ADR-014 for the recommended fix, to be applied as a new contract version
+  before the next run, not retroactively to this one.
+- **Handoff:** No candidate reached `PASS`, so no "validated findings" handoff to Architect/Product
+  was made — there is nothing to hand off yet. `HANDOFF-016` is updated to `IN_PROGRESS` with this
+  result and what is needed before a closing run.
+- **G05 fix shipped (2026-08-14, Statistics, ADR-015):** Validation contract bumped to **v1.1.0**.
+  G05's binding p-value is now `normal_approx_two_sided_p` (bootstrap SE, `math.erfc`-based, no
+  resolution floor) instead of the empirical `bootstrap_two_sided_p`; nothing else in the contract
+  changed. `packages/analytics/src/policy_analytics/validation/apply.py` now computes this as the
+  binding G05 source and reports the old empirical value as a labeled diagnostic (swap of the
+  previous roles). `scripts/validate_candidates.py` now refuses to overwrite an existing frozen
+  output without `--force`, protecting the v1.0.0 dry-run artifact structurally, not just by
+  discipline. Verified against real `TASK-015` candidate data as a **code-behavior check only,
+  nothing persisted**: several candidates' G05 gate now passes at these effect sizes (some reach
+  `adjusted_observational_association`/`shadow_policy` if graded in isolation), confirming the
+  estimator works — this changes nothing about the two governance blockers in the previous bullet,
+  which remain the reason `TASK-019` stays `IN_PROGRESS`. 8 new regression tests
+  (`tests/analytics/test_g05_multiplicity_fix.py`) plus fixes to 2 existing test files; 97 tests
+  total pass, ruff and pyright clean. Full defect/fix/migration write-up:
+  `docs/analytics/validation-contract.md` §4a.
+- **Still not `DONE`:** the fix only removes the third blocker from the list above. `TASK-019`
+  closes only once a genuinely `TASK-017`-compliant (blind-workspace, founder-readiness-cleared)
+  candidate artifact exists and is graded under v1.1.0 as a new, separately frozen run.
 
 ### TASK-020 — Evidence classification
 
@@ -328,13 +406,18 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Status:** BLOCKED
 - **Depends on:** TASK-020, TASK-023
 - **Goal:** Extend the current skeleton with pattern, support, raw/adjusted effects, uncertainty, impact, evidence, warnings, stability, status, and lineage.
-- **Product field contract:** `FINDING_PRODUCT_CONTRACT.md` (Required for MVP / Optional later / Never-shown-without-qualification field lists, mapped to `ValidationReport`) is available ahead of this task, complementing `HANDOFF-008`/`HANDOFF-012`. Status remains `BLOCKED` — this is input for scoping, not implementation.
+- **Product field contract:** `docs/product/finding-product-contract.md` (Required for MVP / Optional later / Never-shown-without-qualification field lists, mapped to `ValidationReport`) is available ahead of this task, complementing `HANDOFF-008`/`HANDOFF-012`. Status remains `BLOCKED` — this is input for scoping, not implementation.
 - **Preparation (2026-08-13):** Database/migration, Pydantic, API boundary, promotion invariant,
-  and lineage proposal completed in `docs/finding_persistence_contract.md`; preparation schemas
+  and lineage proposal completed in `docs/architecture/finding-persistence-contract.md`; preparation schemas
   live in `apps/api/app/findings/contracts.py`. CandidatePattern is explicitly separate from
   Finding, and rejected/unvalidated candidates cannot be promoted. Implementation remains blocked
   by TASK-020/TASK-023 plus Product lifecycle/summary semantics (`HANDOFF-024`) and the final
   Statistics-owned impact result (`HANDOFF-025`).
+- **Product lifecycle/summary contract (2026-08-14):** `HANDOFF-024` resolved — `docs/product/finding-product-contract.md`
+  §12 fixes `FindingLifecycleStatus` (`ACTIVE`/`SUPERSEDED`/`WITHDRAWN`, forward-only transitions,
+  no "reviewed" or "awaiting validation" states) and the stored/versioned `title`/`summary` snapshot
+  contract (mechanical v0 template, `title_template_version`). Status remains `BLOCKED` on
+  `HANDOFF-025` (Statistics-owned impact result) — this only clears the Product-owned half.
 
 ### TASK-025 — Findings API completion
 
@@ -356,11 +439,26 @@ reusable `LoadingState`/`ErrorState`/`EmptyState` primitives (`components/states
 each `force-dynamic` so they reflect live backend state per request rather than a build-time
 snapshot; and a dev-only `/dev/status` view of `/health`/`/ready` (404s outside development).
 Both pages show real API data/errors/empty-state today, not mock content — no business findings
-are hardcoded. This does not change either task's `BLOCKED` status: `TASK-026` still needs an
-approved Product list-screen spec (no `docs/product/findings-list-screen.md` exists yet, unlike
-`TASK-027`'s `docs/product/finding-detail-screen.md`) and both still need `TASK-025`'s real
-findings API before real content can render. No new Architect handoff was needed for this work;
-the existing Findings-API gap is already tracked by `HANDOFF-005`.
+are hardcoded. This does not change either task's `BLOCKED` status at the time: both needed
+`TASK-025`'s real findings API before real content can render, and `TASK-026` additionally needed
+an approved Product list-screen spec, delivered below. No new Architect handoff was needed for this
+shell work; the existing Findings-API gap is already tracked by `HANDOFF-005`.
+
+**Frontend readiness pass (2026-08-14):** Audited (not implemented) the shell above against the now-
+complete `docs/product/findings-list-screen.md`/`finding-detail-screen.md`. Findings: API client
+boundary is clean (`fetch` called only from `lib/api/client.ts`; no page bypasses it); `ApiError`
+typed-error handling, the three state primitives, routing (`app/(app)/`), and the server/client
+component split are all sound and require no changes; `lib/api/types.ts` still matches the live
+`FindingRead`/`DatasetRead` byte-for-byte (no drift, no invented/duplicated schema); no mock/fake
+finding data anywhere in `apps/web`. Gap found and fixed (infrastructure-level, no Finding semantics
+touched): no frontend test runner existed at all. Added `vitest` + `@testing-library/react`
+(`apps/web/vitest.config.mts`, `pnpm --filter web test`, wired into `make test`) with tests proving
+the API-client error contract and the state primitives' accessible roles — deliberately no tests
+asserting Finding content, since none is served yet. Added `apps/web/README.md` as the frontend
+conventions reference that did not previously exist. Verdict: `READY_FOR_FINDINGS_IMPLEMENTATION`
+once `TASK-025` unblocks — infrastructure is not what's blocking `TASK-026`/`TASK-027`. One residual
+gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflows/ci.yml`'s
+`frontend` job doesn't run `pnpm --filter web test` — see `HANDOFF-032`.
 
 ### TASK-026 — Findings list screen
 
@@ -370,6 +468,7 @@ the existing Findings-API gap is already tracked by `HANDOFF-005`.
 - **Status:** BLOCKED
 - **Depends on:** TASK-025
 - **Goal:** Show ranked findings without becoming a generic dashboard.
+- **UX specification (2026-08-14):** `docs/product/findings-list-screen.md` (complete; written against the concrete `docs/architecture/finding-persistence-contract.md`/`apps/api/app/findings/contracts.py` schema, never against synthetic ground truth). Information hierarchy, sort/filter rules (default sort by `impact.historical_impact.ci_low`), field-to-copy mapping, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives. Status remains `BLOCKED` — still requires TASK-025 → TASK-024 to exist. See `HANDOFF-028` (feature display-label gap, to Data Engineer, non-blocking) and `HANDOFF-029` (implementation handoff to Architect).
 
 ### TASK-027 — Finding detail screen
 
@@ -380,6 +479,7 @@ the existing Findings-API gap is already tracked by `HANDOFF-005`.
 - **Depends on:** TASK-025
 - **Goal:** Explain what was found, population, impact, raw/adjusted effect, evidence, stability, alternatives, warnings, and next step in business language.
 - **UX specification:** `docs/product/finding-detail-screen.md` (complete; written ahead of the backend so TASK-024 can be scoped against real UI requirements). Status remains `BLOCKED` — implementation still requires TASK-025 → TASK-024 to exist. See `HANDOFF-008` (field requirements to Architect) and `HANDOFF-009` (implementation handoff to Architect).
+- **Update (2026-08-14):** Refreshed against the now-concrete persistence schema: consolidated field-to-copy mapping table, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives; `ResourceStatus`-based run-status gating replaced by `FindingLifecycleStatus` gating per the `HANDOFF-024` resolution (`docs/product/finding-product-contract.md` §12).
 - **Note (2026-08-13):** Pickup attempted by an ad hoc "Frontend" dispatch (no `agents/FRONTEND.md` or Frontend role exists in `AGENTS.md`). Confirmed still correctly `BLOCKED`: no approved Product spec/content exists, and `TASK-025`/`TASK-024` remain `BLOCKED` so no real findings API exists. See `HANDOFF-004` (spec, to PRODUCT) and `HANDOFF-005` (API + role placement, to ARCHITECT). No implementation was made against invented product semantics or an invented API contract.
 
 ## Phase 10 — Blind benchmark evaluation
@@ -466,6 +566,14 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 - **Status:** BLOCKED
 - **Depends on:** TASK-027
 - **Values:** `KNOWN_ALREADY`, `NEW`, `WRONG`, `NOT_ACTIONABLE`, `INTERESTING`, `ACTIONABLE`.
+- **Semantic contract (2026-08-14):** `docs/product/finding-feedback-contract.md` (complete). Splits
+  the six values into two nullable single-select axes — novelty (`KNOWN_ALREADY`/`NEW`) and
+  actionability (`ACTIONABLE`/`NOT_ACTIONABLE`) — plus a multi-select qualifier-tag set (`WRONG`,
+  `INTERESTING`), fixes additional fields (comment, customer-reported certainty — explicitly not
+  statistical confidence, intended action, commitment strength, owners, follow-up date), an
+  append-only record lifecycle, product-learning use, and what must never be read as validation
+  (never writes `evidence_level`/`policy_readiness`). Status remains `BLOCKED` — this is semantic
+  prep, not implementation. See `HANDOFF-031` (future persistence, explicitly deferred to Architect).
 
 ### TASK-036 — Customer review workflow
 - **Owner:** PRODUCT
@@ -473,6 +581,7 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 - **Status:** BLOCKED
 - **Depends on:** TASK-035
 - **Goal:** Structured one-by-one finding review.
+- **Note (2026-08-14):** Session mechanics are already specified in `docs/customer/findings-review-protocol.md`; `docs/product/finding-feedback-contract.md` now fixes what each per-finding capture actually stores. Remains `BLOCKED` on `TASK-035`.
 
 ## Phase 14 — First real customer data
 
@@ -485,19 +594,46 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 - **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
 - **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.
 - **Done when:** A named customer agreement (or documented equivalent commitment) and a dataset-access plan are recorded in `DECISIONS.md`, unblocking `TASK-037`.
-- **Plan (2026-08-13):** `CUSTOMER_DATA_ACQUISITION_PLAN.md` lays out ICP, outreach, discovery-call
+- **Plan (2026-08-13):** `docs/customer/data-acquisition-plan.md` lays out ICP, outreach, discovery-call
   script, minimal data ask, privacy objection handling, and a 20-prospect pipeline targeting 3–5
   received datasets, across travel agencies plus two additional verticals (recruitment agencies,
   B2B distributors) run in parallel as a generality check. No outreach has occurred yet. The
   vertical widening beyond this task's travel-agency text is a scope question raised to Founder
   Strategy as `HANDOFF-022`, not yet resolved.
 - **Execution attempt (2026-08-13):** Asked to obtain ≥3 serious data-partner conversations using a
-  fixed offer script. `CUSTOMER_PIPELINE.md` created as the tracker (approved offer text, per-
+  fixed offer script. `docs/customer/pipeline.md` created as the tracker (approved offer text, per-
   prospect record template, funnel status). Result: 0 of 3 obtained — Customer Discovery has no
   outbound communication channel in this session (no connected email/calling tool, no named
   contact list), and real replies take real-world days regardless of tooling. Escalated as
   `HANDOFF-026` to Founder Strategy to pick an execution path. Not marking any progress here that
   did not actually happen.
+- **Research follow-up (2026-08-14):** Founder chose (via direct instruction) to pursue named-
+  company research, warm contacts, and a Gmail connector in parallel. Delivered
+  `docs/customer/prospect-target-list.md`: 21 real, sourced, web-researched candidate companies (global scope
+  including Asia) across the three verticals, explicitly marked unqualified/uncontacted. Gmail
+  remains unauthenticated — the founder needs to authorize it via claude.ai connector settings
+  before Customer Discovery can send anything through it. Still 0 of 3 required conversations;
+  still waiting on either the founder's own warm contacts or a send channel to move a row from the
+  target list into `docs/customer/pipeline.md`.
+- **Founder decisions (2026-08-14):** `ADR-016` resolves `HANDOFF-022` — scope stays travel-agency
+  only until `MILESTONE-M3` or a demonstrated dead-end; recruitment/distribution rows in the
+  prospect list are paused, not pursued. `ADR-017` resolves `HANDOFF-026` — execution path is all
+  three combined (warm contacts, Gmail once authorized, founder-sent cold outreach), time-boxed to
+  `docs/customer/acquisition-sprint-7day.md`'s 7-day sprint (2026-08-14→21) with a numeric target
+  of 15 touches → 4 replies → 1 serious conversation. This is the concrete near-term plan toward
+  this task's done condition, not the done condition itself.
+- **Execution push (2026-08-14):** Instructed to move from planning to real execution: ≥3
+  conversations or ≥1 explicit dataset-sharing agreement this iteration, working only from the
+  existing 21 targets (no new prospect list created), travel weighted primary per
+  `HANDOFF-022` remaining unresolved. Founder reported creating an email address for outreach, but
+  no send tool appeared in this session and no SMTP/API credentials exist anywhere in the repo or
+  environment (checked directly) — the address itself was also not shared, so it is unusable here
+  in any form. Delivered instead: 7 of the 21 targets (3 travel, 2 recruitment, 2 distribution)
+  researched to a verified contact path (5 real emails, 2 named phone contacts) and turned into
+  personalized, ready-to-send drafts in `docs/customer/pipeline.md` — explicitly marked NOT SENT,
+  not counted as contact, not counted as conversations. Concrete manual next steps for the founder
+  are `HANDOFF-033`. Still 0 of 3 conversations and 0 explicit agreements — this iteration's success
+  bar is not met, and is not being reported as met.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
@@ -548,7 +684,7 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
   run, or validated candidate exists, so no review can be conducted against synthetic or invented
   findings. This resolves the open question in `memory/HANDOFFS.md#HANDOFF-014` (Founder → Customer
   Discovery), which independently asked whether any real customer engagement exists — it does not.
-  A review protocol was prepared in advance (`docs/customer_findings_review_protocol.md`) so
+  A review protocol was prepared in advance (`docs/customer/findings-review-protocol.md`) so
   execution can start immediately once preconditions are met.
 
 ## MILESTONE-M3 — First real discovery

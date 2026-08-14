@@ -8,7 +8,7 @@
 
 This plan is not sequenced to produce a demo. It is sequenced to kill the two cheapest, most decision-relevant unknowns first:
 
-1. **Does discovery + validation actually recover real, non-obvious, economically material patterns — or only noise and confounding?** This is fully testable right now, at zero customer cost, because the synthetic benchmark has known ground truth (`SIMULATION_REPORT.md`, `docs/validation_contract.md`).
+1. **Does discovery + validation actually recover real, non-obvious, economically material patterns — or only noise and confounding?** This is fully testable right now, at zero customer cost, because the synthetic benchmark has known ground truth (`docs/benchmark/simulation-report.md`, `docs/analytics/validation-contract.md`).
 2. **Will any real company give us their data?** This is fully testable right now, at near-zero engineering cost, through direct outreach (`TASK-057`).
 
 Both run in parallel starting day 1. Neither is allowed to block the other. Everything downstream of these two answers — UI polish, policy backtesting, pricing mechanics, fundraising collateral — is explicitly de-prioritized for this window.
@@ -100,7 +100,7 @@ Zero engineering dependency. Should start on day 1, in parallel with Track 1/2, 
 - **Failure condition:** Continuing an unproductive channel into week 4 without a documented decision either way.
 
 ### Week 4 (Sep 3–12)
-- **Objectives:** If a real validated finding exists by now: run `TASK-042` (customer findings review) against `docs/customer_findings_review_protocol.md`. If `TASK-057` never converted: treat that as the headline output of this cycle.
+- **Objectives:** If a real validated finding exists by now: run `TASK-042` (customer findings review) against `docs/customer/findings-review-protocol.md`. If `TASK-057` never converted: treat that as the headline output of this cycle.
 - **Measurable outputs:** Either the first customer response captured (known/new, actionable, trust objections), or a clear, evidence-based statement that first-pilot acquisition did not work in 30 days under the tested approach.
 - **Dependencies:** Track 1/2 output, Track 3 weeks 1–3.
 - **Failure condition:** `MILESTONE-M3` will very likely not be reached inside 30 days even in the best case — that is expected, not a failure by itself. The failure condition is entering week 5 with no dataset access plan and no documented reason why.
@@ -133,7 +133,7 @@ Explicitly bounded per `TASKS.md`: "Fundraising must not block product validatio
 ## Kill / pivot criteria (day-30 hard gates)
 
 **GO — continue current thesis and build, unchanged** if both hold:
-- `MILESTONE-M1` substantively reached: discovery + validation recovers a meaningful share of known planted harmful patterns, correctly rejects/downgrades known confounding traps, and shows no leakage — per Statistics' own preregistered acceptance test (`docs/validation_contract.md` §10). Statistics owns this verdict.
+- `MILESTONE-M1` substantively reached: discovery + validation recovers a meaningful share of known planted harmful patterns, correctly rejects/downgrades known confounding traps, and shows no leakage — per Statistics' own preregistered acceptance test (`docs/analytics/validation-contract.md` §10). Statistics owns this verdict.
 - At least one real customer has committed to a pilot (`TASK-057` done), or a credible near-term pipeline exists (≥2 prospects in late-stage conversation).
 
 **CONTINUE WITH A TARGETED CHANGE** if exactly one holds:
