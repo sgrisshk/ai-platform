@@ -31,25 +31,43 @@ provenance and audit records, strict verification, fresh container launch, outpu
 transitions, and result freezing (`blind/README.md`). One command rebuilds the public artifact, which contains only
 the approved analytical partitions and sanitized public metadata, with no private source or
 evaluation artifacts. The blind runner infrastructure is technically ready, but no reusable
-verified run currently exists. Run `task-015-official-20260814-006` pinned allowlisted sources,
-output schema v1.1.0, and immutable image digest
-`policy-blind-agent@sha256:f42e3cdaf1e6a766e312e6a28c2a9d377b7137bb8643379dcf3588a01398cf1d`;
+verified run currently exists. The runner now uses a minimal Groq tool-calling actor and immutable image
+`policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`;
+issuance signs the runtime agent and explicit Groq model alongside output schema v1.1.0.
+Run `task-015-official-20260814-006` used the superseded Codex runtime;
 manifest SHA-256 is `f2981fbc8ff55ba31ba4f4124d3a7bab38d0c844b0024832bdc1e024700d6a10`.
 Source drift and runtime substitution now fail closed, and freeze enforces the signed acceptance
 contract. The evaluator key remains external and is not mounted or passed to Discovery. Run
 `…-002` is unchanged audit-only evidence; `…-003`/`…-004` are failed issuance attempts. Discovery
 did not execute: `…-006` attempted provider launch without usable bearer authentication, received
-HTTP 401, and is now irreversibly `FAILED`. TASK-015 remains `BLOCKED` on `HANDOFF-036`: the
-exposed provider key must be revoked/replaced by a human and the replacement exported into the
-coordinator environment without disclosure. Run `…-007` also failed with HTTP 401 before Discovery
-work; a key stored only in `.env` is not automatically exported by Make. After a non-secret
-coordinator/container credential-visibility preflight succeeds, new unique run `…-008` must be
-issued and verified; however, `…-008` also failed with HTTP 401 before Discovery work. Presence-
-only credential checks are no longer sufficient: both the exact coordinator shell and pinned
-container must receive HTTP 200 from an authenticated OpenAI API preflight before `…-009` may be
-issued. Failed runs cannot be retried. Run `…-005` failed before agent execution
-because its launcher used a removed Codex CLI flag; the corrected launcher uses the pinned CLI's
-supported ephemeral automation flags. The earlier persisted artifact
+HTTP 401, and is now irreversibly `FAILED`. TASK-015 remains `BLOCKED` pending successful official
+execution and freeze. `HANDOFF-036`, `HANDOFF-037`, and `HANDOFF-038` are resolved: exposed
+historical credentials were revoked, and the secret-safe pinned-container Groq preflight passed
+with `openai/gpt-oss-120b` and a
+required function tool call. Runs `…-007` and `…-008` also
+failed with HTTP 401 before Discovery work. Presence-
+only credential checks are no longer sufficient. The Groq `blind-provider-preflight` performs
+an authenticated model request in the pinned container without mounting a workspace; no new
+official run is issued until it succeeds. Failed runs cannot be retried. Run `…-005` failed before agent execution
+because its launcher used a removed Codex CLI flag; the replacement Groq actor uses explicit
+read/list/Python tools. The replacement actor is no longer Aider: it mounts public
+inputs read-only, mounts only `output/` writable, and permits exactly the three required artifact
+names. Freeze acceptance failures now atomically close `RUNNING`/`COMPLETED` runs as `FAILED`.
+Run `task-015-official-20260814-011` failed before discovery on the account's 8,000 TPM limit and
+is irreversibly `FAILED` with no outputs. `HANDOFF-039` is resolved on the repinned image: requests
+have bounded completion/context/tool outputs and capped 429 retries. Official `…-012` later failed
+on a GPT-OSS paginated read rejected by the old schema and is irreversibly `FAILED` with no
+outputs. `HANDOFF-040` is resolved: bounded 1-based inclusive pagination and an authenticated
+two-page preflight passed. Official `…-013` then failed without outputs after GPT-OSS requested an
+undeclared `search(path, query)`. `HANDOFF-041` is now resolved on the repinned image: bounded
+literal search and capped `tool_use_failed` recovery are implemented, and a full authenticated
+production-isolated rehearsal with `openai/gpt-oss-120b` passed listing, paginated reads, search,
+Python execution, controlled recovery, and validation of exactly three schema-v1.1.0 dummy
+outputs on intermediate digest `5503b6d0…`. The final type-safe digest is `0d64b3ac…`; two
+authenticated repetitions failed closed before completion on Groq's 200,000 TPD quota. No official
+`…-014` was issued. HANDOFF-041 and TASK-015 issuance remain blocked until the final digest passes
+the same rehearsal after quota replenishment.
+The earlier persisted artifact
 (15 candidates, 6,945 evaluated hypotheses, fit on `development` only) came from a full-checkout
 run that does not satisfy ADR-008. Statistics ran the full
 `TASK-018` validation contract against that artifact anyway, as a dry run of the validation
@@ -65,7 +83,12 @@ mathematically sufficient and covered by synthetic-only regression tests
 untouched and the CLI now refuses to overwrite a frozen result without `--force`. No candidate was
 handed to Architect/Product as a validated finding, and the fix alone does not change that — a
 genuinely blind `TASK-015`/`TASK-017` artifact is still required before `TASK-019` can close.
-Ingestion-contract design is the next data-pipeline boundary for real customer data.
+Tooling is now checked and ready for that artifact specifically (`ADR-018`): the blind-agent
+output schema (`tools/blind_agent/models.py`) differs from what the dry run used, and the
+validation engine/CLI now handle both shapes and require explicit blind-compliance flags rather
+than inferring them. The remaining gap is entirely on the `TASK-015` execution side
+(`HANDOFF-036`/`HANDOFF-037`). Ingestion-contract design is the next data-pipeline boundary for
+real customer data.
 
 ## Current hypothesis
 

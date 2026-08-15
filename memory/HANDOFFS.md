@@ -556,6 +556,18 @@ workspace once `TASK-012` completes and the founder readiness block is lifted; (
 validation engine (now v1.1.0) against that new frozen artifact as a new, separately frozen run.
 Full detail in `TASKS.md` (`TASK-019`) and `docs/analytics/validation-contract.md` §4a.
 
+**Update 2 (2026-08-14, Statistics, ADR-018):** Step (b)'s tooling is now ready, checked directly
+against `tools/blind_agent/models.py` rather than assumed: the blind-agent output schema differs
+materially from the artifact this handoff's dry run used (no per-split breakdown per candidate;
+`evaluated_hypotheses` in a sibling `discovery_metrics.json`, not inline), and
+`run_validation`/`scripts/validate_candidates.py` now handle both shapes, verified end-to-end
+against a schema-valid document built from the real Pydantic models. The CLI takes
+`--candidates`/`--metrics`/`--output` instead of hardcoded paths and requires explicit
+`--blind-compliant`/`--founder-block-lifted` flags — frozen into the record — for any non-default
+run, so compliance is stated, not inferred. Still waiting on step (a) only: `TASK-015` blind
+execution is blocked on `HANDOFF-036`/`HANDOFF-037` (credential/preflight issues), not on
+anything Statistics owns.
+
 ## HANDOFF-027
 
 **Created:** 2026-08-13
@@ -635,10 +647,10 @@ shape is now fixed and a later change re-triggers frontend rework.
 **Created:** 2026-08-14
 **From:** ARCHITECT
 **To:** FOUNDER_STRATEGY
-**Status:** OPEN
+**Status:** RESOLVED
 
-**Task:** Revoke the exposed OpenAI provider credential and provide a newly generated credential
-to the coordinator environment before issuing and launching the next blind run.
+**Task:** Revoke the exposed OpenAI provider credential. A replacement OpenAI credential is no
+longer required because the blind runtime has migrated to Groq.
 
 **Context:** The credential was pasted into a collaboration message after run `…-005` failed on
 an obsolete Codex CLI flag. Treat it as compromised even if the failed container invocation did
@@ -646,16 +658,14 @@ not complete discovery. The secret value is deliberately not copied into reposit
 launcher has been corrected and replacement run `…-006` is signed and `VERIFIED`, but it must not
 be launched with the exposed credential.
 
-**Question:** Revoke the exposed project key in the OpenAI dashboard, replace it in local secret
-storage, export the replacement into the coordinator process, and confirm rotation without
-sharing the value in chat, logs, source control, or handoff files.
+**Question:** Revoke the exposed project key in the OpenAI dashboard and confirm rotation without
+sharing any secret in chat, logs, source control, or handoff files.
 
 **Files:** `.env` (local/untracked secret storage only; do not commit), `blind/README.md`.
 
-**Expected output:** Confirmation that the old key is revoked and a new key is available only as
-the coordinator's exported `OPENAI_API_KEY`; then issue and launch a new unique run.
+**Expected output:** Confirmation that the old OpenAI key is revoked.
 
-**Blocking:** YES — blocks any provider-network launch of TASK-015.
+**Blocking:** YES — security closure required before the next official TASK-015 run.
 
 **Resolution:** Pending human credential rotation; never record the replacement value here.
 Readiness update 2026-08-14: run `task-015-official-20260814-006` was launched without usable
@@ -674,6 +684,46 @@ the human credential owner must demonstrate HTTP 200 from an authenticated OpenA
 the exact coordinator shell and HTTP 200 from the pinned blind container receiving only the same
 environment variable. Do not print or persist the credential or response headers. No new run may
 be issued merely to test authentication.
+
+Migration update 2026-08-14: OpenAI replacement/authentication work is superseded by
+`HANDOFF-037`; revocation of the exposed OpenAI key remains open and mandatory.
+
+**Resolution (2026-08-15):** Human credential owner confirmed that the previously exposed keys
+were revoked. No replacement secret value was recorded. The credential-security blocker is
+closed; Groq authentication and runtime acceptance are separately resolved in `HANDOFF-037` and
+`HANDOFF-038`.
+
+## HANDOFF-037
+
+**Created:** 2026-08-14
+**From:** ARCHITECT
+**To:** FOUNDER_STRATEGY
+**Status:** RESOLVED
+
+**Task:** Provision Groq authentication and approve an available Groq model for the official
+blind discovery runtime.
+
+**Context:** The runner pins a minimal Groq tool-calling actor in image
+`policy-blind-agent@sha256:91d37fb798050be391ed732ddf84f7d86e5d4e364710fb4bf6676b970f9c911a`.
+Issuance signs both runtime agent and explicit model ID. No official Groq run has been issued or
+launched. Credentials must remain outside the repository and must not be pasted into chat.
+
+**Question:** Export a valid `GROQ_API_KEY` in the coordinator shell, select a model ID available
+to that account, and run `GROQ_API_KEY=<secret> BLIND_AGENT_MODEL=<model-id> make
+blind-provider-preflight`. Confirm success without disclosing the key.
+
+**Files:** `Makefile`, `blind/README.md`, `infra/docker/blind-agent.Dockerfile`.
+
+**Expected output:** Successful pinned-container provider preflight and the approved model ID;
+Architect/coordinator may then issue unique run `run-001` with that model.
+
+**Blocking:** YES — blocks issuance and provider launch of TASK-015.
+
+**Resolution (2026-08-15):** The coordinator loaded the human-owned key from local secret storage
+without printing it and successfully ran the pinned-container preflight with model
+`openai/gpt-oss-120b`. The preflight verified authentication, model availability, network access,
+and a required function tool call on image
+`policy-blind-agent@sha256:91d37fb798050be391ed732ddf84f7d86e5d4e364710fb4bf6676b970f9c911a`.
 
 ## HANDOFF-034
 
@@ -1458,7 +1508,7 @@ publish the private values or expose them to an ML Discovery session.
 **To:** ARCHITECT
 **Status:** OPEN
 
-**Task:** Future persistence design for Finding feedback (`TASK-035`), against `docs/product/finding-feedback-contract.md`. Not a request to implement now.
+**Task:** Future persistence design for Finding feedback (`TASK-035`), against `docs/product/finding-feedback-contract.md` (now **frozen v0**, 2026-08-14). Not a request to implement now.
 
 **Context:** `docs/product/finding-feedback-contract.md` formalizes the six `TASK-035` values (`KNOWN_ALREADY`/`NEW`/`WRONG`/`NOT_ACTIONABLE`/`INTERESTING`/`ACTIONABLE`) into two nullable single-select axes (novelty, actionability) plus a multi-select qualifier-tag set (`WRONG`, `INTERESTING`), fixes which additional fields are needed (customer comment, customer-reported certainty — explicitly not statistical confidence, intended action, commitment strength, customer/internal owners, follow-up date), and fixes an append-only record lifecycle keyed on `(finding_id, review_session)`. It explicitly does not design persistence, UI, or any statistical treatment of the data.
 
@@ -1557,3 +1607,212 @@ can happen from this session next turn.
 in this repository can cross it without a human action.
 
 **Resolution:** Pending.
+## HANDOFF-038
+
+**Created:** 2026-08-14
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Repair the pinned Groq/Aider blind runtime preflight and launch configuration before a
+new official TASK-015 issuance.
+
+**Context:** Human-owned Groq authentication returned HTTP 200, but the pinned-container
+`blind-provider-preflight` fails before any provider request. Aider rejects `--config /dev/null`
+because the empty file parses as YAML `None` rather than a mapping. The same arguments are frozen
+in `tools/blind_agent/core.py`, so an official launch would fail identically. Run
+`task-015-official-20260814-009` is already irreversibly `FAILED` from the earlier Gemini quota
+failure; no Groq run has been issued. The current Groq image is
+`policy-blind-agent@sha256:722f14b7543dca4e6ff246143cf84d474c9c9a9a8bb26d344b355475c6722e4a`.
+
+**Question:** Replace the invalid empty-config strategy with an Aider-version-compatible,
+container-local empty YAML mapping (or another reviewed no-host-config mechanism), apply the same
+arguments to preflight and launch, add regression coverage that executes the pinned CLI far enough
+to reject bad credentials at the provider boundary rather than argument parsing, and repin the
+immutable image/runtime if any image content changes. Also prevent Make recipe echo from exposing
+provider secret values.
+
+**Files:** `Makefile`, `infra/docker/blind-agent.Dockerfile`, `tools/blind_agent/core.py`,
+`tests/tools/test_blind_agent.py`, `blind/README.md`,
+`docs/benchmark/blind-benchmark-protocol.md`.
+
+**Expected output:** Successful secret-safe pinned-container Groq preflight using the exact launch
+argument contract; passing runner tests; immutable image digest recorded in Makefile and protocol;
+confirmation that a new unique run may be issued only after this preflight succeeds.
+
+**Blocking:** YES — do not issue `task-015-official-20260814-011` until resolved.
+
+**Resolution:** Pending Architect implementation and verification.
+
+Coordinator acceptance update 2026-08-14: the config parsing fix and repinned image
+`policy-blind-agent@sha256:722f14b7543dca4e6ff246143cf84d474c9c9a9a8bb26d344b355475c6722e4a`
+passed 15 runner tests and contains a valid `/etc/aider-blind.yml`. However, official attempt
+`task-015-official-20260814-010` exposed two additional blockers. Aider was launched without any
+workspace files in its chat and responded that `agents/ML_DISCOVERY_BLIND.md` and the approved
+outputs were unavailable; it exited zero without executing discovery and produced no output files.
+The launcher therefore transitioned the run to `COMPLETED`, while `freeze()` raises on missing
+outputs without transitioning the invalid run to `FAILED`. Do not relaunch, freeze, or reuse
+`...-010`. Architect must demonstrate in an isolated test workspace that the chosen fresh actor can
+actually read all allowlisted inputs, execute local analysis code, and create exactly the three
+approved outputs; merely passing filenames to a non-agentic chat editor is insufficient. Output
+acceptance failure must atomically close the run as `FAILED`. Repin/reissue under a new ID only
+after both behaviors have regression coverage.
+
+Architect implementation update 2026-08-15: Aider has been removed from the blind runtime and
+replaced with a bounded Groq tool-calling actor. It can list/read allowlisted files and execute
+Python without a shell. Docker mounts `/workspace` read-only and overlays only
+`/workspace/output` read-write; the actor permits exactly the three required artifact names.
+Runner tests exercise the autonomous tool loop and prove that unapproved artifacts are rejected.
+`freeze()` now transitions any `RUNNING`/`COMPLETED` acceptance failure, including missing files,
+to `FAILED`. The repinned image is
+`policy-blind-agent@sha256:ac6fe491c42402ef4a608dd8f2ce77d8397652fd7e0cc083783e3c4d85066559`.
+Run `…-011` was not created. Remaining acceptance: run the secret-safe authenticated provider
+preflight with the approved model; only then may this handoff be marked `RESOLVED` and a new run
+issued.
+
+Transport hardening update 2026-08-15: the actor now sends fixed User-Agent
+`policy-blind-agent/1.0 blind-benchmark`. Groq HTTP error bodies are capped, normalized, and
+redacted for the current credential and generic Bearer tokens before a single-line CLI error is
+written to stderr. The repinned image is
+`policy-blind-agent@sha256:91d37fb798050be391ed732ddf84f7d86e5d4e364710fb4bf6676b970f9c911a`.
+
+**Resolution (2026-08-15, Architect):** RESOLVED. The authenticated pinned-container preflight
+completed successfully with `openai/gpt-oss-120b`, including a required Groq function tool call.
+The actor boundary, exact-output enforcement, atomic `FAILED` transition, secret-safe Make recipe,
+User-Agent, sanitized HTTP errors, tests, and immutable image provenance are all in place. Run
+`task-015-official-20260814-011` was not issued as part of this repair.
+## HANDOFF-039
+
+**Created:** 2026-08-15
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Make the bounded Groq blind actor operate within the approved account's 8,000 TPM limit
+without consuming official run IDs on transient rate limits.
+
+**Context:** Authenticated preflight and issuance succeeded for
+`task-015-official-20260814-011` with `openai/gpt-oss-120b` and pinned image
+`policy-blind-agent@sha256:91d37fb798050be391ed732ddf84f7d86e5d4e364710fb4bf6676b970f9c911a`.
+The fresh launch failed before discovery with Groq HTTP 429: TPM limit 8,000, used 5,643,
+requested 5,945, retry-after approximately 27 seconds. Runner state is irreversibly `FAILED` and
+the output directory is empty. `provider_completion()` does not set a bounded completion-token
+budget and has no 429/retry-after handling. Because the actor requires multiple sequential tool
+turns, merely waiting once before a new launch does not make the loop reliable.
+
+**Question:** Add a contractually bounded completion-token budget, capped exponential/retry-after
+handling for 429 without leaking credentials, and context/tool-output budgeting so every request
+fits the account TPM ceiling. Extend preflight to exercise at least two sequential tool turns or
+otherwise prove the configured loop can progress under the pinned quota. Add deterministic tests,
+rebuild, and repin the image. Do not issue another official run merely to test rate limiting.
+
+**Files:** `tools/blind_agent/groq_actor.py`, `tests/blind_agent/test_groq_actor.py`,
+`infra/docker/blind-agent.Dockerfile`, `Makefile`, `blind/README.md`,
+`docs/benchmark/blind-benchmark-protocol.md`.
+
+**Expected output:** Successful quota-aware pinned-container acceptance test and a new immutable
+image digest; only then may coordinator issue a fresh run ID.
+
+**Blocking:** YES — do not issue `task-015-official-20260815-012` until resolved.
+
+**Resolution (2026-08-15, Architect):** RESOLVED. Provider requests now set
+`max_completion_tokens=1024`, cap serialized context at 18,000 characters, retain at most six
+recent turn groups, cap tool output/retained arguments, and retry HTTP 429 at most three times
+using capped `Retry-After`/exponential delays no longer than 30 seconds. Deterministic tests cover
+the quota payload, context bound, 429 retry, and three sequential tool turns. The authenticated
+pinned-container preflight completed two sequential function-tool turns with
+`openai/gpt-oss-120b`. New image:
+`policy-blind-agent@sha256:835fdc9229782191a5726509cfe9c88eb55c481f0fe99653159d783f4add4388`.
+No new official run was issued during acceptance.
+## HANDOFF-040
+
+**Created:** 2026-08-15
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Make the bounded Groq actor's `read_file` contract compatible with the approved model's
+paginated source-reading tool calls.
+
+**Context:** Official run `task-015-official-20260815-012` used the quota-aware pinned image
+`policy-blind-agent@sha256:835fdc9229782191a5726509cfe9c88eb55c481f0fe99653159d783f4add4388`.
+The actor began discovery and attempted to read the public discovery engine with
+`read_file(path=..., line_start=200, line_end=400)`. Groq rejected the generated tool call with
+HTTP 400 because the schema permits only `path` and has `additionalProperties=false`. The runner
+correctly closed the run as `FAILED`; no output files exist. Run `...-012` must not be retried.
+
+**Question:** Add bounded, validated line pagination to the `read_file` schema and dispatcher
+(including clear indexing semantics and maximum page size), retain path/symlink isolation, and add
+regression coverage for the exact `line_start`/`line_end` call generated by
+`openai/gpt-oss-120b`. Make provider-side `tool_use_failed` diagnostics actionable without
+credentials and ensure preflight exercises a paginated read rather than only trivial tools.
+Rebuild and repin the immutable image, then run authenticated multi-turn acceptance without
+issuing an official run.
+
+**Files:** `tools/blind_agent/groq_actor.py`, `tests/blind_agent/test_groq_actor.py`,
+`infra/docker/blind-agent.Dockerfile`, `Makefile`, `blind/README.md`,
+`docs/benchmark/blind-benchmark-protocol.md`.
+
+**Expected output:** Successful pinned-container paginated-read preflight/acceptance, passing
+tests, and a new immutable image digest.
+
+**Blocking:** YES — do not issue `task-015-official-20260815-013` until resolved.
+
+**Resolution (2026-08-15, Architect):** RESOLVED. `read_file` now accepts optional 1-based,
+inclusive `line_start`/`line_end` and enforces a maximum page of 250 lines. The dispatcher uses the
+existing safe-relative regular-file resolver, so traversal and symlinks remain rejected. Tests
+cover the exact GPT-OSS call `line_start=200, line_end=400`, bounds, traversal, and symlinks.
+Authenticated pinned-container preflight completed two sequential paginated `read_file` tool
+turns with `openai/gpt-oss-120b`. New image:
+`policy-blind-agent@sha256:d6885a0cbaa3d752e99411ad3960cdf1f27a6551e9fd872d21fcb3c9a17ff9d6`.
+No official `…-013` run was issued during acceptance.
+## HANDOFF-041
+
+**Created:** 2026-08-15
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** IN_PROGRESS
+
+**Task:** Add bounded workspace search and recoverable provider tool-validation handling to the
+Groq blind actor before another official issuance.
+
+**Context:** Official run `task-015-official-20260815-013` used pinned image
+`policy-blind-agent@sha256:d6885a0cbaa3d752e99411ad3960cdf1f27a6551e9fd872d21fcb3c9a17ff9d6`.
+After paginated reading worked, `openai/gpt-oss-120b` attempted the useful call
+`search(path="packages/analytics/src/policy_analytics/discovery", query="def _eligible")`.
+Because `search` was not present in `request.tools`, Groq returned HTTP 400 `tool_use_failed` and
+the actor terminated. The runner correctly closed the run as `FAILED`; no output files exist.
+
+**Question:** Add a bounded read-only search tool with safe workspace-relative path resolution,
+regular-file/symlink enforcement, result/file/byte caps, and no access outside allowlisted inputs.
+Also handle Groq `tool_use_failed` responses caused by attempted unknown or schema-invalid tools as
+a bounded recoverable model turn (explicitly restating the available tool contract) rather than
+immediately killing the run; cap recoveries to prevent loops. Add regression coverage for the
+exact generated `search(path, query)` call. Before repinning, run an authenticated isolated
+rehearsal that progresses through listing, paginated reads, search, Python execution, and creation
+of three schema-valid dummy outputs, without issuing an official run or using benchmark truth.
+
+**Files:** `tools/blind_agent/groq_actor.py`, `tests/blind_agent/test_groq_actor.py`,
+`infra/docker/blind-agent.Dockerfile`, `Makefile`, `blind/README.md`,
+`docs/benchmark/blind-benchmark-protocol.md`.
+
+**Expected output:** Passing bounded-search and recoverable-tool-error tests, successful
+authenticated end-to-end isolated rehearsal, and a new immutable image digest.
+
+**Blocking:** YES — do not issue `task-015-official-20260815-014` until resolved.
+
+**Resolution:** Architect added bounded literal `search(path, query)` with safe relative-path and
+symlink enforcement plus file/byte/result/output caps, and bounded (maximum two) corrective turns
+for Groq HTTP 400 `tool_use_failed`. Regression coverage includes the exact GPT-OSS call from run
+`…-013`. Image
+`policy-blind-agent@sha256:5503b6d0c6cc02adda6f854a1eb51e8589ae58834760c9780ba28fb73ce6565a`
+was built and, on 2026-08-15, passed `make blind-rehearsal` authenticated as
+`openai/gpt-oss-120b`. The production-isolated, truth-free rehearsal exercised listing, paginated
+reads, bounded search, Python execution, controlled recovery, and host-side validation of exactly
+three schema-v1.1.0 dummy outputs. A subsequent type-only hardening rebuild produced final digest
+`policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`.
+Its two authenticated rehearsal attempts failed closed before completion because the account hit
+Groq's 200,000 TPD quota; therefore acceptance is not transferred from the intermediate digest.
+No official run was created. After quota replenishment, rerun the documented `make
+blind-rehearsal` against the default digest; resolve this handoff and permit `…-014` only when it
+prints `BLIND_REHEARSAL_VALID`.

@@ -236,24 +236,50 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Depends on:** TASK-011, TASK-012, TASK-013, HANDOFF-007
 - **Goal:** Use simple interpretable methods first—shallow trees, boosting with rule extraction, and subgroup discovery—to return 10–20 harmful candidate patterns.
 - **Candidate contract:** Conditions, support, N, raw difference, deterministic economic exposure, stability indicators, and warnings.
-- **Operational readiness (2026-08-14, ML Discovery Orchestrator):** Runner readiness is complete,
-  but launch is `BLOCKED` on `HANDOFF-036`: the previously exposed provider credential still
-  requires human revocation/replacement, and the coordinator process currently has no exported
-  `OPENAI_API_KEY`. Signed run `task-015-official-20260814-006` attempted launch without usable
+- **Operational readiness (2026-08-14, Architect):** The isolated runner has migrated from Codex
+  to a minimal pinned Groq tool-calling actor. `HANDOFF-036`, `HANDOFF-037`, and
+  `HANDOFF-038` are resolved: exposed historical credentials were revoked and authenticated
+  container preflight passed with model
+  `openai/gpt-oss-120b`. Signed run `task-015-official-20260814-006` attempted launch without usable
   bearer authentication, received HTTP 401, exited before Discovery work, and is irreversibly
   `FAILED`; it cannot be verified, retried, or reused. Its manifest SHA-256 was
   `f2981fbc8ff55ba31ba4f4124d3a7bab38d0c844b0024832bdc1e024700d6a10`; bundle ID was
-  `4bb19187c3dc2f286e0a2326aacc54bf8c8959461a75d607ef5bdf0b10b1216d`. The runner pins image
-  `policy-blind-agent@sha256:f42e3cdaf1e6a766e312e6a28c2a9d377b7137bb8643379dcf3588a01398cf1d`
+  `4bb19187c3dc2f286e0a2326aacc54bf8c8959461a75d607ef5bdf0b10b1216d`. The runner pins the Groq actor
+  image `policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`
   and output schema v1.1.0. Verify/launch reject current-source drift; freeze validates signed
   dataset/contracts/splits/provenance/timing/candidate-count/language requirements. Discovery did
   not execute. Run `…-002` remains audit-only; `…-003`/`…-004` are failed issuance attempts;
   `…-005` is a failed CLI launch caused by the obsolete `--full-auto` flag; `…-006` is the failed
   unauthenticated launch; `…-007` is a second failed HTTP-401 launch before Discovery work. None
   is eligible; `…-008` is a third failed HTTP-401 launch before Discovery work. After credential
-  rotation, require authenticated HTTP-200 preflights from both the exact coordinator shell and
-  pinned container before issuing unique run `task-015-official-20260814-009`. Do not issue runs
+  auth setup, require successful `make blind-provider-preflight` with the exact Groq key and
+  model before issuing unique run `task-015-official-20260814-011`. Agent/model/image are signed
+  and launch fails closed on drift. Do not issue runs
   merely to test authentication. Only then perform fresh Blind Discovery execution and freeze.
+  The replacement actor has bounded list/read/Python tools, a read-only workspace plus a separate
+  writable `output/` mount, exact three-file output enforcement, and regression coverage proving
+  missing/invalid outputs transition `COMPLETED` runs to `FAILED`. Official run `…-011` then failed
+  before discovery on the account's 8,000 TPM limit; it is irreversibly `FAILED` with no outputs.
+  `HANDOFF-039` is resolved: completion/context/tool-output budgets, capped 429 retries, a
+  three-tool-turn regression, and authenticated two-turn container preflight passed on image
+  `policy-blind-agent@sha256:d6885a0cbaa3d752e99411ad3960cdf1f27a6551e9fd872d21fcb3c9a17ff9d6`.
+  `…-012` subsequently failed before producing outputs because the model generated a paginated
+  `read_file(line_start, line_end)` call not admitted by the frozen tool schema; the run is
+  irreversibly `FAILED`. `HANDOFF-040` is resolved: 1-based inclusive pagination capped at 250
+  lines, exact GPT-OSS `200..400` regression coverage, and authenticated two-page preflight passed
+  on the current pinned image. Official run `…-013` then failed with no outputs when the approved
+  model requested an undeclared bounded workspace `search(path, query)` tool and Groq returned
+  `tool_use_failed`. `HANDOFF-041` implementation is complete: the actor now exposes bounded literal
+  `search(path, query)` with path/symlink/file/byte/result caps and permits at most two corrective
+  turns after provider `tool_use_failed`. On 2026-08-15 image
+  `policy-blind-agent@sha256:5503b6d0c6cc02adda6f854a1eb51e8589ae58834760c9780ba28fb73ce6565a`
+  passed an authenticated, production-isolated rehearsal with `openai/gpt-oss-120b`: workspace
+  listing, paginated reads, exact bounded search, Python execution, controlled failure recovery,
+  and host validation of exactly three schema-v1.1.0 dummy outputs. The final type-safe rebuild is
+  pinned as `policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`,
+  but its two authenticated repetitions failed closed on Groq's 200,000 TPD quota before completing
+  acceptance. No official run was issued. HANDOFF-041 and reissuance remain blocked until the final
+  digest prints `BLIND_REHEARSAL_VALID` after quota replenishment.
 - **Evidence:** Deterministic interpretable beam-search engine and CLI in
   `packages/analytics/src/policy_analytics/discovery/engine.py` and `scripts/run_discovery.py`;
   methodology in `docs/analytics/discovery-engine-v0.md`; 2026-08-13 run artifact
@@ -364,6 +390,31 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Still not `DONE`:** the fix only removes the third blocker from the list above. `TASK-019`
   closes only once a genuinely `TASK-017`-compliant (blind-workspace, founder-readiness-cleared)
   candidate artifact exists and is graded under v1.1.0 as a new, separately frozen run.
+- **Closing-run readiness (2026-08-14, Statistics, ADR-018):** Checked the actual blind-agent
+  output schema (`tools/blind_agent/models.py`, `OUTPUT_SCHEMA_VERSION = "1.1.0"`) against what
+  the validation engine parses and found it materially different from the artifact the dry run
+  used — no per-split breakdown on each candidate, and `evaluated_hypotheses` lives in a sibling
+  `discovery_metrics.json`, not inline. `_validate_one` already recomputes every quantity from the
+  analytical dataset via each candidate's `conditions` and never trusted the old schema's
+  precomputed split stats either, so only the evaluated-hypothesis lookup needed a real fix
+  (`_evaluated_hypotheses()`, checked against both shapes). `run_validation` gained an optional
+  `metrics_path` parameter, an `INSUFFICIENT_CANDIDATES` status handler with the recorded reason
+  surfaced, and a candidate/payload outcome-ID consistency check. `scripts/validate_candidates.py`
+  is now `argparse`-driven (`--candidates`, `--metrics`, `--dataset-root`, `--output`,
+  `--analysis-run-id`, `--force`) instead of hardcoded paths, and requires explicit
+  `--blind-compliant`/`--founder-block-lifted` flags — frozen into the output's
+  `process_compliance` block — whenever grading anything other than the historical dry-run
+  artifact; nothing is inferred from `TASKS.md` prose. Verified end-to-end, both via pytest and a
+  direct CLI invocation, against a schema-valid `CandidatesDocument`/`MetricsDocument` built from
+  the real Pydantic models (not a guessed shape) — parses, grades, and freezes correctly with the
+  compliance flags recorded. New tests: `tests/analytics/test_validation_apply.py`
+  (`_evaluated_hypotheses` unit tests, a full schema-compatibility integration test, an
+  outcome-mismatch rejection test, an `INSUFFICIENT_CANDIDATES` error test). 106 tests total pass,
+  ruff and pyright clean. The v1.0.0 dry-run artifact remains untouched throughout.
+  **Definition of done for this readiness work is met: the next genuine blind `TASK-015`/`TASK-017`
+  artifact, whatever exact filenames the blind runner produces, can be pointed at directly.** What
+  remains before `TASK-019` itself closes is entirely outside Statistics: a successful blind run
+  (`HANDOFF-036`/`HANDOFF-037`, credential/preflight issues) producing that artifact.
 
 ### TASK-020 — Evidence classification
 
@@ -569,7 +620,7 @@ Complete when synthetic CSV → ingestion → profiling → canonical dataset �
 - **Status:** BLOCKED
 - **Depends on:** TASK-027
 - **Values:** `KNOWN_ALREADY`, `NEW`, `WRONG`, `NOT_ACTIONABLE`, `INTERESTING`, `ACTIONABLE`.
-- **Semantic contract (2026-08-14):** `docs/product/finding-feedback-contract.md` (complete). Splits
+- **Semantic contract (2026-08-14, FROZEN v0):** `docs/product/finding-feedback-contract.md`. Splits
   the six values into two nullable single-select axes — novelty (`KNOWN_ALREADY`/`NEW`) and
   actionability (`ACTIONABLE`/`NOT_ACTIONABLE`) — plus a multi-select qualifier-tag set (`WRONG`,
   `INTERESTING`), fixes additional fields (comment, customer-reported certainty — explicitly not
