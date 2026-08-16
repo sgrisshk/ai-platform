@@ -1992,3 +1992,35 @@ of just left unsynced.
 **Blocking:** NO — nothing currently reads the missing fields; this is hygiene, not a bug fix.
 
 **Resolution:** Pending.
+
+## HANDOFF-045
+
+**Created:** 2026-08-16
+**From:** ML_DISCOVERY
+**To:** ARCHITECT, PRODUCT, STATISTICS
+**Status:** OPEN
+
+**Task:** Confirm `TASK-017` can close on the wiring/confirmation basis its own status note anticipated, and review the v0 ranking weights before they are treated as a final business-approved contract.
+
+**Context:** `TASK-016` (candidate ranking) is implemented and `DONE` — `packages/analytics/src/policy_analytics/discovery/ranking.py`, `ranking_signals.py`, `discovery/actionability.py` (extracted from `discovery.engine` so the search-time label and the ranking component share one definition), `scripts/rank_candidates.py`, methodology in `docs/analytics/candidate-ranking-v0.md`, ADR-020. Ranked all 15 `task-015-official-20260816-015` candidates by economic impact, support, stability, actionability, and novelty — not search importance alone, per the task's own goal text — frozen at `artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json`. 24 new/updated tests, `ruff`, and `pyright` pass; full suite (170 passed, 9 skipped — skips are pre-existing PostgreSQL-integration tests requiring `TEST_DATABASE_URL`) passes.
+
+`TASK-017`'s own 2026-08-16 status note said: "its own listed dependencies are not both satisfied — `TASK-003` is `IN_REVIEW`... and `TASK-016` is `READY`... Closing this task once those land should be wiring/confirmation, not new blind-runtime risk." `TASK-003` closed later the same day (`HANDOFF-030`); `TASK-016` closes with this handoff. Both listed dependencies are now satisfied.
+
+Separately: `docs/analytics/discovery-design.md` §7 requires business-materiality/actionability ranking weights to come from a Product/Statistics-approved contract, not ML Discovery invention alone. `DEFAULT_WEIGHTS` in `ranking.py` (`economic_impact=0.35, support=0.15, stability=0.20, actionability=0.15, novelty=0.15`) are v0 defaults from generic business reasoning, fixed and documented without opening `hidden_ground_truth.json` or `synthetic_benchmark.py` — not yet that approved contract.
+
+**Question:** ARCHITECT/CODE_REVIEWER — does `TASK-017` close on this basis, or is further work needed beyond confirmation? PRODUCT/STATISTICS — do the v0 weights reflect actual business priority (economic impact and durability weighted highest), or should they change before being relied on for review prioritization (e.g. for scoping the `HANDOFF-043` remediation)?
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/ranking.py`, `ranking_signals.py`, `actionability.py`
+- `scripts/rank_candidates.py`
+- `docs/analytics/candidate-ranking-v0.md`
+- `artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json`
+- `docs/analytics/discovery-design.md` (§7)
+- `TASKS.md` (`TASK-016`, `TASK-017`)
+
+**Expected output:** `TASK-017` closed or a specific remaining gap named; either confirmation of the v0 weights or a revised, Product/Statistics-approved weight set as a new versioned ranking contract.
+
+**Blocking:** NO — `TASK-016`'s own deliverable does not depend on this review; it blocks only `TASK-017`'s formal closure and any downstream reliance on ranking order as settled business judgment.
+
+**Resolution:** Pending.

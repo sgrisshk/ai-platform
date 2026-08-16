@@ -1,6 +1,6 @@
 # Current Project State
 
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-16
 
 ## Current objective
 
@@ -110,6 +110,19 @@ proceed on this result. Statistics attributes the failure to a fixable economic-
 defect, not a limitation of the discovery mechanism itself (direction and precision are both
 strong) — `HANDOFF-043` requests ML_DISCOVERY/FOUNDER_STRATEGY concurrence before a remediation
 rerun is authorized.
+
+**`TASK-016` (candidate ranking v0) landed the same day (2026-08-16, ML Discovery, ADR-020):** a
+pure, deterministic ranker (`packages/analytics/src/policy_analytics/discovery/ranking.py`) scores
+economic impact, support, temporal stability, actionability, and novelty — not search importance
+alone, per the task's own goal text — with weights that are v0 defaults from generic business
+reasoning, not tuned against results or hidden ground truth. Actionability logic was factored out
+of `discovery.engine` into a shared `discovery.actionability` module so the two never diverge. Ran
+for real against all 15 `task-015-official-20260816-015` candidates
+(`artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json`);
+methodology in `docs/analytics/candidate-ranking-v0.md`. `TASK-016` is `DONE`. `TASK-017`'s two
+listed dependencies (`TASK-003`, `TASK-016`) are both now satisfied; its closure is an
+Architect/Code-Reviewer wiring confirmation, requested in `HANDOFF-045` along with a
+Product/Statistics review of the v0 ranking weights.
 
 **Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
 Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`

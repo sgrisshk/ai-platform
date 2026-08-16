@@ -366,12 +366,29 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-015
 - **Goal:** Rank candidates by economic impact, support, stability, actionability, and novelty—not model importance alone.
 - **Status note (2026-08-16, Architect):** Unblocked — `TASK-015` is `DONE`. No ranking
   implementation exists yet (`grep` for a ranking module in `packages/analytics` finds nothing);
   this is unstarted work, not a stale blocker.
+- **Implementation evidence (2026-08-16, ML Discovery, ADR-020):** A pure, deterministic
+  five-component ranker — `packages/analytics/src/policy_analytics/discovery/ranking.py`
+  (`rank_candidates`/`CandidateSignals`/`RankingWeights`), `ranking_signals.py` (builds those
+  inputs from a frozen candidates document plus the analytical dataset, reusing
+  `validation.apply`'s already-tested split/condition-evaluation functions rather than a third
+  duplicate implementation), and `discovery/actionability.py` (extracted from `discovery.engine`
+  so the search-time label and the ranking component share one definition — `engine.py`'s own
+  output and existing tests are unchanged). CLI: `scripts/rank_candidates.py`. Methodology:
+  `docs/analytics/candidate-ranking-v0.md`. Weights (v0 defaults, generic business reasoning, not
+  tuned against results or hidden ground truth — see ADR-020) score economic impact, support,
+  temporal-stability, actionability, and novelty (non-redundancy against other candidates in the
+  batch); missing stability scores `0.0`, never `1.0`. Ran for real against all 15
+  `task-015-official-20260816-015` candidates, frozen at
+  `artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json`. 24
+  new/updated tests, `ruff`, and `pyright` pass; full suite (170 passed, 9 pre-existing
+  PostgreSQL-integration skips) passes. Weights are provisional pending Product/Statistics review,
+  requested in `HANDOFF-045`.
 
 ### TASK-017 — Blind discovery test
 
@@ -391,6 +408,13 @@ Do not mark work `DONE` without executing its required checks and completion pro
   unimplemented), and the candidates persisted in that run are unranked raw discovery output, not
   the ranked artifact `TASK-016` is meant to produce. Closing this task once those land should be
   wiring/confirmation, not new blind-runtime risk.
+- **Status note (2026-08-16, ML Discovery):** Both listed dependencies are now satisfied —
+  `TASK-003` closed the same day via `HANDOFF-030`, and `TASK-016` (above) is now `DONE` with a
+  ranked artifact over the exact `task-015-official-20260816-015` candidates this task's blind run
+  produced. Per the Architect note directly above, closing this task from here should be
+  Architect/Code-Reviewer wiring/confirmation, not new implementation — requested in `HANDOFF-045`.
+  Status stays `BLOCKED` until that confirmation lands; ML Discovery is not the blind actor and
+  does not self-close a task with a named external `Reviewer`.
 
 ## Phase 6 — Statistical validation
 
