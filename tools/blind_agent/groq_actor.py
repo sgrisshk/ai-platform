@@ -162,6 +162,11 @@ def search(path: str, query: str, max_matches: object = 20) -> str:
 
 
 def run_python(code: str) -> str:
+    child_environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"}
+    }
     completed = subprocess.run(
         ["python", "-c", code],
         cwd=WORKSPACE,
@@ -169,6 +174,7 @@ def run_python(code: str) -> str:
         check=False,
         text=True,
         timeout=180,
+        env=child_environment,
     )
     _check_outputs()
     result = {

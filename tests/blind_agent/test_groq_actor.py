@@ -44,6 +44,27 @@ def test_actor_reads_runs_python_and_creates_only_approved_outputs(
     assert {path.name for path in output.iterdir()} == groq_actor.OUTPUT_NAMES
 
 
+def test_run_python_removes_provider_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "workspace"
+    output = workspace / "output"
+    output.mkdir(parents=True)
+    monkeypatch.setattr(groq_actor, "WORKSPACE", workspace)
+    monkeypatch.setattr(groq_actor, "OUTPUT", output)
+    for name in ("GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"):
+        monkeypatch.setenv(name, "must-not-reach-child")
+
+    result = json.loads(
+        groq_actor.run_python(
+            "import os; print(','.join(name for name in os.environ if name.endswith('_API_KEY')))"
+        )
+    )
+
+    assert result["returncode"] == 0
+    assert result["stdout"].strip() == ""
+
+
 def test_paginated_read_matches_gpt_oss_call_and_preserves_isolation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

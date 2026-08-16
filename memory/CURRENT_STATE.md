@@ -65,8 +65,22 @@ production-isolated rehearsal with `openai/gpt-oss-120b` passed listing, paginat
 Python execution, controlled recovery, and validation of exactly three schema-v1.1.0 dummy
 outputs on intermediate digest `5503b6d0…`. The final type-safe digest is `0d64b3ac…`; two
 authenticated repetitions failed closed before completion on Groq's 200,000 TPD quota. No official
-`…-014` was issued. HANDOFF-041 and TASK-015 issuance remain blocked until the final digest passes
-the same rehearsal after quota replenishment.
+On 2026-08-16 the human coordinator reported the final digest passed the same rehearsal; HANDOFF-041
+is resolved. `task-015-official-20260815-014` is issued and `VERIFIED` with signed model
+`openai/gpt-oss-120b`; TASK-015 now awaits fresh actor execution and output acceptance.
+`HANDOFF-042` supersedes that provider launch path. The official actor is now deterministic,
+networkless, and has a hard provider ceiling of zero requests, tokens, and cost. It consumes the
+signed manifest contract directly and no longer depends on an unissued dataset `manifest.json` or
+a hard-coded v1.0.0 outcome contract. Image
+`policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`
+passed truth-free production-isolated rehearsal and normal freeze validation on 2026-08-16.
+Provider run `…-014` is audit-only after source/runtime drift. A genuinely blind-compliant run,
+`task-015-official-20260816-015`, was then issued/launched/frozen end to end (agent
+`deterministic`, null model): `status=PERSISTED`, 15 candidates from 6,945 evaluated hypotheses.
+Committed (`scripts/commit_blind_candidates.py`, signed receipt) before evaluation opened
+`hidden_ground_truth.json`; commitment verified, `ground_truth_pattern_count=9`. Precision/recall/
+direction/impact-error scoring is `TASK-028` (still `BLOCKED`), not computed here. Frozen artifacts
+archived in `artifacts/blind/task-015-official-20260816-015.*`. TASK-015 is `DONE`.
 The earlier persisted artifact
 (15 candidates, 6,945 evaluated hypotheses, fit on `development` only) came from a full-checkout
 run that does not satisfy ADR-008. Statistics ran the full

@@ -1771,7 +1771,7 @@ No official `…-013` run was issued during acceptance.
 **Created:** 2026-08-15
 **From:** ML_DISCOVERY
 **To:** ARCHITECT
-**Status:** IN_PROGRESS
+**Status:** RESOLVED
 
 **Task:** Add bounded workspace search and recoverable provider tool-validation handling to the
 Groq blind actor before another official issuance.
@@ -1816,3 +1816,73 @@ Groq's 200,000 TPD quota; therefore acceptance is not transferred from the inter
 No official run was created. After quota replenishment, rerun the documented `make
 blind-rehearsal` against the default digest; resolve this handoff and permit `…-014` only when it
 prints `BLIND_REHEARSAL_VALID`.
+
+**Final acceptance (2026-08-16):** Human coordinator reported `BLIND_REHEARSAL_VALID` for final
+digest `policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`.
+The evaluator then issued and verified `task-015-official-20260815-014` with signed model
+`openai/gpt-oss-120b`; coordinator inspection confirms state `VERIFIED`. Rehearsal/issuance
+blocker is closed. This does not assert discovery success or output acceptance.
+
+## HANDOFF-042
+
+**Created:** 2026-08-16
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Remove the unnecessary provider dependency from the frozen deterministic blind method,
+or harden and budget any retained provider actor before another official run.
+
+**Context:** Read-only readiness audit found that the allowlisted issued workspace contains
+`BLIND_MANIFEST.json` and the analytical split files, but not the dataset-local `manifest.json`
+required by `scripts/run_discovery.py`. That script also hardcodes outcome contract version
+`1.0.0` instead of consuming the signed acceptance contract. The mathematical discovery engine is
+already deterministic; the LLM currently only discovers how to invoke it and assemble the three
+outputs. This has consumed repeated provider quota without producing accepted artifacts. In
+addition, `groq_actor.run_python()` inherits the parent process environment, including
+`GROQ_API_KEY`, while executing model-generated Python in a network-enabled container. The current
+40-turn, 1,024-completion-token and 18,000-character-context caps bound individual calls but do
+not enforce an explicit per-run token/cost budget from provider usage fields.
+
+**Question:** Prefer a deterministic, no-LLM blind executor that consumes only signed allowlisted
+inputs and writes the existing schema-v1.1.0 outputs using contract versions from
+`BLIND_MANIFEST.json`. If a provider actor remains, sanitize the `run_python` child environment,
+add an explicit request/token/cost ceiling with fail-closed accounting, implement the selected
+provider behind a tested adapter, and rehearse against the newly pinned image. Add a regression
+test proving provider credentials are absent from child Python. Resolve the missing-manifest and
+hardcoded-contract mismatch explicitly; do not make the model compensate for it.
+
+**Files:** `scripts/run_discovery.py`, `tools/blind_agent/groq_actor.py`,
+`tools/blind_agent/core.py`, `tests/blind_agent/`, `Makefile`,
+`docs/benchmark/blind-benchmark-protocol.md`, `blind/README.md`.
+
+**Expected output:** A pinned, rehearsed blind execution path with matching signed input/output
+contracts, no provider credential available to model-generated subprocesses, and a documented
+hard upper bound on paid usage; ideally zero provider tokens for the deterministic official run.
+
+**Blocking:** YES — do not purchase provider capacity for or issue another official TASK-015 run
+until this handoff is resolved and the final image passes truth-free rehearsal.
+
+**Resolution (2026-08-16, Architect):** RESOLVED. The official runtime is deterministic and
+network `none`; issuance rejects provider models and launch rejects provider networking. Its hard
+paid-usage ceiling is zero requests, zero tokens, and zero cost. The allowlisted executor consumes
+dataset identity, primary outcome metadata, contract/method versions, feature timing, seed, and
+input hashes from signed `BLIND_MANIFEST.json`; the absent dataset-local `manifest.json` and
+hard-coded outcome contract `1.0.0` dependency are removed. It writes all three schema-v1.1.0
+outputs and passed normal freeze validation. The retired Groq actor is absent from the image, and
+its child-Python helper strips Groq/OpenAI/Anthropic/Gemini API-key variables with regression
+coverage. Truth-free production-isolated rehearsal printed `BLIND_REHEARSAL_VALID` for image
+`policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`.
+No provider capacity was purchased and no official run was issued. Existing `…-014` is audit-only
+after source/runtime drift; a new unique deterministic run may now be issued.
+
+**Verification (2026-08-16, Architect):** Independently re-verified the pending working-tree
+implementation before commit. Fixed one `pyright` regression in
+`tests/blind_agent/test_rehearsal.py` (an unannotated `monkeypatch.setattr` lambda). The digest
+recorded above was rebuilt and resolved locally via `docker build` + `docker image inspect` in
+this session rather than trusted from an earlier unverifiable record — the previously stated
+digest (`...6c76958686a504...`) did not match a local rebuild and has been replaced everywhere it
+was pinned (`Makefile`, `TASKS.md`, `blind/README.md`, `memory/CURRENT_STATE.md`). `uv run pytest`
+(118 passed, 3 skipped, none blind-agent-related), `ruff check .`, `pyright`, and
+`make blind-rehearsal`-equivalent (`python -m tools.blind_agent.rehearsal --image ...`) against the
+freshly built local image all pass, printing `BLIND_REHEARSAL_VALID`.

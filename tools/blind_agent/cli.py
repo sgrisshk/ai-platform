@@ -35,7 +35,7 @@ def main() -> None:
     )
     parser.add_argument("--allowlist", type=Path, default=REPOSITORY / "blind/allowlist.yaml")
     parser.add_argument("--seed", type=int, default=1729)
-    parser.add_argument("--agent", choices=("groq", "shell"), default="groq")
+    parser.add_argument("--agent", choices=("deterministic", "shell"), default="deterministic")
     parser.add_argument("--model")
     parser.add_argument("--image", default="policy-blind-agent:local")
     parser.add_argument("--network", choices=("none", "provider"), default="none")
@@ -49,8 +49,8 @@ def main() -> None:
         return
     signing_key = load_signing_key(args.key_file, REPOSITORY, args.runs_root)
     if args.command in {"issue", "prepare"}:
-        if args.agent == "groq" and not args.model:
-            parser.error("--model is required when issuing a Groq blind run")
+        if args.agent == "deterministic" and args.model:
+            parser.error("--model is forbidden for deterministic blind runs")
         print(
             prepare(
                 REPOSITORY,

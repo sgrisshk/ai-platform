@@ -232,7 +232,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-011, TASK-012, TASK-013, HANDOFF-007
 - **Goal:** Use simple interpretable methods first—shallow trees, boosting with rule extraction, and subgroup discovery—to return 10–20 harmful candidate patterns.
 - **Candidate contract:** Conditions, support, N, raw difference, deterministic economic exposure, stability indicators, and warnings.
@@ -278,8 +278,27 @@ Do not mark work `DONE` without executing its required checks and completion pro
   and host validation of exactly three schema-v1.1.0 dummy outputs. The final type-safe rebuild is
   pinned as `policy-blind-agent@sha256:0d64b3acd49008577216fd79e14c9c242e6c99b52712931ee7ef2392ecae98a2`,
   but its two authenticated repetitions failed closed on Groq's 200,000 TPD quota before completing
-  acceptance. No official run was issued. HANDOFF-041 and reissuance remain blocked until the final
-  digest prints `BLIND_REHEARSAL_VALID` after quota replenishment.
+  acceptance. On 2026-08-16 the human coordinator reported `BLIND_REHEARSAL_VALID` for the final
+  digest; `HANDOFF-041` is resolved. Official run `task-015-official-20260815-014` is issued and
+  `VERIFIED`, signed to `openai/gpt-oss-120b`, but is now audit-only because the runtime/source
+  contract changed before launch. `HANDOFF-042` is resolved: official execution is deterministic,
+  networkless, and uses zero provider requests/tokens/cost. `scripts/run_discovery.py` consumes
+  dataset identity, outcome metadata, contract versions, feature timing, method version, seed, and
+  provenance hashes from signed `BLIND_MANIFEST.json`; it no longer expects the absent private
+  dataset `manifest.json` or hardcodes outcome contract v1.0.0. Image
+  `policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`
+  passed a full truth-free Docker rehearsal and normal freeze validation on 2026-08-16.
+- **Blind-compliant run (2026-08-16, Architect):** Issued, launched, and froze
+  `task-015-official-20260816-015` end to end through the deterministic, networkless, zero-token
+  pipeline (`make blind-issue`/`blind-verify`/`blind-shell`/`blind-freeze`), satisfying ADR-008
+  isolation unlike the earlier full-checkout artifact below. `status=PERSISTED`, 15 candidates from
+  6,945 evaluated hypotheses. Committed via `scripts/commit_blind_candidates.py` (signed receipt
+  `artifacts/blind/task-015-official-20260816-015.receipt.json`) before
+  `scripts/evaluate_synthetic_benchmark.py` opened `hidden_ground_truth.json`
+  (`artifacts/blind/task-015-official-20260816-015.evaluation.json`): commitment verified,
+  `ground_truth_pattern_count=9`. Precision/recall/direction/impact-error scoring is intentionally
+  not computed here — that belongs to `TASK-028`, still `BLOCKED`. Frozen artifacts archived in
+  `artifacts/blind/task-015-official-20260816-015.*`.
 - **Evidence:** Deterministic interpretable beam-search engine and CLI in
   `packages/analytics/src/policy_analytics/discovery/engine.py` and `scripts/run_discovery.py`;
   methodology in `docs/analytics/discovery-engine-v0.md`; 2026-08-13 run artifact
