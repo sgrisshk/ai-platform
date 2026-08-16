@@ -81,28 +81,45 @@ Committed (`scripts/commit_blind_candidates.py`, signed receipt) before evaluati
 `hidden_ground_truth.json`; commitment verified, `ground_truth_pattern_count=9`. Precision/recall/
 direction/impact-error scoring is `TASK-028` (still `BLOCKED`), not computed here. Frozen artifacts
 archived in `artifacts/blind/task-015-official-20260816-015.*`. TASK-015 is `DONE`.
-The earlier persisted artifact
-(15 candidates, 6,945 evaluated hypotheses, fit on `development` only) came from a full-checkout
-run that does not satisfy ADR-008. Statistics ran the full
-`TASK-018` validation contract against that artifact anyway, as a dry run of the validation
-machinery (`TASK-019`, `IN_PROGRESS`, not `DONE`): **all 15 candidates DOWNGRADE to
-`LEVEL_1_DESCRIPTIVE`**, none PASS. At dry-run time this reflected three independent issues rather
-than weak candidates: the now-resolved issuance gap, the still-unexecuted fresh blind run, and a
-defect in the validation contract's own multiple-comparison gate (`ADR-014`: its bootstrap
-p-value floor could not pass BH correction at this system's typical family sizes regardless of
-true effect size). **That defect is now fixed:** validation contract **v1.1.0** (`ADR-015`)
-replaces G05's p-value source with a normal approximation on the bootstrap standard error, proven
-mathematically sufficient and covered by synthetic-only regression tests
-(`tests/analytics/test_g05_multiplicity_fix.py`); the frozen v1.0.0 dry-run artifact was left
-untouched and the CLI now refuses to overwrite a frozen result without `--force`. No candidate was
-handed to Architect/Product as a validated finding, and the fix alone does not change that — a
-genuinely blind `TASK-015`/`TASK-017` artifact is still required before `TASK-019` can close.
-Tooling is now checked and ready for that artifact specifically (`ADR-018`): the blind-agent
-output schema (`tools/blind_agent/models.py`) differs from what the dry run used, and the
-validation engine/CLI now handle both shapes and require explicit blind-compliance flags rather
-than inferring them. The remaining gap is entirely on the `TASK-015` execution side
-(`HANDOFF-036`/`HANDOFF-037`). Ingestion-contract design is the next data-pipeline boundary for
-real customer data.
+The earlier full-checkout artifact was graded once as a dry run under contract v1.0.0 (all 15
+DOWNGRADE, none PASS) purely to exercise the validation machinery; that frozen result
+(`artifacts/validation/task-019-validation-report.json`) is untouched and historical. The G05
+multiple-comparison defect found during that dry run (`ADR-014`) was fixed the same day: contract
+**v1.1.0** (`ADR-015`) replaces G05's p-value source with a normal approximation on the bootstrap
+standard error, proven mathematically sufficient and covered by synthetic-only regression tests.
+
+**The full chain then closed for real, end to end, on 2026-08-16:** `task-015-official-20260816-015`
+(genuinely `TASK-017`-compliant, committed via signed receipt before ground truth was opened) was
+validated under contract v1.1.0 (`TASK-019`, now `DONE`) — **6 of 15 candidates PASS at
+`adjusted_observational_association`/`SHADOW_POLICY`; 9 DOWNGRADE; none REJECT — the first genuine
+positive result in the project.** `TASK-003` closed (`HANDOFF-030` accepted, independently
+re-verified). `TASK-020`/`TASK-021`/`TASK-022`/`TASK-023` are all `DONE` (produced by the same
+validation engine, not separate implementations). `TASK-028` (`scripts/evaluate_benchmark.py`)
+scored the run against `hidden_ground_truth.json`, opened only after both discovery and validation
+were already frozen: Top-10 precision 90%, economic-weighted recall 45.2% (only P01/P06 of 7
+scoreable patterns recovered), 0/5 confounding traps promoted (though never proposed as
+candidates either — a weaker claim than active rejection, see `TASK-022`), 0 leakage violations,
+100% effect-direction accuracy, and **median economic impact estimation error 204%** — diagnosed
+cause: validated candidates' exposed populations are ~15–16× larger than the true patterns they
+partially recover (`docs/benchmark/task-029-benchmark-report-v1.md` §3.6). `TASK-029`'s report is
+frozen; `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" is filled in.
+
+**Overall decision-gate verdict: FAILED** (driven entirely by the impact-error metric; no hard
+disqualifier fired — `ADR-019`). Per the gate's own action table, real customer data does not
+proceed on this result. Statistics attributes the failure to a fixable economic-impact-granularity
+defect, not a limitation of the discovery mechanism itself (direction and precision are both
+strong) — `HANDOFF-043` requests ML_DISCOVERY/FOUNDER_STRATEGY concurrence before a remediation
+rerun is authorized.
+
+**Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
+Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`
+fixes the contract; `POST /api/v1/datasets` now takes a real multipart upload, validates
+size/extension/content/encoding, content-addresses and immutably persists raw bytes
+(`app/ingestion/`), and enforces `name`+`version` identity with duplicate rejection. Verified
+against a real ephemeral PostgreSQL instance, not just unit-level: 163 tests pass, `ruff`/`pyright`
+clean. `TASK-007` (schema profiler) is unblocked. This does not touch or lift the `TASK-038`
+real-data block below — that remains gated on the decision-gate `FAILED` verdict and
+`TASK-057`/`TASK-037` regardless of ingestion readiness.
 
 ## Current hypothesis
 
@@ -117,8 +134,9 @@ migrations, frontend shell, synthetic fixture, a 10,000-row hidden-ground-truth 
 versioned leakage-safe synthetic analytical dataset `travel-bookings-analytical-v1.0.0` using
 canonical schema `travel-booking-canonical-v1.0.0`, and its outcome contract. It does not yet
 implement discovery, validation application, or the production
-analytical pipeline. Customer-data ingestion and the production canonicalization pipeline remain
-unimplemented.
+analytical pipeline. Raw customer-data ingestion (`TASK-005`/`TASK-006`) is implemented; schema
+profiling, feature-timing classification, the data-quality report, and the production
+canonicalization pipeline (`TASK-007` onward) remain unimplemented.
 
 TASK-012 adds split contract `travel-bookings-temporal-split-v1.0.0`: development is calendar
 2024, validation is H1 2025, and future holdout is H2 2025. Search/selection is allowed only on
@@ -136,21 +154,47 @@ development; later splits remain diagnostic-only during discovery.
 
 ## Current blocker
 
-No immutable ingestion contract or canonical travel-booking mapping exists. Real customer data must not be accepted until security, storage, validation, and deletion boundaries are defined.
+The immutable ingestion contract now exists and is implemented (`TASK-005`/`TASK-006`, `DONE`), but
+no canonical travel-booking mapping (`TASK-010`) or customer-facing Data Quality Report (`TASK-009`)
+exists yet. Real customer data must additionally clear `TASK-057` (secured pilot customer),
+`TASK-037` (adversarial security review of this ingestion path), and the current decision-gate
+`FAILED` verdict (`HANDOFF-043`) before it is accepted — deletion boundaries (`TASK-055`) also
+remain undefined.
 
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
 
-- **Technical milestone — first compliant blind benchmark result.** A genuine blind `TASK-015` rerun (workspace `task-015-official-20260814-002`, already issued and verified, awaiting a launched Discovery actor per `HANDOFF-032`), re-validated under validation contract v1.1.0 (`ADR-015`, G05 fixed), scored through the remaining `TASK-020`→`TASK-023`→`TASK-028`→`TASK-029` chain, and graded against `docs/benchmark/decision-gate.md`'s STRONG/PROMISING/WEAK/FAILED bands. Success condition: a graded verdict exists, whatever it is — a FAILED verdict honestly reported still meets this milestone; a verdict that doesn't exist by day 14 does not. Owner: ML_DISCOVERY (execute `HANDOFF-032`), STATISTICS (run `TASK-020`–`TASK-023`, `TASK-028`–`TASK-029` under v1.1.0), ARCHITECT (coordinator support). Risk: this is a long chain even with both major blockers (workspace issuance, G05 defect) already cleared — an aggressive but not certain 14-day timeline.
-- **Commercial milestone — first documented customer/data-sharing conversation.** At least one real, logged serious conversation in `docs/customer/pipeline.md` (per its existing bar: `CALL SCHEDULED`/`CALL DONE` or an equivalent real exchange about actual data), from the 7-day acquisition sprint (`ADR-017`, `docs/customer/acquisition-sprint-7day.md`) and its continuation through day 14. Owner: FOUNDER_STRATEGY (sends/authorizes outreach), CUSTOMER_DISCOVERY (sources, drafts, logs).
+- **Technical milestone — first compliant blind benchmark result. ACHIEVED 2026-08-16 (day 3 of
+  14).** `task-015-official-20260816-015` validated under contract v1.1.0, scored end to end
+  through `TASK-020`→`TASK-023`→`TASK-028`→`TASK-029`, graded against
+  `docs/benchmark/decision-gate.md`: **overall verdict FAILED** (driven by economic impact
+  estimation error alone, median 204%; no hard disqualifier fired — 90% Top-10 precision, 100%
+  direction accuracy, 0 leakage, 0/5 traps promoted). Per the milestone's own success condition
+  ("a graded verdict exists, whatever it is — a FAILED verdict honestly reported still meets this
+  milestone"), **this milestone is met.** Full detail: `docs/benchmark/task-029-benchmark-report-v1.md`,
+  `ADR-019`. Open follow-up: `HANDOFF-043` (ML_DISCOVERY/FOUNDER_STRATEGY concurrence on Statistics'
+  fixable-defect attribution, before any remediation rerun).
+- **Commercial milestone — first documented customer/data-sharing conversation.** Still pending;
+  unaffected by the technical result above. At least one real, logged serious conversation in
+  `docs/customer/pipeline.md` (per its existing bar: `CALL SCHEDULED`/`CALL DONE` or an equivalent
+  real exchange about actual data), from the 7-day acquisition sprint (`ADR-017`,
+  `docs/customer/acquisition-sprint-7day.md`) and its continuation through day 14. Owner:
+  FOUNDER_STRATEGY (sends/authorizes outreach), CUSTOMER_DISCOVERY (sources, drafts, logs).
 
-**14-day go/no-go:**
-- **GO (continue unchanged):** technical milestone grades PROMISING or STRONG, and ≥1 real serious conversation logged.
-- **Adjust, don't kill, if exactly one lands:** mechanism grades PROMISING/STRONG but zero conversations after a real 14-day founder-executed effort → GTM/channel/positioning problem, not a thesis problem; revisit outreach approach before touching `ADR-016`'s travel-only scope. Conversation secured but mechanism grades WEAK/FAILED → do not accelerate toward `TASK-038` real-data ingestion on the strength of enthusiasm alone; the `docs/benchmark/decision-gate.md` gate still governs that decision regardless of commercial progress.
-- **Escalate:** technical FAILED with a hard disqualifier (leakage or promoted confounding trap) → trigger the core-discovery-approach review process already defined in `docs/benchmark/decision-gate.md`. Zero real conversations despite a genuinely executed 14-day effort (not just an unauthenticated channel) → this stops being a tooling excuse and becomes a real ICP/positioning signal; reopen `ADR-016` at that point, not before.
+**14-day go/no-go — technical half now resolved as FAILED without a hard disqualifier:**
+- Per the pre-registered logic: *"Conversation secured but mechanism grades WEAK/FAILED → do not
+  accelerate toward `TASK-038` real-data ingestion on the strength of enthusiasm alone; the
+  decision-gate still governs that decision regardless of commercial progress."* **This is the
+  applicable branch now, regardless of how the commercial milestone resolves.** Real customer data
+  ingestion does not proceed until a remediation run re-grades at STRONG or PROMISING.
+- The **escalate** branch ("technical FAILED with a hard disqualifier → trigger core-discovery-
+  approach review") does **not** apply — no hard disqualifier fired. This is a single diagnosed,
+  plausibly fixable failure, not (yet) grounds for the two-strikes core-approach review.
+- The commercial-track go/no-go logic (GO / adjust-if-one-lands / escalate-on-zero-conversations)
+  is unaffected by the technical result and still applies on its own terms through day 14.
 
-Both milestones proceed in parallel — neither is sequenced after the other; see `30_DAY_VALIDATION_PLAN` framing in `docs/strategy/30-day-validation-plan.md`.
+See `30_DAY_VALIDATION_PLAN` framing in `docs/strategy/30-day-validation-plan.md`.
 
 ## Success criterion
 

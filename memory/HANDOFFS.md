@@ -7,7 +7,7 @@ All unresolved cross-role work is recorded here. Status values are `OPEN`, `IN_P
 **Created:** 2026-08-13  
 **From:** ARCHITECT  
 **To:** DATA_ENGINEER  
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Define the immutable ingestion contract for `TASK-005`.
 
@@ -27,7 +27,15 @@ All unresolved cross-role work is recorded here. Status values are `OPEN`, `IN_P
 
 **Blocking:** YES — blocks `TASK-006` and acceptance of real customer data.
 
-**Resolution:** Pending. This blocks `TASK-006` through `TASK-009`.
+**Resolution (2026-08-16, Data Engineer, paired with Architect):** `docs/architecture/ingestion-contract.md`
+answers this directly: typed manifest fields are realized as `datasets` columns
+(`checksum_sha256`, `size_bytes`, `content_type`, `source_type`, `storage_path`) rather than a
+separate sidecar schema; validation stages are filename sanitization → bounded size-checked read →
+CSV content sniff → SHA-256 content-address + immutable persist → `name`/`version` identity
+resolution; lineage identifiers are `id`, `name` (identity), `version` (monotonic per name),
+`checksum_sha256` (content identity); data-quality output remains explicitly out of scope, deferred
+to `TASK-009`. `TASK-006` implements this contract end to end (`TASK-006` evidence in `TASKS.md`).
+`TASK-005` and `TASK-006` are both `DONE`; `TASK-007` is unblocked.
 
 ## HANDOFF-006
 
@@ -1412,7 +1420,26 @@ channel is live, so `TASK-057` remains at 0 of 3 required conversations.
 
 **Blocking:** YES — the gate governs whether `TASK-038` (real customer ingestion) may proceed off this benchmark's result; it should not bind a real decision without Statistics' methodological sign-off.
 
-**Resolution:** Pending.
+**Resolution (2026-08-16, Statistics):** **Process note first, stated plainly:** this handoff asks
+to resolve *before* ground truth is opened, matching the gate document's own pre-registration
+discipline. It did not — the explicit instruction that triggered `TASK-028`/`TASK-029` sequenced
+this confirmation after execution, not before. The gate document itself was written, and its
+numeric bands fixed, before any of this session's ground-truth access (2026-08-13, per its own
+header), so the *bands were not shaped* by seeing results — but this specific confirmation step
+was. Recorded honestly rather than silently reordered after the fact.
+
+**Substantive review:** No conflicts found between the six metric definitions, the matching-
+statistic delegation, the hard-disqualifier list, and `docs/analytics/validation-contract.md`
+(§4–§11, `min_e_value`, materiality placeholders, §10 acceptance test all consistent — hard
+disqualifier 2 in particular directly mirrors §10's own "a false-positive trap is weighted more
+heavily than a missed pattern"). The numeric bands are usable as drafted given benchmark scale. One
+real defect found and fixed in place (append-only, per the document's own rule): the overall-
+verdict rule says "grade the four metrics below," but six numbered metrics are listed and two
+(3, 4) are partially/fully gating rather than banded — flagged and clarified in the document's
+"Post-benchmark comparison" section rather than edited into the pre-registered sections above,
+since `TASK-029` had already run by the time this was caught. It did not change this run's
+verdict. Gate used as-is (with that documented ambiguity) to score `task-015-official-20260816-015`
+→ overall **FAILED**, full detail in `docs/benchmark/task-029-benchmark-report-v1.md`.
 
 ## HANDOFF-028
 
@@ -1470,7 +1497,7 @@ channel is live, so `TASK-057` remains at 0 of 3 required conversations.
 **Created:** 2026-08-14
 **From:** DATA_ENGINEER
 **To:** STATISTICS
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Perform the final TASK-003 review of the private per-pattern true-effect representation.
 
@@ -1499,7 +1526,26 @@ publish the private values or expose them to an ML Discovery session.
 
 **Blocking:** YES — final acceptance blocks moving TASK-003 from `IN_REVIEW` to `DONE`.
 
-**Resolution:** Pending.
+**Resolution (2026-08-16, Statistics): Accepted. TASK-003 → `DONE`.** Independently verified, not
+just read: (1) `sha256(hidden_ground_truth.json)` recomputed locally =
+`5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506`, matches both this handoff's
+claim and `checksums.json`. (2) For all 9 patterns, `realized_economic_impact == |realized_effect|
+× affected_n` to the cent, and `affected_n == len(affected_booking_ids)` — internal arithmetic
+consistency holds throughout, not just schema presence. (3) Sign convention
+(`economic_impact_sign_convention: "positive means realized harm; harm_multiplier=-1"`) matches
+`policy_analytics.outcomes.aggregation.harm_score` exactly — recomputed by hand for P01
+(harm_score × n = 998.35 × 142 = 141,765.41, matches the recorded value). (4) Read the actual
+counterfactual-replay implementation
+(`packages/analytics/src/policy_analytics/synthetic_benchmark.py`, `_realized_pattern_effects`):
+`counterfactual_rng = random.Random(config.seed)` reused with `disabled_pattern_id` set, and the
+disabled branches only skip additive constant terms (`loss +=`, `cancel_logit +=`,
+`support_lambda +=`), never an `rng.*()` call — so disabling a pattern changes only the applied
+parameters, not the random-draw sequence, which is the correct design for a paired
+factual-minus-counterfactual estimand. (5) `uv run pytest tests/analytics/test_synthetic_benchmark.py`
+— 4/4 pass, including the leakage test that scans a prepared blind workspace for
+`true_effect`/`configured_effect`/`realized_effect`/`realized_economic_impact` and asserts none are
+present. No schema or sign correction needed. This artifact was then used, unmodified, as the
+scoring input for `TASK-028`/`TASK-029` (`docs/benchmark/task-029-benchmark-report-v1.md`).
 
 ## HANDOFF-031
 
@@ -1886,3 +1932,63 @@ was pinned (`Makefile`, `TASKS.md`, `blind/README.md`, `memory/CURRENT_STATE.md`
 (118 passed, 3 skipped, none blind-agent-related), `ruff check .`, `pyright`, and
 `make blind-rehearsal`-equivalent (`python -m tools.blind_agent.rehearsal --image ...`) against the
 freshly built local image all pass, printing `BLIND_REHEARSAL_VALID`.
+
+## HANDOFF-043
+
+**Created:** 2026-08-16
+**From:** STATISTICS
+**To:** ML_DISCOVERY, FOUNDER_STRATEGY
+**Status:** OPEN
+
+**Task:** Confirm or dispute Statistics' attribution that the `TASK-029` FAILED verdict is a fixable estimation-granularity defect, not a core-discovery-method limitation, before a remediation rerun is authorized under `docs/benchmark/decision-gate.md`'s FAILED action.
+
+**Context:** The first `TASK-017`-compliant blind run (`task-015-official-20260816-015`) scored **FAILED** overall (`docs/benchmark/task-029-benchmark-report-v1.md`), driven entirely by metric 6 (economic impact estimation error, median 204%) — every other metric graded STRONG or PROMISING, no hard disqualifier fired (0 leakage, no trap promoted, 100% direction accuracy, 90% Top-10 precision). The diagnosed mechanism: matched candidates' exposed populations are ~15–16× larger than the true patterns' affected populations (e.g. `CAND-004` matches P01 — 142 affected bookings — but exposes 2,239), which dilutes per-booking effect (candidates report 20–31% of true per-booking harm) while inflating total reported exposure (2–4.8× true total impact). Statistics attributes this to an economic-impact *granularity* problem — no step currently separates a rule's whole-population exposure from an attribution-narrowed estimate restricted to its overlap with a specific matched pattern — fixable at the `TASK-021`/`TASK-023` estimation layer, not requiring a change to `TASK-015`'s search algorithm. Per `docs/benchmark/decision-gate.md`, this attribution requires **both** Statistics and ML_DISCOVERY to concur before "fix and rerun once" is authorized rather than counting as the first of two strikes toward the core-approach-change trigger.
+
+**Question:** Does ML_DISCOVERY agree the FAILED verdict traces to impact-estimation granularity rather than the interpretable-conjunction search itself being unable to find narrower, more precisely-scoped rules? If ML_DISCOVERY disagrees (e.g. believes tighter candidate scoping is achievable and should be attempted at the search level instead of, or in addition to, an estimation-layer fix), say so before any remediation is scoped. Separately, FOUNDER_STRATEGY: does this reading of the FAILED action (single diagnosed defect, not yet a "first strike" toward the two-run trigger) match your intent for `docs/benchmark/decision-gate.md`?
+
+**Files:**
+
+- `docs/benchmark/task-029-benchmark-report-v1.md` (§3.6, §4)
+- `docs/benchmark/decision-gate.md` ("Post-benchmark comparison")
+- `artifacts/evaluation/task-028-benchmark-evaluation.json`
+- `packages/analytics/src/policy_analytics/validation/apply.py` (G15 / historical exposure)
+
+**Expected output:** Concurrence (or a dissenting diagnosis) from ML_DISCOVERY, and confirmation from FOUNDER_STRATEGY that a single remediation attempt — not the two-strikes core-approach review — is the correct next step.
+
+**Blocking:** YES — blocks scoping any remediation work and blocks re-running `TASK-019`/`TASK-028` a second time under a false premise about what's being fixed.
+
+**Resolution:** Pending.
+
+## HANDOFF-044
+
+**Created:** 2026-08-16
+**From:** DATA_ENGINEER
+**To:** ARCHITECT
+**Status:** OPEN
+
+**Task:** `apps/web/lib/api/types.ts`'s `Dataset` type has drifted from the live `DatasetRead` schema.
+
+**Context:** While closing `TASK-005`/`TASK-006`, `apps/api/app/api/schemas.py`'s `DatasetRead`
+gained `checksum_sha256`, `size_bytes`, `content_type`, and `source_type` (the ingestion manifest
+fields). `apps/web/lib/api/types.ts`'s `Dataset` type (documented as mirroring `DatasetRead`
+"byte-for-byte" per the `TASK-025`/frontend-readiness note in `TASKS.md`) was not updated and is
+now missing all four fields. No page currently renders them, so this is not a runtime break today —
+`/datasets` only reads the fields it already had — but it is a real, concrete instance of the drift
+that invariant is supposed to prevent, and would silently under-serve the field if a future screen
+needed one of these values.
+
+**Question:** Add the four missing fields to `Dataset` in `apps/web/lib/api/types.ts` (plain
+mechanical sync, no new UI) whenever `apps/web` is next touched?
+
+**Files:**
+
+- `apps/api/app/api/schemas.py` (`DatasetRead`, source of truth)
+- `apps/web/lib/api/types.ts` (`Dataset`, out of sync)
+
+**Expected output:** Either the four fields added, or an explicit decision to keep them
+server-only (e.g. never expose `storage_path`-adjacent fields to the browser) recorded here instead
+of just left unsynced.
+
+**Blocking:** NO — nothing currently reads the missing fields; this is hygiene, not a bug fix.
+
+**Resolution:** Pending.

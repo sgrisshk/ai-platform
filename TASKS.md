@@ -54,7 +54,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** DATA_ENGINEER
 - **Reviewer:** STATISTICS
 - **Priority:** P0
-- **Status:** IN_REVIEW
+- **Status:** DONE
 - **Depends on:** TASK-001
 - **Goal:** Generate 10,000 bookings across 24 months with a fixed seed and hidden ground truth.
 - **Scope:** Seasonality, managers, suppliers, customer segments, discounts, payments, cancellations, refunds, support costs, gross profit, and contribution margin; at least 8 harmful patterns, 5 confounding traps, drift, heterogeneous effects, selection bias, leakage fields, missingness, and a dirty-data variant.
@@ -81,14 +81,25 @@ Do not mark work `DONE` without executing its required checks and completion pro
   `5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506`; leakage tests confirm the
   fields are absent from public, analytical, and blind-export artifacts. Final Statistics
   acceptance is requested in `HANDOFF-030`; status remains `IN_REVIEW` until that review resolves.
+- **Final acceptance (2026-08-16, Statistics, `HANDOFF-030` resolved) → `DONE`.** Independently
+  reverified, not just read: recomputed `sha256(hidden_ground_truth.json)` locally, matches the
+  claimed and recorded checksum; confirmed `realized_economic_impact == |realized_effect| ×
+  affected_n` to the cent for all 9 patterns; hand-verified the harm-score sign convention against
+  `policy_analytics.outcomes.aggregation.harm_score` for P01; read the counterfactual-replay
+  implementation and confirmed disabling a pattern changes only accumulated constants, never an
+  `rng.*()` call, preserving paired-draw validity; ran `test_synthetic_benchmark.py` (4/4 pass,
+  including the leakage scan). This artifact was then used, unmodified, as `TASK-028`'s scoring
+  input (`docs/benchmark/task-029-benchmark-report-v1.md`).
 
 ### TASK-004 — Benchmark difficulty presets
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-003
 - **Goal:** Add `EASY`, `MEDIUM`, `HARD`, and `BRUTAL` presets varying noise, effects, missingness, confounding, rarity, and temporal instability.
+- **Status note (2026-08-16, Data Engineer):** Unblocked — `TASK-003` is `DONE` (`HANDOFF-030`
+  accepted). Not picked up this iteration; `TASK-005`/`TASK-006` (below) were the assigned priority.
 
 ## Phase 2 — Data ingestion
 
@@ -97,28 +108,70 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** DATA_ENGINEER
 - **Reviewer:** ARCHITECT
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-002
 - **Goal:** Specify checksums, file validation, size/type limits, safe names, retention, versioning, immutable storage, logging/privacy boundaries, and typed ingestion manifest.
-- **Handoff:** `HANDOFF-001`.
+- **Handoff:** `HANDOFF-001`, resolved.
+- **Evidence (2026-08-16, Data Engineer, paired with Architect):** `docs/architecture/ingestion-contract.md`
+  answers every question in `HANDOFF-001`: SHA-256 content addressing (`raw/{sha256[:2]}/{sha256}.csv`),
+  an ordered validation pipeline (filename → bounded size read → content sniff → content-address +
+  immutable persist → name/version identity resolution), `name`+`version` as the versioning identity
+  with adjacent-latest duplicate rejection (`409`, no silent overwrite), retention deferred to
+  `TASK-055`, and a logging boundary that never emits filenames or row content. The manifest is
+  realized as typed columns on `datasets` (`checksum_sha256`, `size_bytes`, `content_type`,
+  `source_type`, `storage_path`) rather than a separate sidecar schema, to avoid a second driftable
+  source of truth — this superseded an initial draft manifest module
+  (`packages/schemas/src/policy_schemas/ingestion.py`), which was removed once the column-based
+  design was confirmed working end to end in `TASK-006`. Contract and implementation were produced
+  together in this iteration rather than as a sequential spec-then-build handoff.
 
 ### TASK-006 — Dataset upload API and raw storage
 
 - **Owner:** ARCHITECT
 - **Data contract:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-005
 - **Goal:** Accept CSV through `POST /api/v1/datasets`, preserve raw bytes immutably, and persist filename, checksum, timestamp, size, version, and source type without logging contents.
 - **Done when:** A synthetic CSV can be uploaded and every version is traceable; identical identity rules prevent silent overwrite.
+- **Evidence (2026-08-16, Architect + Data Engineer):** `POST /api/v1/datasets` now takes a
+  multipart `name` + `file` upload (`apps/api/app/datasets/routes.py`, `service.py`). Filename
+  sanitization and CSV content sniffing (`app/ingestion/validation.py`), a bounded streaming read
+  that aborts at `Settings.max_upload_bytes` regardless of a spoofed `Content-Length`, and
+  content-addressed immutable storage with atomic temp-write + `fsync` + `os.replace` + read-only
+  `chmod` (`app/ingestion/storage.py`) implement the `TASK-005` pipeline. `datasets` gained
+  `checksum_sha256`/`size_bytes`/`content_type`/`source_type`/`storage_path` plus a
+  `UNIQUE(name, version)` constraint (migration `20260816_0002`); a same-name upload with an
+  unchanged checksum is rejected `409` without a new row, a changed checksum creates the next
+  version, and a concurrent-insert race is caught and mapped to `409` rather than corrupting version
+  order. Data Engineer review found and fixed one real pre-existing gap: `pyright` failed on
+  `read_bounded`'s protocol (`UploadFile.file` is position-only `read(n, /)`, the declared protocol
+  was not) — fixed by making the protocol's parameter position-only; also fixed two lint findings
+  (unsorted imports, one overlong line). Verified, not just read: `uv run pytest` — 29 unit tests for
+  `validation.py`/`storage.py` (filename rejection cases, size/encoding/structure rejection, content
+  addressing determinism, immutability, no temp-file leftovers) plus 6 integration tests
+  (`tests/api/test_datasets_upload.py`) run against a real ephemeral PostgreSQL container — happy
+  path with full manifest fields, duplicate-content rejection, version increment, oversized-upload
+  rejection, wrong-extension rejection, and a log-inspection test proving the filename never reaches
+  a log record — all pass (163 passed project-wide with the DB attached); `ruff check .` and
+  `pyright` both clean. This satisfies the stated done condition. `TASK-007` is unblocked.
+- **Known scope limits, not defects:** only Excel is deferred (CSV only, matching this task's own
+  goal text); duplicate detection compares against the latest version only, not full history;
+  malware scanning is a deployment-platform hook per `SECURITY.md`, not implemented locally;
+  authentication/tenant isolation remain `TASK-053`/`TASK-054`. An independent adversarial security
+  pass before real customer bytes flow through this path is `TASK-037`, already gated on
+  `TASK-057` — not reopened here, and unaffected by/independent of the `TASK-029` decision-gate
+  `FAILED` verdict (`HANDOFF-043`), which blocks `TASK-038` on its own separate grounds.
 
 ### TASK-007 — Schema profiler
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-006
 - **Goal:** Persist inferred type, missingness, distinct count, relevant min/max, safe examples, suspicious values, and likely semantic type per column.
+- **Status note (2026-08-16, Data Engineer):** Unblocked — `TASK-006` is `DONE`. Not started this
+  iteration.
 
 ### TASK-008 — Feature-timing classification
 
@@ -313,9 +366,12 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-015
 - **Goal:** Rank candidates by economic impact, support, stability, actionability, and novelty—not model importance alone.
+- **Status note (2026-08-16, Architect):** Unblocked — `TASK-015` is `DONE`. No ranking
+  implementation exists yet (`grep` for a ranking module in `packages/analytics` finds nothing);
+  this is unstarted work, not a stale blocker.
 
 ### TASK-017 — Blind discovery test
 
@@ -325,6 +381,16 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Status:** BLOCKED
 - **Depends on:** TASK-003, TASK-016
 - **Goal:** Run without hidden ground truth and persist candidates before evaluation files are opened.
+- **Status note (2026-08-16, Architect):** Reconciled against `memory/CURRENT_STATE.md`. The
+  literal behavioral goal — a fully blind (ADR-008-compliant) run that persists a signed candidate
+  commitment before evaluation opens hidden ground truth — was demonstrated by
+  `task-015-official-20260816-015` (commit receipt predates `evaluate_synthetic_benchmark.py`
+  reading `hidden_ground_truth.json`; see `TASK-015` evidence). That retires the blind-infrastructure
+  risk this task exists to catch. It is **not** marked `DONE`: its own listed dependencies are not
+  both satisfied — `TASK-003` is `IN_REVIEW` (not `DONE`) and `TASK-016` is `READY` (ranking
+  unimplemented), and the candidates persisted in that run are unranked raw discovery output, not
+  the ranked artifact `TASK-016` is meant to produce. Closing this task once those land should be
+  wiring/confirmation, not new blind-runtime risk.
 
 ## Phase 6 — Statistical validation
 
@@ -353,7 +419,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** STATISTICS
 - **Implementation support:** ARCHITECT
 - **Priority:** P0
-- **Status:** IN_PROGRESS
+- **Status:** DONE
 - **Depends on:** TASK-017, TASK-018
 - **Goal:** Apply the standardized validation contract to persisted candidates.
 - **Dry-run evidence (2026-08-14, Statistics):** Implemented and ran the full 16-gate engine
@@ -406,9 +472,9 @@ Do not mark work `DONE` without executing its required checks and completion pro
   (`tests/analytics/test_g05_multiplicity_fix.py`) plus fixes to 2 existing test files; 97 tests
   total pass, ruff and pyright clean. Full defect/fix/migration write-up:
   `docs/analytics/validation-contract.md` §4a.
-- **Still not `DONE`:** the fix only removes the third blocker from the list above. `TASK-019`
-  closes only once a genuinely `TASK-017`-compliant (blind-workspace, founder-readiness-cleared)
-  candidate artifact exists and is graded under v1.1.0 as a new, separately frozen run.
+- **Still not `DONE` at that point:** the fix only removed the third blocker from the list above.
+  `TASK-019` was to close only once a genuinely `TASK-017`-compliant candidate artifact existed and
+  was graded under v1.1.0 as a new, separately frozen run.
 - **Closing-run readiness (2026-08-14, Statistics, ADR-018):** Checked the actual blind-agent
   output schema (`tools/blind_agent/models.py`, `OUTPUT_SCHEMA_VERSION = "1.1.0"`) against what
   the validation engine parses and found it materially different from the artifact the dry run
@@ -434,30 +500,75 @@ Do not mark work `DONE` without executing its required checks and completion pro
   artifact, whatever exact filenames the blind runner produces, can be pointed at directly.** What
   remains before `TASK-019` itself closes is entirely outside Statistics: a successful blind run
   (`HANDOFF-036`/`HANDOFF-037`, credential/preflight issues) producing that artifact.
+- **Closing run (2026-08-16, Statistics) → `DONE`.** `task-015-official-20260816-015` (issued,
+  launched, and frozen through `blind/`'s deterministic pipeline; candidates committed via signed
+  receipt before ground truth was opened) graded end to end: `uv run python
+  scripts/validate_candidates.py --candidates artifacts/blind/task-015-official-20260816-015.candidates.json
+  --metrics artifacts/blind/task-015-official-20260816-015.discovery_metrics.json --output
+  artifacts/validation/task-019-official-20260816-015.json --analysis-run-id
+  task-019-validation-run-official-015 --blind-compliant --founder-block-lifted`. Schema
+  compatibility held exactly as `ADR-018` verified it would — no code changes needed. **Result: 6
+  of 15 candidates PASS at `adjusted_observational_association`/`SHADOW_POLICY`
+  (`CAND-004/007/009/010/012/015`); 9 DOWNGRADE to `descriptive_observation`/`EXPERIMENT_ONLY`; none
+  REJECT.** This is the first genuine positive validation result in the project — not a dry run,
+  not a code-behavior check. Frozen at `artifacts/validation/task-019-official-20260816-015.json`,
+  `validation_contract_version = "1.1.0"`. Full suite still 125 passed, ruff/pyright clean. Feeds
+  `TASK-020`/`TASK-021`/`TASK-022`/`TASK-023`/`TASK-028` directly — see below.
 
 ### TASK-020 — Evidence classification
 
 - **Owner:** STATISTICS
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-019
 - **Goal:** Assign exactly one level: descriptive, predictive association, adjusted observational, quasi-causal, or experimental.
+- **Evidence (2026-08-16):** Produced automatically as part of `TASK-019` grading, not a separate
+  implementation — `classify_evidence_level` (`packages/analytics/src/policy_analytics/validation/grading.py`)
+  assigns exactly one of the five levels per candidate from cumulative gate satisfaction, enforced
+  by `ValidationReport.__post_init__` (a report cannot claim a level its own gates don't support).
+  On the closing run: 6 candidates at `adjusted_observational_association`, 9 at
+  `descriptive_observation`, 0 rejected. No candidate reached `quasi_causal_evidence` or above,
+  correctly — `IdentificationDesign.OBSERVATIONAL` caps every candidate at level 3 regardless of
+  gate outcomes, since no design or randomization exists for any of them.
 
 ### TASK-021 — Adjusted effect estimation v0
 
 - **Owner:** STATISTICS
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-019
 - **Goal:** Estimate adjusted effects with the simplest defensible method, uncertainty, controls, and explicit non-identifiability/limitations.
+- **Evidence (2026-08-16):** Also produced as part of `TASK-019`'s engine, not separately — exposure-
+  weighted stratification on (`manager`, `supplier`) with an E-value (`_stratified_two_way_adjustment`,
+  `e_value` in `apply.py`), gated by gate G06 (attenuation ≤50%, E-value ≥1.5, sign preserved,
+  ≥50% stratum coverage). Every `ValidationReport` carries `adjusted_effect` as a full
+  `EffectEstimate` (value, CI, method, unit) alongside the raw one, plus `controlled_variables` and
+  `potential_confounders` explicitly listed. Non-identifiability is explicit by construction:
+  `IdentificationDesign.OBSERVATIONAL` caps every candidate at
+  `adjusted_observational_association` regardless of adjustment quality — adjustment narrows
+  confounding risk, it never claims identification. On the closing run, all 6 PASS candidates
+  cleared G06; `TASK-028`'s scoring (below) found the adjusted point estimates still substantially
+  diluted relative to ground truth — a real, disclosed limitation, not hidden by this task's own
+  framing.
 
 ### TASK-022 — Confounding-trap evaluation
 
 - **Owner:** STATISTICS
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-003, TASK-021
 - **Goal:** Verify that known manager/supplier and other synthetic traps are rejected or conservatively downgraded.
+- **Evidence (2026-08-16), via `TASK-028`:** None of T01–T05's `apparent_feature` conditions
+  (`manager`, `supplier`, `acquisition_channel`, `payment_method`; `manual_exception == true`)
+  appear in any of the 15 persisted candidates — the closest, `manual_exception == false` in three
+  candidates, is the opposite polarity from T05 and does not match. **Result: 0/5 traps
+  promoted.** This satisfies the hard-disqualifier floor, but honestly: it is non-promotion by
+  absence (the traps were never proposed as candidates at all), not demonstrated active rejection
+  of a trap-shaped candidate by gate G06 — a materially weaker claim, stated as such in
+  `docs/benchmark/task-029-benchmark-report-v1.md` §3.3 rather than reported as unqualified
+  success. The closest active analog: all 6 PASS candidates independently cleared G06's
+  manager×supplier stratified adjustment as ordinary `TASK-019` grading, exercising the same
+  adjustment machinery the traps exist to stress-test, just not against a trap-shaped candidate.
 
 ## Phase 7 — Economic impact
 
@@ -466,9 +577,23 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** STATISTICS
 - **Implementation support:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-021
 - **Goal:** Deterministically report affected records, average effect, historical impact, justified annualization, and uncertainty range.
+- **Evidence (2026-08-16):** Gate G15 in `apply.py` reports affected records (`exposed_total`),
+  average effect (`harm_per_booking`), historical impact with a cluster-bootstrap 95% CI
+  (`historical_exposure_ci_eur`), and compares against `min_material_annual_impact`/
+  `min_material_outcome_share`. Annualization is deliberately **not** claimed — the benchmark
+  window is fixed at 24 months and nothing here extrapolates beyond the observed window, matching
+  `docs/analytics/validation-contract.md` §8's justified-annualization requirement by declining to
+  annualize rather than inventing a rate.
+- **Known limitation, found by `TASK-028`, not hidden:** reported historical impact is computed
+  over each candidate's *own* exposed population, which — on the closing run — is routinely
+  15–16× larger than the specific ground-truth pattern it partially recovers. This inflates
+  reported total impact well past the true value even though the per-booking direction and the
+  qualitative finding are correct (`docs/benchmark/task-029-benchmark-report-v1.md` §3.6). A
+  remediation (reporting a range bounded by whole-rule exposure and attribution-narrowed exposure)
+  is proposed there and tracked via `HANDOFF-043`, not yet implemented.
 
 ## Phase 8 — Validated findings
 
@@ -562,24 +687,54 @@ gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflow
 - **Owner:** STATISTICS
 - **Implementation support:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-022, TASK-023
 - **Goal:** Compute precision, recall, Top-K/economic-weighted recall, false-positive and confounder-rejection rates, direction accuracy, impact error, and leakage violations.
+- **Evidence (2026-08-16):** `scripts/evaluate_benchmark.py`, frozen at
+  `artifacts/evaluation/task-028-benchmark-evaluation.json`. Matching statistic (Statistics'
+  methodological call per `docs/benchmark/decision-gate.md`): candidate recovers pattern P if
+  recall(P by candidate's full-cohort exposed set) ≥ 0.5, fixed before any overlap was computed —
+  see the script's module docstring for the reasoning. Opens `hidden_ground_truth.json` only after
+  both discovery commitment (signed receipt) and validation freezing were already complete. 7 unit
+  tests (`tests/analytics/test_evaluate_benchmark.py`); full suite 125 passed, ruff/pyright clean.
+  **Results:** Top-10 precision 90% (9/10); economic-weighted recall 45.2% (P01, P06 of 7
+  scoreable patterns); 0/5 traps promoted (see `TASK-022`'s caveat); 0 leakage violations; 100%
+  direction accuracy (3/3 validated+matched); median economic impact estimation error **204%**.
 
 ### TASK-029 — Benchmark report v1
 
 - **Owner:** STATISTICS
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-028
 - **Goal:** Document recovered/missed patterns, false positives, confounding failures, expensive misses, and the largest methodological weakness.
+- **Evidence (2026-08-16):** `docs/benchmark/task-029-benchmark-report-v1.md`. Recovered: P01, P06.
+  Missed: P02, P03, P04, P08, P09 (candidates never combined destination/segment/season/supplier
+  conditions with the discount/price/lead-time features the search favored). No confirmed false
+  positive (no trap promoted) but a genuine, named methodological weakness: reported economic
+  impact is inflated 2–4.8× because validated candidates' exposed populations are ~15–16× larger
+  than the true patterns they partially recover — diagnosed mechanism, not just an observed
+  number, in report §3.6. `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" appended
+  (not edited above the line) with the full band-by-band scoring. **Overall verdict: FAILED**,
+  driven by the impact-error metric alone; no hard disqualifier fired. `HANDOFF-043` requests
+  ML_DISCOVERY/FOUNDER_STRATEGY concurrence on Statistics' fixable-defect attribution before a
+  remediation rerun is authorized. `ADR-019` records the verdict and its consequences.
 
 ## MILESTONE-M1 — Synthetic end-to-end MVP
 
-- **Status:** BLOCKED
+- **Status:** ACHIEVED TECHNICALLY, QUALITY BAR NOT MET
 - **Depends on:** TASK-029
 
 Complete when synthetic CSV → ingestion → profiling → canonical dataset → discovery → validation → impact → persisted finding → UI → blind evaluation works end to end. Several true patterns must be recovered, high-impact patterns rank near the top, major traps are rejected/downgraded, no post-treatment leakage occurs, and findings are understandable.
+
+**2026-08-16 assessment (Statistics):** the pipeline itself now runs end to end, deterministically,
+with the blind boundary held throughout (`task-015-official-20260816-015` → `TASK-019` → `TASK-028`
+→ `TASK-029`, in that order, verified). Recovery (P01, P06) and trap-avoidance (0/5 promoted) both
+hold. The milestone's own bar is not fully met: economic impact estimation is unreliable (§ above),
+and the overall `docs/benchmark/decision-gate.md` verdict is FAILED. This milestone is not marked
+`DONE` — real customer data does not proceed (`ADR-019`) until a remediation run re-grades at
+STRONG or PROMISING. The UI/persisted-finding half of this milestone's scope (`TASK-024`–`TASK-027`)
+remains separately blocked on Architect's implementation work regardless of this benchmark result.
 
 ## Phase 11 — Policy candidates (after M1)
 
