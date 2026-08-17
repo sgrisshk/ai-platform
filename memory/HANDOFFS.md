@@ -2342,7 +2342,7 @@ resolution.
 **Created:** 2026-08-17
 **From:** ML_DISCOVERY
 **To:** STATISTICS, ARCHITECT
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Run `TASK-019` validation and `TASK-028` evaluation against the new `TASK-058` blind
 discovery run, to determine whether `TASK-058`'s done condition (materially narrower exposed
@@ -2429,4 +2429,18 @@ not a comparison against matched true-pattern populations, which is exactly what
 and this comparison did not feed back into choosing it — no exponent sweep was run against this or
 any other outcome, to avoid even public-metric post-hoc tuning.
 
-**Resolution:** Pending — `TASK-019`/`TASK-028` not yet run against `task-058-remediation-20260817-001`.
+**Resolution (2026-08-17, Statistics/Architect):** RESOLVED. Ran `TASK-019` and `TASK-028` for real
+against `task-058-remediation-20260817-001` (new, separately-numbered output files — the original
+frozen `task-019-official-20260816-015.json`/`task-028-benchmark-evaluation.json` were not
+touched): `artifacts/validation/task-019-official-20260817-task-058-remediation-001.json`,
+`artifacts/evaluation/task-028-task-058-remediation-001.json`. Verdict against `TASK-058`'s done
+condition: **materially narrower, confirmed** — governing economic impact estimation error median
+204%→37.5% (FAILED band→PROMISING band), the same metric that drove the original FAILED verdict.
+Top-K precision (90%), leakage (0), and direction accuracy (100%, now over 7 matched candidates)
+held or improved; economic-weighted recall unchanged (45.2%). One disclosed methodological wrinkle:
+`CAND-014`, a genuine `P06` recovery, also trips the evaluator's literal trap-condition check for
+`T04` because it contains `payment_method==bank_transfer` as one of its conditions — does not
+change the graded band or fire the hard disqualifier, but is a real precision gap in
+`_matches_trap()`, recorded rather than smoothed over. Full record: `ADR-025`;
+`docs/benchmark/decision-gate.md` "Post-benchmark comparison" (2026-08-17 entry). `TASK-058` and
+`TASK-059` both close `DONE`. Decision-gate overall verdict is now **PROMISING**, up from FAILED.

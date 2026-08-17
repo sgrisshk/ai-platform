@@ -199,6 +199,19 @@ Do not mark work `DONE` without executing its required checks and completion pro
   might suggest — verified against actual data, not assumed from the column name). 33 new tests
   (17 pure profiler unit tests + 2 DB-gated integration tests via the real upload path + existing
   suite growth); `ruff`/`pyright` clean.
+- **Second real bug found and fixed (2026-08-17, Architect), by manual repro rather than trusting
+  the passing suite:** `_min_max` filtered a numeric column's range with the broader
+  `_matches_float` (which also accepts plain integers) instead of the *winning* type's own
+  predicate, so a suspicious non-conforming value — already flagged separately as suspicious —
+  could still be silently reported as the column's own `min_value`/`max_value`. Repro: 99 clean
+  integers `1`..`99` plus one `"999999.5"` outlier graded `integer` (99% match, clears the 98%
+  threshold) reported `max_value = "999999.5"` — the exact flagged outlier laundered into what
+  looks like a normal range boundary. Fixed by computing min/max only from the values that survive
+  the winning type's own predicate; 2 new regression tests (integer and date cases). Did not
+  reproduce on the clean synthetic fixture (which is exactly why it needed a deliberate repro, not
+  just rerunning the existing suite) but is a real risk on messy real-world data, which is this
+  task's actual point. Full suite re-verified against a live ephemeral Postgres afterward (237
+  passed), `ruff`/`pyright` clean.
 
 ### TASK-008 — Feature-timing classification
 
@@ -973,7 +986,7 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Owner:** CUSTOMER_DISCOVERY
 - **Support:** FOUNDER_STRATEGY
 - **Priority:** P0
-- **Status:** BLOCKED (paused, `ADR-022` — founder decision, not a technical dependency)
+- **Status:** TODO
 - **Depends on:** none
 - **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
 - **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.
@@ -1018,20 +1031,23 @@ remains separately blocked on Architect's implementation work regardless of this
   not counted as contact, not counted as conversations. Concrete manual next steps for the founder
   are `HANDOFF-033`. Still 0 of 3 conversations and 0 explicit agreements — this iteration's success
   bar is not met, and is not being reported as met.
-- **Paused (2026-08-17, Founder, `ADR-022`):** Active outreach (new touches, new conversations, the
-  remainder of the `ADR-017` 7-day sprint) is paused until `docs/benchmark/decision-gate.md`
-  re-grades at STRONG or PROMISING — a founder prioritization call, not a dispute of `ADR-010`'s or
-  `ADR-017`'s reasoning, both of which explicitly designed this as parallel, unblocked work.
-  Already-drafted material (`docs/customer/pipeline.md` drafts, `docs/customer/prospect-target-list.md`)
-  is preserved, not discarded. Re-opens automatically on a STRONG/PROMISING re-grade; no further ADR
-  required to resume.
+- **Paused (2026-08-17, Founder, `ADR-022`), then reopened same day (`ADR-025`):** Active outreach
+  was paused until `docs/benchmark/decision-gate.md` re-grades at STRONG or PROMISING — a founder
+  prioritization call, not a dispute of `ADR-010`'s or `ADR-017`'s reasoning, both of which
+  explicitly designed this as parallel, unblocked work. That condition was met the same day: the
+  `TASK-058`/`TASK-059` remediation rerun re-graded the decision gate to **PROMISING** (`ADR-025`),
+  so per `ADR-022`'s own stated reopening condition, outreach resumes automatically, no further ADR
+  required. Already-drafted material (`docs/customer/pipeline.md` drafts,
+  `docs/customer/prospect-target-list.md`) was preserved throughout. Note: this reopens *outreach*
+  (`TASK-057`) only — `TASK-038` (real customer data ingestion) is a separate gate not resolved by
+  this re-grade alone; see `ADR-025` consequence 2.
 
 ### TASK-058 — Search-selection precision term (`HANDOFF-043` remediation, part 2)
 
 - **Owner:** ML_DISCOVERY
 - **Reviewer:** STATISTICS
 - **Priority:** P0
-- **Status:** IN_PROGRESS
+- **Status:** DONE
 - **Depends on:** TASK-015 (DONE)
 - **Goal:** Add a precision/specificity term to `discovery.engine`'s beam-survival score (or a
   lightweight post-search "tightening" pass trying one additional narrowing categorical condition
@@ -1076,11 +1092,15 @@ remains separately blocked on Architect's implementation work regardless of this
   frozen `docs/benchmark/task-029-benchmark-report-v1.md` ("P01 BlueWing discount+short-lead", "P06
   Tokyo urgent bank-transfer") — a name match observed from that already-public report, not from
   opening `hidden_ground_truth.json` here.
-- **Not yet DONE:** the done condition requires validated, scored evidence of *materially narrower
-  exposed populations relative to matched true patterns* — that requires `TASK-019`
-  (Statistics-owned validation) and `TASK-028` (evaluation, which opens
-  `hidden_ground_truth.json`), neither run against this new candidate set yet. Handed to
-  Statistics/Architect in `HANDOFF-048`; ML Discovery does not open ground truth itself.
+- **Done condition met (2026-08-17, Statistics/Architect, `ADR-025`):** `TASK-019`/`TASK-028` ran
+  for real against `task-058-remediation-20260817-001`
+  (`artifacts/validation/task-019-official-20260817-task-058-remediation-001.json`,
+  `artifacts/evaluation/task-028-task-058-remediation-001.json`). Governing economic impact
+  estimation error dropped 204%→37.5% median (now PROMISING band, was FAILED); Top-K precision,
+  leakage, and direction accuracy held or improved. Full comparison:
+  `docs/benchmark/decision-gate.md` "Post-benchmark comparison" (2026-08-17 entry). Resolves
+  `HANDOFF-048`. `docs/benchmark/decision-gate.md`'s overall verdict is now **PROMISING** (was
+  FAILED, `ADR-019`).
 - **Aggregate public-data addendum (2026-08-17, ML Discovery, `HANDOFF-048`):** whole-set comparison
   of the two already-public candidate documents (no ground truth opened) — mean/max `support` and
   `sample_size` both down ~28% (mean support 0.2473→0.1787, mean `sample_size` 1236→893, max
@@ -1094,7 +1114,7 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Owner:** STATISTICS
 - **Reviewer:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** IN_PROGRESS
+- **Status:** DONE
 - **Depends on:** none (operates on already-frozen `TASK-028` inputs)
 - **Goal:** Add an explicitly benchmark-evaluation-only diagnostic to `TASK-028`'s evaluator:
   economic impact restricted to the subpopulation actually overlapping a matched true pattern, for
@@ -1115,11 +1135,13 @@ remains separately blocked on Architect's implementation work regardless of this
   labeled in the payload, module docstring, and CLI output. Dry-run against the frozen run's
   actual inputs (scratch output, frozen file not touched): attribution-narrowed median relative
   error 79% vs. the governing metric's 199% — real reduction, still short of a re-grade threshold
-  on its own, exactly as `HANDOFF-043` warned. **Not yet DONE:** the frozen
-  `artifacts/evaluation/task-028-benchmark-evaluation.json` has not been regenerated with this
-  diagnostic — that overwrite (and the `HANDOFF-047`-fixed `task-019-official-20260816-015.json`
-  it depends on) requires explicit authorization, blocked by the session's own permission guard on
-  this pass. See `HANDOFF-047`'s resolution.
+  on its own, exactly as `HANDOFF-043` warned. The originally-frozen
+  `artifacts/evaluation/task-028-benchmark-evaluation.json`/`task-019-official-20260816-015.json`
+  were deliberately left un-regenerated (see `HANDOFF-047`'s resolution) — instead,
+  `scripts/evaluate_benchmark.py` gained `--validation-report`/`--output`/`--force` CLI flags
+  (2026-08-17, Statistics/Architect, `ADR-025`) so the diagnostic could be exercised against a
+  *new*, separately-numbered run (`task-058-remediation-20260817-001`) without touching the frozen
+  original. `TASK-059` closes on that evidence, alongside `TASK-058` — see `ADR-025`.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER

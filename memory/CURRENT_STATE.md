@@ -193,6 +193,32 @@ round-trips, full suite green twice (230 passed), and the real 24-column fixture
 correctly end to end (e.g. `booking_changes` correctly identified as a real 0-3 integer count, not
 the boolean its name suggests). `TASK-008` (feature-timing classification) is now unblocked but
 not started — a genuinely separate design task, not folded into this one.
+**Second real bug found the same day, by deliberate manual repro, not by trusting the passing
+suite:** `_min_max` filtered a numeric column's range with the broader `_matches_float` (also
+accepts plain integers) instead of the winning type's own predicate, so a value already flagged as
+suspicious could still be reported as the column's own `min_value`/`max_value` — a suspicious
+`"999999.5"` outlier in an otherwise-clean 1..99 integer column was silently laundered into
+`max_value`. Did not reproduce on the clean synthetic fixture, which is why it needed a deliberate
+repro rather than rerunning the existing suite — exactly the messy-real-data risk this task exists
+to catch. Fixed (min/max now computed only from type-conforming values) with 2 regression tests;
+re-verified against a live ephemeral Postgres (237 passed), `ruff`/`pyright` clean.
+**Remediation rerun re-grades the decision gate to PROMISING (2026-08-17, Statistics/Architect,
+`ADR-025`), resolving `HANDOFF-048`, closing `TASK-058`/`TASK-059`.** `TASK-019`/`TASK-028` ran for
+real against `task-058-remediation-20260817-001` (new files; the original frozen `…-015` artifacts
+were not touched). Governing metric — economic impact estimation error — dropped from median 204%
+to **37.5%** (FAILED band → PROMISING band); Top-K precision (90%), leakage (0), and direction
+accuracy (100%, now 7/7 matched candidates) held or improved; economic-weighted recall unchanged
+(45.2%). One disclosed wrinkle: `CAND-014`, a genuine `P06` recovery, also trips the evaluator's
+literal `T04` trap-condition check because it contains `payment_method==bank_transfer` — does not
+change the graded band, recorded as a `_matches_trap()` precision gap, not smoothed over. **Overall
+decision-gate verdict is now PROMISING, up from FAILED (`ADR-019`).** Per `ADR-022`'s own stated
+reopening condition, `TASK-057` (customer outreach) is back to `TODO` — the founder's pause was
+explicitly conditioned on exactly this re-grade. `TASK-038` (real customer data ingestion) is
+**not** unblocked by this alone: `docs/benchmark/decision-gate.md`'s PROMISING action-row wording is
+genuinely ambiguous on a first-time FAILED→PROMISING transition, flagged to Founder in `ADR-025`
+rather than resolved unilaterally — moot for now since `TASK-038` also still needs `TASK-057`
+(reopened today, zero conversations so far) and `TASK-037` (security review).
+
 **`HANDOFF-043` — ML_DISCOVERY answered 2026-08-17: partial concurrence, with a dissent.** Agrees
 this is a fixable defect, not a core-approach limitation (single-remediation path, not the
 two-strikes trigger). Dissents that the fix is estimation-layer-only: `supplier`/`destination`
@@ -288,52 +314,45 @@ development; later splits remain diagnostic-only during discovery.
 
 The immutable ingestion contract now exists and is implemented (`TASK-005`/`TASK-006`, `DONE`), but
 no canonical travel-booking mapping (`TASK-010`) or customer-facing Data Quality Report (`TASK-009`)
-exists yet. Real customer data must additionally clear `TASK-057` (now paused, `ADR-022`),
-`TASK-037` (adversarial security review of this ingestion path), and a STRONG/PROMISING re-grade of
-the decision gate (blocked on `TASK-058`, `IN_PROGRESS` pending `HANDOFF-048` scoring, and
-`TASK-059`, `READY`, not started) before it is accepted — deletion boundaries (`TASK-055`) also
-remain undefined.
+exists yet. The decision-gate re-grade that used to block real customer data is cleared — the
+`TASK-058`/`TASK-059` remediation rerun graded **PROMISING** (`ADR-025`, 2026-08-17) — but real
+customer data still requires `TASK-057` (reopened `TODO` today, zero conversations so far),
+`TASK-037` (adversarial security review of the ingestion path), and a Founder reading of
+`docs/benchmark/decision-gate.md`'s ambiguous PROMISING action-row wording (`ADR-025` consequence
+2) before it is accepted — deletion boundaries (`TASK-055`) also remain undefined.
 
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
 
 - **Technical milestone — first compliant blind benchmark result. ACHIEVED 2026-08-16 (day 3 of
-  14).** `task-015-official-20260816-015` validated under contract v1.1.0, scored end to end
-  through `TASK-020`→`TASK-023`→`TASK-028`→`TASK-029`, graded against
-  `docs/benchmark/decision-gate.md`: **overall verdict FAILED** (driven by economic impact
-  estimation error alone, median 204%; no hard disqualifier fired — 90% Top-10 precision, 100%
-  direction accuracy, 0 leakage, 0/5 traps promoted). Per the milestone's own success condition
-  ("a graded verdict exists, whatever it is — a FAILED verdict honestly reported still meets this
-  milestone"), **this milestone is met.** Full detail: `docs/benchmark/task-029-benchmark-report-v1.md`,
-  `ADR-019`. `HANDOFF-043` is resolved (2026-08-17): both remediation parts authorized as
-  `TASK-058`/`TASK-059`. `TASK-058` is implemented and a new blind run committed (`ADR-023`),
-  `IN_PROGRESS` pending `TASK-019`/`TASK-028` scoring (`HANDOFF-048`); `TASK-059` is `READY`, not
-  started.
-- **Commercial milestone — first documented customer/data-sharing conversation. PAUSED 2026-08-17
-  (`ADR-022`).** Not "unaffected" — this supersedes the original parallel design. `ADR-010`,
-  `ADR-017`, and `docs/strategy/30-day-validation-plan.md` all recorded acquisition as explicitly
-  parallel and non-blocking; the founder has now overridden that, as a prioritization/focus choice,
-  not a dispute of that reasoning (`ADR-022`). `TASK-057` moved `TODO`→`BLOCKED`; the remainder of
-  the `ADR-017` 7-day sprint does not continue. Already-drafted outreach material and research are
-  preserved, not discarded. Owner: FOUNDER_STRATEGY, CUSTOMER_DISCOVERY — both idle on this track
-  until re-opened. Re-opens automatically once `docs/benchmark/decision-gate.md` re-grades at
-  STRONG or PROMISING; no further ADR required to resume.
+  14); re-graded 2026-08-17 (day 4).** `task-015-official-20260816-015` first graded **FAILED**
+  (median impact error 204%, `ADR-019`). Founder-authorized two-part remediation (`HANDOFF-043`) —
+  `TASK-058` (search-selection precision term, `ADR-023`) and `TASK-059` (benchmark-only diagnostic,
+  `ADR-024`) — produced a new blind run, `task-058-remediation-20260817-001`, scored the same day:
+  **overall verdict PROMISING** (`ADR-025`; median impact error 37.5%, Top-10 precision 90%, 100%
+  direction accuracy, 0 leakage, 0/5 traps promoted). `TASK-058`/`TASK-059` both `DONE`; `HANDOFF-048`
+  resolved. Full detail: `docs/benchmark/decision-gate.md` "Post-benchmark comparison" (both
+  entries), `docs/benchmark/task-029-benchmark-report-v1.md`.
+- **Commercial milestone — first documented customer/data-sharing conversation. Paused
+  2026-08-17→2026-08-17 (`ADR-022`, same day), reopened same day on the PROMISING re-grade
+  (`ADR-025`).** `ADR-010`, `ADR-017`, and `docs/strategy/30-day-validation-plan.md` originally
+  recorded acquisition as parallel and non-blocking; the founder paused it as a focus choice, then
+  the pause's own stated reopening condition (STRONG/PROMISING re-grade) was met within the day.
+  `TASK-057` is `TODO`. Zero real conversations logged yet — the pause did not cost calendar time,
+  only same-day sequencing.
 
-**14-day go/no-go — technical half now resolved as FAILED without a hard disqualifier:**
-- Per the pre-registered logic: *"Conversation secured but mechanism grades WEAK/FAILED → do not
-  accelerate toward `TASK-038` real-data ingestion on the strength of enthusiasm alone; the
-  decision-gate still governs that decision regardless of commercial progress."* **This is the
-  applicable branch now, regardless of how the commercial milestone resolves.** Real customer data
-  ingestion does not proceed until a remediation run re-grades at STRONG or PROMISING.
-- The **escalate** branch ("technical FAILED with a hard disqualifier → trigger core-discovery-
-  approach review") does **not** apply — no hard disqualifier fired. This is a single diagnosed,
-  plausibly fixable failure, not (yet) grounds for the two-strikes core-approach review.
-- The commercial-track go/no-go logic (GO / adjust-if-one-lands / escalate-on-zero-conversations)
-  is now moot for as long as `ADR-022`'s pause holds: with outreach paused, day 14 cannot produce a
-  real conversation count to evaluate it against. This is a known, accepted consequence of `ADR-022`,
-  not an oversight — the 14-day commercial checkpoint effectively restarts from whenever the pause
-  lifts.
+**14-day go/no-go — technical half now PROMISING, not FAILED:**
+- Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG
+  *and* ≥1 real serious conversation logged. The technical half of that condition is now met; the
+  commercial half is not yet — `TASK-057` just reopened with zero conversations.
+- `docs/benchmark/decision-gate.md`'s own PROMISING action-row text ("do not advance to real
+  customer data until re-graded at STRONG or PROMISING-with-the-same-metric-improved") is
+  ambiguous on whether this first-time FAILED→PROMISING transition already satisfies it —
+  unresolved, flagged to Founder in `ADR-025`, not needed urgently since `TASK-038` also still
+  needs `TASK-057`/`TASK-037`.
+- The **escalate** branch (hard disqualifier, or two runs both WEAK-or-worse) does **not** apply —
+  no hard disqualifier ever fired, and the one remediation attempt succeeded.
 
 See `30_DAY_VALIDATION_PLAN` framing in `docs/strategy/30-day-validation-plan.md`.
 
