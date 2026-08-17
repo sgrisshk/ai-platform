@@ -167,21 +167,52 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-006
 - **Goal:** Persist inferred type, missingness, distinct count, relevant min/max, safe examples, suspicious values, and likely semantic type per column.
 - **Status note (2026-08-16, Data Engineer):** Unblocked — `TASK-006` is `DONE`. Not started this
   iteration.
+- **Implementation (2026-08-17, Architect) → `DONE`.** No design doc existed for this one yet
+  (unlike `TASK-005`'s `HANDOFF-001` or `TASK-024`'s prep doc) — designed and built together.
+  Deliberately kept **separate** from `DatasetColumn`/`DatasetModel.columns` (that JSONB field is
+  `TASK-008`'s eventual feature-timing-classification output, a different pipeline stage) — new
+  `dataset_column_profiles` table instead (migration `20260817_0004`), one row per column, written
+  once per dataset version. Pure computation in
+  `packages/analytics/src/policy_analytics/profiling/schema_profiler.py`: majority-vote structural
+  type inference (integer → float → boolean → date → string, first candidate clearing a 98% match
+  rate wins; every non-matching value becomes a capped, counted "suspicious value" — deliberately
+  no ML/black-box guessing, `ADR-004`). "Likely semantic type" and "safe examples" are explicitly
+  disclosed heuristics, not validated facts or a real PII detector: examples are suppressed for
+  likely-identifier/free-text high-cardinality columns, a conservative floor, not a claim of
+  complete redaction. Runs synchronously inside the upload request (no job-queue infrastructure
+  exists yet; files are capped at `MAX_UPLOAD_BYTES`); a profiling failure logs and leaves the
+  dataset unprofiled rather than failing the already-completed, already-immutable upload.
+  **Real bug found and fixed via live verification, not just unit tests:** the semantic-type name
+  hints originally matched raw substrings, so `trip_duration` was misclassified `percentage_rate`
+  purely because "duration" contains "ratio" as a substring — caught by uploading the real
+  `tests/fixtures/synthetic_travel_bookings.csv` fixture through a live `uvicorn` instance, fixed
+  by switching to whole-token matching, regression-tested. Verified end to end against a real
+  ephemeral Postgres: migration up/down/up round-trips; full suite green twice in a row (230
+  passed) against the same live database; a real upload of the 200-row, 24-column fixture produces
+  correct profiles for every column (e.g. `booking_id` → suppressed identifier, `manual_exception`/
+  `cancellation` → boolean, `booking_changes` → a real 0-3 integer count, not the boolean its name
+  might suggest — verified against actual data, not assumed from the column name). 33 new tests
+  (17 pure profiler unit tests + 2 DB-gated integration tests via the real upload path + existing
+  suite growth); `ruff`/`pyright` clean.
 
 ### TASK-008 — Feature-timing classification
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-007
 - **Goal:** Classify every field as `DECISION_TIME`, `POST_DECISION`, `OUTCOME`, `IDENTIFIER`, `METADATA`, or `UNKNOWN`.
 - **Invariant:** Post-decision, outcome, and unknown fields cannot enter discovery features.
 - **Done when:** Benchmark classification matches expected metadata and leakage tests pass.
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-007` is `DONE`. Not started this
+  iteration; this is a real, separate design task (classification methodology, and
+  `FeatureTiming` — `packages/schemas/domain.py` — doesn't have an `UNKNOWN` member yet), not a
+  drive-by extension of `TASK-007`'s profiler.
 
 ### TASK-009 — Data-quality report
 
@@ -1063,7 +1094,7 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Owner:** STATISTICS
 - **Reviewer:** ML_DISCOVERY
 - **Priority:** P0
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Depends on:** none (operates on already-frozen `TASK-028` inputs)
 - **Goal:** Add an explicitly benchmark-evaluation-only diagnostic to `TASK-028`'s evaluator:
   economic impact restricted to the subpopulation actually overlapping a matched true pattern, for
@@ -1077,6 +1108,18 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Warning on record (`HANDOFF-043`):** this task alone, without `TASK-058`, would likely improve
   the reported metric-6 number without changing which candidates discovery actually finds — do not
   treat a `TASK-059`-only rerun as sufficient grounds for a STRONG/PROMISING re-grade.
+- **Implementation evidence (2026-08-17, Statistics, `ADR-024`):** `scripts/evaluate_benchmark.py`
+  adds `metrics.economic_impact_estimation_error_attribution_narrowed_diagnostic` (two new pure
+  helpers, `_attribution_overlap_ids`/`_attribution_narrowed_impact`, 4 unit tests on synthetic
+  fixtures) alongside the untouched governing `economic_impact_estimation_error`, both clearly
+  labeled in the payload, module docstring, and CLI output. Dry-run against the frozen run's
+  actual inputs (scratch output, frozen file not touched): attribution-narrowed median relative
+  error 79% vs. the governing metric's 199% — real reduction, still short of a re-grade threshold
+  on its own, exactly as `HANDOFF-043` warned. **Not yet DONE:** the frozen
+  `artifacts/evaluation/task-028-benchmark-evaluation.json` has not been regenerated with this
+  diagnostic — that overwrite (and the `HANDOFF-047`-fixed `task-019-official-20260816-015.json`
+  it depends on) requires explicit authorization, blocked by the session's own permission guard on
+  this pass. See `HANDOFF-047`'s resolution.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER

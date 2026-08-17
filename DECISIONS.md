@@ -445,3 +445,74 @@ populations relative to matched true patterns), which requires `TASK-019`/`TASK-
 new run — handed to Statistics/Architect in `HANDOFF-048`. No Docker image rebuild was needed (the
 Dockerfile is unchanged; only allowlisted workspace content differs), so this remediation run
 consumed zero provider requests/tokens/cost, same as `HANDOFF-042`'s deterministic executor.
+
+## ADR-024 — Cluster bootstrap resampling made order-independent (resolves HANDOFF-047); TASK-059 attribution-narrowed diagnostic added to the benchmark evaluator
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+**Decision (two changes, one module, landed together):**
+
+1. **`HANDOFF-047` fix.** `cluster_bootstrap_replicates()` (`apply.py`) now builds its resampling
+   population in sorted cluster-key order (`[cells[key] for key in sorted(cells)]`), not
+   `list(cells.values())`. Fixed at the point resampling-by-index actually happens, not at
+   `cluster_cells()`'s Polars `group_by` (which does not guarantee row order without
+   `maintain_order=True`) — this way reproducibility no longer depends on how any caller's dict was
+   built. 4 new regression tests
+   (`tests/analytics/test_bootstrap_reproducibility.py`), synthetic `ClusterCell` fixtures only:
+   reproduce the pre-fix call shape directly to prove it *did* diverge under dict-reorder with a
+   fixed seed, and prove the fixed function does not, across three different insertion orders and a
+   2000-replicate end-to-end check.
+2. **`TASK-059` (`HANDOFF-043` remediation part 1).** `scripts/evaluate_benchmark.py` gains a
+   second, clearly-separate diagnostic metric,
+   `economic_impact_estimation_error_attribution_narrowed_diagnostic`, computed only for the same
+   matched-candidate population as the governing metric 6, using two new pure helpers
+   (`_attribution_overlap_ids`, `_attribution_narrowed_impact`, unit-tested on synthetic fixtures).
+   It scales each candidate's own reported per-record effect
+   (`economic_impact.per_record_effect`, `ADR-021`) by the count of bookings the candidate's
+   exposed set shares with its matched pattern's `affected_booking_ids` — the same linear scaling
+   `economic_impact.py` already uses for `historical_impact`, just over a narrower,
+   ground-truth-only-computable population. The governing metric
+   (`economic_impact_estimation_error`) is untouched; the new key is explicitly labeled
+   diagnostic-only in the payload, the module docstring, and the CLI's own printed output.
+
+**Context:** `HANDOFF-047` (Architect, 2026-08-17) found that regenerating
+`task-019-official-20260816-015.json` with `--force` (to add the `economic_impact` field) produced
+byte-identical point estimates but shifted confidence intervals and BH-adjusted p-values across an
+otherwise-identical rerun, traced to Polars' `group_by` not guaranteeing row order and a fixed-seed
+`random.Random` resampling that order by index. `HANDOFF-043`/`TASK-059` (ML Discovery's dissent,
+Founder-authorized alongside `TASK-058`) asked for a benchmark-only diagnostic isolating how much of
+the `ADR-019` FAILED verdict's impact-error is population dilution versus genuine per-booking
+misestimation, explicitly forbidden from being folded into the production `EconomicImpactResult`
+contract (`ADR-021`).
+
+**Verification, without regenerating any frozen artifact:** reran `validate_candidates.py` against
+the frozen run's exact inputs twice under the fixed code — byte-identical to each other (fix
+confirmed) — and diffed against the still-frozen `task-019-official-20260816-015.json`: zero
+verdict flips, `verdict_counts` unchanged, all CI shifts sub-2%, no candidate close enough to a gate
+threshold for this to matter (recorded in full in `HANDOFF-047`'s resolution). Ran the new
+`TASK-059` diagnostic against the same frozen inputs into scratch output: attribution-narrowed
+median relative error **79%**, versus the governing whole-rule metric's **199%** (this run) — a
+real reduction, consistent with `task-029-benchmark-report-v1.md` §3.6's population-dilution
+diagnosis, but still short of the FAILED/PROMISING boundary on its own, exactly matching ML
+Discovery's own warning that `TASK-059` alone would not be sufficient grounds for a re-grade without
+`TASK-058` (`ADR-023`) as well.
+
+**Alternatives (bootstrap fix):** `maintain_order=True` on `cluster_cells()`'s `group_by` call —
+considered, not chosen as the primary fix: it only fixes the one call site currently affected by
+this exact symptom, not the general hazard of resampling-by-index over any dict-derived population.
+
+**Alternatives (diagnostic):** Replacing `economic_impact_estimation_error` in place with the
+narrowed number — rejected outright; `docs/benchmark/decision-gate.md` pre-registered the whole-rule
+metric before any result existed, and silently swapping its input after seeing an unfavorable result
+is exactly the goalpost-moving `ADR-007`'s discipline exists to prevent.
+
+**Consequences:** `HANDOFF-047` is resolved at the code level with regression coverage; **the
+currently-frozen `task-019-official-20260816-015.json` and
+`task-028-benchmark-evaluation.json` are deliberately left un-regenerated** — overwriting a frozen
+result with `--force` was attempted and blocked by the session's own permission guard for
+hard-to-reverse actions, and is deferred to explicit operator authorization rather than pushed past
+that guard, per `scripts/validate_candidates.py`'s own "no silent overwrite" discipline. Once
+authorized, regenerating both is a two-command follow-up with no code change required. Full suite
+passes (221 tests as of this change; 8 added by this decision — 4 bootstrap-reproducibility, 4
+attribution-narrowed-helper; the remainder predate it); `ruff`/`pyright` clean.

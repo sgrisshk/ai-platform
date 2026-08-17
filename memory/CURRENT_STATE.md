@@ -178,6 +178,21 @@ qualifier both specs call for cannot be built — `FindingRead` doesn't expose t
 diagnostic, and inventing a threshold client-side would violate `ADR-004`. `TASK-035` (finding
 feedback model) is now unblocked (`TASK-027`'s detail screen already reserves its UI slot) but
 not started — real persistence needs `TASK-053` (auth) first.
+**`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
+table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
+(that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote
+type inference (`packages/analytics/.../profiling/schema_profiler.py`, `ADR-004`); "semantic type"
+and "safe examples" are explicit disclosed heuristics, not validated facts or a real PII detector.
+Runs synchronously on upload; a profiling failure logs and leaves the dataset unprofiled rather
+than failing the already-immutable upload. **Real bug caught by live verification, not unit
+tests:** raw-substring name-hint matching misclassified `trip_duration` as `percentage_rate`
+("duration" contains "ratio") — found by uploading the real
+`tests/fixtures/synthetic_travel_bookings.csv` fixture through a live `uvicorn`, fixed with
+whole-token matching, regression-tested. Verified against a real ephemeral Postgres: migration
+round-trips, full suite green twice (230 passed), and the real 24-column fixture profiles
+correctly end to end (e.g. `booking_changes` correctly identified as a real 0-3 integer count, not
+the boolean its name suggests). `TASK-008` (feature-timing classification) is now unblocked but
+not started — a genuinely separate design task, not folded into this one.
 **`HANDOFF-043` — ML_DISCOVERY answered 2026-08-17: partial concurrence, with a dissent.** Agrees
 this is a fixable defect, not a core-approach limitation (single-remediation path, not the
 two-strikes trigger). Dissents that the fix is estimation-layer-only: `supplier`/`destination`
@@ -208,6 +223,25 @@ payment_method == bank_transfer` — matching pattern identities already disclos
 benchmark report. `TASK-058` is `IN_PROGRESS`, not `DONE`: its done condition needs `TASK-019`/
 `TASK-028` run against this new artifact to confirm materially narrower exposed populations versus
 matched true patterns, handed to Statistics/Architect in `HANDOFF-048`.
+
+**`HANDOFF-047` (cluster-bootstrap reproducibility) and `TASK-059` (attribution-narrowed
+diagnostic) landed together the same day (2026-08-17, Statistics, `ADR-024`):**
+`cluster_bootstrap_replicates()` now resamples a sorted-key population, not raw dict order, fixing
+the gap Architect found (identical point estimates, drifting CIs/p-values across reruns) at its
+root — 4 new regression tests prove the pre-fix call shape *did* diverge under dict-reorder and the
+fixed one doesn't. `scripts/evaluate_benchmark.py` gains
+`economic_impact_estimation_error_attribution_narrowed_diagnostic`, a clearly-labeled
+benchmark-evaluation-only sibling of the governing metric 6 (untouched), scaling each candidate's
+reported per-record effect by its overlap with the matched pattern's true affected bookings — 4
+new unit tests on synthetic fixtures. Dry-run against the frozen run's real inputs (scratch output
+only): attribution-narrowed median error 79% vs. the governing 199%, and zero verdict flips when
+rerunning validation under the bootstrap fix against the same inputs as the currently-frozen
+report. **Neither frozen artifact
+(`task-019-official-20260816-015.json`/`task-028-benchmark-evaluation.json`) has been regenerated
+yet** — overwriting them was blocked by the session's own permission guard on hard-to-reverse
+actions and left for explicit authorization rather than pushed past; `TASK-059` is `IN_PROGRESS`,
+not `DONE`, until that happens. This is separate from `HANDOFF-048` (re-running `TASK-019`/
+`TASK-028` against the *new* `task-058-remediation-20260817-001` candidate set) — not started.
 
 **Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
 Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`
