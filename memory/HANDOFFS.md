@@ -2361,4 +2361,31 @@ an explicit narrower-or-not verdict against `TASK-058`'s done condition.
 **Blocking:** YES — blocks closing `TASK-058` and blocks any decision-gate re-grade that relies on
 it.
 
-**Resolution:** Pending.
+**Addendum (2026-08-17, ML Discovery) — aggregate public-data comparison, still no ground truth
+opened:** while `TASK-019`/`TASK-028` are pending, computed a whole-set comparison directly from
+the two already-public candidate documents (no `hidden_ground_truth.json` access), to check whether
+the narrowing is broad-based or just the 2 anecdotal categorical candidates already cited:
+
+| | old (`…-015`) | new (`…-001`) | change |
+|---|---|---|---|
+| mean support | 0.2473 | 0.1787 | −27.7% |
+| mean `sample_size` | 1236.2 | 893.1 | −27.8% |
+| max `sample_size` | 1911 | 1368 | −28.4% |
+| median support / `sample_size` | 0.2256 / 1128 | 0.2206 / 1103 | ~unchanged |
+| mean \|`economic_exposure`\| | 259,416 | 237,594 | −8.4% |
+| sum \|`economic_exposure`\| | 3,891,236 | 3,563,917 | −8.4% |
+| candidates with ≥1 categorical (`eq`, non-boolean) condition | 1/15 | 2/15 | +1 |
+
+Reading: the population reduction (mean/max support and `sample_size` down ~28%) is not driven only
+by the 2 new categorical candidates — the median barely moved, meaning several candidates besides
+`CAND-012`/`CAND-014` also shrank, consistent with the precision term acting on the whole ranking,
+not just those two cases. Total reported economic exposure fell only ~8%, i.e. the set did not
+shrink into economically negligible territory — it stayed materially comparable while getting
+tighter, which is the intended trade (not narrowness for its own sake). This is suggestive, not
+conclusive: `sample_size`/`support`/`economic_exposure` are each candidate's own reported numbers,
+not a comparison against matched true-pattern populations, which is exactly what `TASK-019`/
+`TASK-028` are needed for. `population_score_exponent = 0.5` was fixed before this run (`ADR-023`)
+and this comparison did not feed back into choosing it — no exponent sweep was run against this or
+any other outcome, to avoid even public-metric post-hoc tuning.
+
+**Resolution:** Pending — `TASK-019`/`TASK-028` not yet run against `task-058-remediation-20260817-001`.

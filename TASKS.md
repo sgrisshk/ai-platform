@@ -1050,6 +1050,13 @@ remains separately blocked on Architect's implementation work regardless of this
   (Statistics-owned validation) and `TASK-028` (evaluation, which opens
   `hidden_ground_truth.json`), neither run against this new candidate set yet. Handed to
   Statistics/Architect in `HANDOFF-048`; ML Discovery does not open ground truth itself.
+- **Aggregate public-data addendum (2026-08-17, ML Discovery, `HANDOFF-048`):** whole-set comparison
+  of the two already-public candidate documents (no ground truth opened) — mean/max `support` and
+  `sample_size` both down ~28% (mean support 0.2473→0.1787, mean `sample_size` 1236→893, max
+  `sample_size` 1911→1368) while median barely moved and total reported economic exposure fell only
+  ~8% (3.89M→3.56M). Reduction is not driven only by the 2 new categorical candidates — suggestive
+  the precision term tightened several candidates across the ranking, not just those two — but is
+  not itself the matched-true-pattern comparison `TASK-019`/`TASK-028` must still provide.
 
 ### TASK-059 — Benchmark-only attribution-narrowed impact diagnostic (`HANDOFF-043` remediation, part 1)
 
