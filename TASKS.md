@@ -748,26 +748,57 @@ gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflow
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-025
 - **Goal:** Show ranked findings without becoming a generic dashboard.
 - **UX specification (2026-08-14):** `docs/product/findings-list-screen.md` (complete; written against the concrete `docs/architecture/finding-persistence-contract.md`/`apps/api/app/findings/contracts.py` schema, never against synthetic ground truth). Information hierarchy, sort/filter rules (default sort by `impact.historical_impact.ci_low`), field-to-copy mapping, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives. See `HANDOFF-028` (feature display-label gap, to Data Engineer, non-blocking) and `HANDOFF-029` (implementation handoff to Architect).
-- **Status note (2026-08-17, Architect):** Unblocked — `TASK-025` is `DONE` with real data behind
-  it. Implementation not started this iteration.
+- **Implementation (2026-08-17, Architect) → `DONE`.** `apps/web/app/(app)/findings/page.tsx`
+  rewritten to the spec's row hierarchy (title, evidence/readiness pills, warning badge,
+  equal-or-greater-weight exposure figure, population, low-priority date). Sort/filter/pagination
+  via URL search params (`sort`/`readiness`/`evidence`/`warnings`/`page`), resolved server-side in
+  `sortFindings.ts` — no new backend query params, nothing computed that isn't already in
+  `EconomicImpactPersistence`/`ValidationMetadataPersistence`, per the spec's own "never" rule.
+  15-of-15 real findings verified rendering correctly via a live `pnpm dev` + `uvicorn` +
+  ephemeral Postgres run (not just `TestClient`): default exposure sort, a `?sort=readiness&
+  readiness=shadow_policy` filter correctly narrowing to exactly the 6 real `shadow_policy`
+  findings, zero-crossing "no measurable economic effect" case covered by tests (no real finding
+  on this run happens to cross zero). Empty-state copy updated per spec. **Known gap, documented
+  not fabricated:** the "near G03 power floor" small-sample qualifier both this task and TASK-027
+  call for cannot be implemented — `FindingRead` doesn't expose the MDE/power diagnostic needed to
+  compute "near," and inventing a threshold client-side would violate `ADR-004`. Real fix is a
+  small future `FindingRead` addition, not something improvised in the UI.
+- **Tests:** `sortFindings.test.ts` (sort/filter/pagination logic, 14 cases) plus shared pill/
+  exposure component tests. `pnpm --filter web typecheck`/`lint`/`test` all pass (39 tests total).
 
 ### TASK-027 — Finding detail screen
 
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-025
 - **Goal:** Explain what was found, population, impact, raw/adjusted effect, evidence, stability, alternatives, warnings, and next step in business language.
 - **UX specification:** `docs/product/finding-detail-screen.md` (complete; written ahead of the backend so TASK-024 can be scoped against real UI requirements). See `HANDOFF-008` (field requirements to Architect) and `HANDOFF-009` (implementation handoff to Architect).
-- **Status note (2026-08-17, Architect):** Unblocked — `TASK-025` is `DONE` with real data behind
-  it. Implementation not started this iteration.
 - **Update (2026-08-14):** Refreshed against the now-concrete persistence schema: consolidated field-to-copy mapping table, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives; `ResourceStatus`-based run-status gating replaced by `FindingLifecycleStatus` gating per the `HANDOFF-024` resolution (`docs/product/finding-product-contract.md` §12).
 - **Note (2026-08-13):** Pickup attempted by an ad hoc "Frontend" dispatch (no `agents/FRONTEND.md` or Frontend role exists in `AGENTS.md`). Confirmed still correctly `BLOCKED`: no approved Product spec/content exists, and `TASK-025`/`TASK-024` remain `BLOCKED` so no real findings API exists. See `HANDOFF-004` (spec, to PRODUCT) and `HANDOFF-005` (API + role placement, to ARCHITECT). No implementation was made against invented product semantics or an invented API contract.
+- **Implementation (2026-08-17, Architect) → `DONE`.** New `apps/web/app/(app)/findings/[id]/page.tsx`
+  implements all 7 sections + header + provenance strip + lifecycle-status banner exactly per the
+  spec's field-to-copy table. `<details>`/`<summary>` (zero JS) for the collapsed technical rule
+  definition and the provenance strip. New `apps/web/lib/api/analysisRuns.ts` (`getAnalysisRun`)
+  added so the provenance strip can show real dataset/code/contract versions, not just IDs — the
+  one small backend-adjacent addition this task needed (the route already existed, just no client
+  wrapper). Next-step action matrix implemented verbatim from
+  `finding-product-contract.md` §9 (`NOT_READY`/`EXPERIMENT_ONLY`/`SHADOW_POLICY`/
+  `HIGH_CONFIDENCE`, the last unreachable today but coded, not stubbed). Feedback capture
+  (`TASK-035`/`036`) is a reserved, visibly-disabled chip row only, per spec. 404 and network
+  failure share one `ErrorState` path, no special-cased not-found page, per spec. Verified live
+  (not just `TestClient`) against a real promoted finding: all 7 sections render real content,
+  `adjusted_effect` correctly shown even at `descriptive_observation` evidence level (a real
+  finding from `TASK-024`'s own data — adjustment is computed independently of which gate capped
+  the evidence ceiling), evidence ladder highlights the correct step, action list correctly shows
+  only `["Flag for review", "Design a controlled experiment"]` for an `experiment_only` finding
+  (no policy-candidate action offered, matching the matrix). Same known G03-power-floor gap as
+  `TASK-026`, documented there, not repeated.
 
 ## Phase 10 — Blind benchmark evaluation
 
@@ -880,7 +911,7 @@ remains separately blocked on Architect's implementation work regardless of this
 ### TASK-035 — Finding feedback model
 - **Owner:** PRODUCT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-027
 - **Values:** `KNOWN_ALREADY`, `NEW`, `WRONG`, `NOT_ACTIONABLE`, `INTERESTING`, `ACTIONABLE`.
 - **Semantic contract (2026-08-14, FROZEN v0):** `docs/product/finding-feedback-contract.md`. Splits
@@ -889,8 +920,13 @@ remains separately blocked on Architect's implementation work regardless of this
   `INTERESTING`), fixes additional fields (comment, customer-reported certainty — explicitly not
   statistical confidence, intended action, commitment strength, owners, follow-up date), an
   append-only record lifecycle, product-learning use, and what must never be read as validation
-  (never writes `evidence_level`/`policy_readiness`). Status remains `BLOCKED` — this is semantic
-  prep, not implementation. See `HANDOFF-031` (future persistence, explicitly deferred to Architect).
+  (never writes `evidence_level`/`policy_readiness`). This was semantic prep, not implementation.
+  See `HANDOFF-031` (future persistence, explicitly deferred to Architect).
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-027` is `DONE`, and its detail screen
+  already reserves the UI slot this task would wire up (`findingDetail-feedback`, currently a
+  visibly non-interactive chip row). Real persistence/auth for who is giving feedback is a
+  separate concern — `TASK-053` (basic authentication) is still needed before this can be more
+  than a UI mock. Implementation not started this iteration.
 
 ### TASK-036 — Customer review workflow
 - **Owner:** PRODUCT

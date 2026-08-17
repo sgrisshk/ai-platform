@@ -159,8 +159,25 @@ real run caught the wrong assumption, and the test was corrected, not the code.)
 `GET /api/v1/findings`/`GET /api/v1/findings/{id}` serve this real data — verified live via
 `uvicorn`+`curl`, not just `TestClient` — matching product contract §1's exact required field list
 (nothing from §2 "Optional later"), `affected_records` for money-at-stake per `HANDOFF-046`'s
-recommendation, and `materiality_pass` shown without its threshold (§3). `TASK-026`/`TASK-027`
-(list/detail screens) are now unblocked but not started.
+recommendation, and `materiality_pass` shown without its threshold (§3).
+**`TASK-026`/`TASK-027` (findings list + detail screens) `DONE` 2026-08-17 (Architect).** Both
+UX specs (`docs/product/findings-list-screen.md`/`finding-detail-screen.md`) implemented as
+written, extending the existing "Signal Foundry" design system rather than introducing a new one.
+Shared `EvidencePill`/`ReadinessPill` components (`apps/web/lib/copy/findingLanguage.ts` as the
+single wording source) keep both screens' vocabulary identical, per both specs' explicit
+requirement. Sort/filter/pagination resolved server-side from URL search params, no new backend
+surface. New `apps/web/lib/api/analysisRuns.ts` (`getAnalysisRun`) added for the detail screen's
+provenance strip — the only backend-adjacent addition, wrapping an already-existing route.
+Verified live against real data (ephemeral Postgres + `scripts/promote_findings.py` + `uvicorn` +
+`pnpm dev`, not just component tests): all 15 real findings render, a `?sort=readiness&
+readiness=shadow_policy` filter correctly narrows to the real 6, and a real
+`descriptive_observation`-level finding correctly still shows its `adjusted_effect` (consistent
+with the TASK-024 finding that adjustment is computed independently of which gate capped the
+evidence ceiling). One documented, not fabricated, gap: the "near G03 power floor" small-sample
+qualifier both specs call for cannot be built — `FindingRead` doesn't expose the needed MDE/power
+diagnostic, and inventing a threshold client-side would violate `ADR-004`. `TASK-035` (finding
+feedback model) is now unblocked (`TASK-027`'s detail screen already reserves its UI slot) but
+not started — real persistence needs `TASK-053` (auth) first.
 **`HANDOFF-043` — ML_DISCOVERY answered 2026-08-17: partial concurrence, with a dissent.** Agrees
 this is a fixable defect, not a core-approach limitation (single-remediation path, not the
 two-strikes trigger). Dissents that the fix is estimation-layer-only: `supplier`/`destination`
