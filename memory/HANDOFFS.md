@@ -1346,7 +1346,46 @@ TASK-024 can persist without interpreting or recomputing statistical meaning.
 **Blocking:** YES — blocks implementing non-null Finding impact persistence and therefore blocks
 TASK-024 completion.
 
-**Resolution:** Pending.
+**Resolution (2026-08-16→17, Architect + Statistics):** RESOLVED. First pass (2026-08-16, Architect)
+hand-mapped `TASK-023`'s existing gate-G15 diagnostics onto `EconomicImpactPersistence` field by
+field against a real `PASS` candidate, as a stopgap. While that was being written, Statistics
+independently landed the real thing —
+`packages/analytics/src/policy_analytics/validation/economic_impact.py`
+(`EconomicImpactResult`/`build_economic_impact_result`, `ECONOMIC_IMPACT_CONTRACT_VERSION`), wired
+into `apply.py` so every `CandidateValidation` now carries a real `economic_impact` object, with
+`tests/analytics/test_economic_impact.py` (7 tests) — that supersedes the stopgap mapping and is
+the actual resolution; superseded corrections below.
+
+- **`impact_contract_version`** is a real, independently-versioned constant (`"1.0.0"`), not
+  borrowed from `validation_contract_version` as the stopgap mapping guessed — economic impact is
+  a separable computation that can evolve on its own schedule.
+- **`affected_records` is the full combined window** (development + validation + future_holdout),
+  computed directly from `combined_stats.n_exposed` — **not**
+  `ValidationMetadataPersistence.exposed_records`, which is development-split-only and answers a
+  different question ("how many rows graded the finding" vs. "how many bookings does the pattern
+  touch"). The stopgap mapping's `exposed_records` guess was wrong; this correction also flows back
+  to `docs/product/finding-product-contract.md`, which had assumed the two were the same
+  population.
+- **`per_record_effect`/`historical_impact`** both come from one cluster-bootstrap run over the
+  combined window (method `cluster_bootstrap_customer_id_combined_window`) — a different bootstrap
+  than `ValidationMetadataPersistence.raw_effect`'s development-only one, but internally consistent
+  with each other (`historical_impact` is `per_record_effect` scaled by `affected_records` from the
+  same replicate set). `per_record_effect` is **not** `validation_report.adjusted_effect` as the
+  stopgap mapping used — that's the development-split grading estimate, a different number, correct
+  for grading evidence but not for sizing impact.
+- **`materiality_pass`** ← gate G15's own pass/fail, as the stopgap mapping already had right.
+- **`annualized_impact`/`annualization_justified`** ← always `None`/`False` in v1.0.0, as the
+  stopgap mapping already had right — enforced now by `EconomicImpactResult.__post_init__`, not
+  just documented.
+
+Sign convention (harm-positive, matches `OutcomeDefinition.harm_multiplier` and the
+`HANDOFF-030`-verified ground-truth convention) is unchanged from the stopgap pass. The
+exposed-vs-affected relationship is **not** attribution-narrowed to the matched ground-truth
+pattern — `economic_impact.py`'s own docstring explicitly forbids extending it that way without
+ML_DISCOVERY's concurrence; that remains `HANDOFF-043`/`TASK-029` remediation, not reopened here.
+`TASK-024` can persist `EconomicImpactPersistence` via `EconomicImpactResult.to_dict()` without
+interpreting or recomputing statistical meaning, as required. `TASK-024` status is reconciled in
+`TASKS.md`.
 
 ## HANDOFF-026
 
@@ -1991,14 +2030,16 @@ of just left unsynced.
 
 **Blocking:** NO — nothing currently reads the missing fields; this is hygiene, not a bug fix.
 
-**Resolution:** Pending.
+**Resolution (2026-08-17, Architect):** RESOLVED. Added `checksum_sha256`, `size_bytes`,
+`content_type`, `source_type` to `Dataset` in `apps/web/lib/api/types.ts`, in the same field order
+as `DatasetRead`. Mechanical sync only, no new UI. `pnpm --filter web typecheck` passes.
 
 ## HANDOFF-045
 
 **Created:** 2026-08-16
 **From:** ML_DISCOVERY
 **To:** ARCHITECT, PRODUCT, STATISTICS
-**Status:** OPEN
+**Status:** IN_PROGRESS
 
 **Task:** Confirm `TASK-017` can close on the wiring/confirmation basis its own status note anticipated, and review the v0 ranking weights before they are treated as a final business-approved contract.
 
@@ -2023,4 +2064,10 @@ Separately: `docs/analytics/discovery-design.md` §7 requires business-materiali
 
 **Blocking:** NO — `TASK-016`'s own deliverable does not depend on this review; it blocks only `TASK-017`'s formal closure and any downstream reliance on ranking order as settled business judgment.
 
-**Resolution:** Pending.
+**Resolution (2026-08-17, Architect):** PARTIAL. The Architect/Code-Reviewer half is answered:
+`TASK-017` closes on the confirmation basis (see its `TASKS.md` entry) — both dependencies verified
+real, no new blind-runtime work required. The Product/Statistics half — whether `DEFAULT_WEIGHTS`
+reflects actual approved business priority, versus being a placeholder that happens to look
+reasonable — is a business-judgment call this session has no standing to make on Product's or
+Statistics' behalf, and is left `IN_PROGRESS` for them. Downstream use of ranking order (e.g.
+scoping `HANDOFF-043`) should treat it as an unapproved v0 default until that review lands.

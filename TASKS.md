@@ -275,9 +275,11 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** STATISTICS
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-013
 - **Goal:** Sanity-check overall distributions, time/segment/supplier/manager trends, and outcome prevalence before discovery.
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-013` is `DONE`. Not started; P1, so it
+  has not displaced the P0 chain (`TASK-005`–`TASK-024`).
 
 ## Phase 5 — Pattern discovery
 
@@ -395,7 +397,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 - **Owner:** ML_DISCOVERY
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-003, TASK-016
 - **Goal:** Run without hidden ground truth and persist candidates before evaluation files are opened.
 - **Status note (2026-08-16, Architect):** Reconciled against `memory/CURRENT_STATE.md`. The
@@ -413,6 +415,17 @@ Do not mark work `DONE` without executing its required checks and completion pro
   ranked artifact over the exact `task-015-official-20260816-015` candidates this task's blind run
   produced. Per the Architect note directly above, closing this task from here should be
   Architect/Code-Reviewer wiring/confirmation, not new implementation — requested in `HANDOFF-045`.
+- **Closed on confirmation basis (2026-08-17, Architect) → `DONE`.** Verified, not just taken on
+  trust: `TASK-003`'s `HANDOFF-030` resolution and `TASK-016`'s artifacts
+  (`ranking.py`/`ranking_signals.py`/`actionability.py`, `docs/analytics/candidate-ranking-v0.md`,
+  `artifacts/discovery/task-016-candidate-ranking-task-015-official-20260816-015.json`, `ADR-020`)
+  all exist and are real. No new blind-runtime work is needed — the behavioral goal (run without
+  hidden truth, persist a signed commitment before evaluation opens ground truth) was already
+  satisfied by `task-015-official-20260816-015`. `HANDOFF-045`'s separate question — whether the v0
+  ranking weights are a Product/Statistics-approved business contract, not just an ML Discovery
+  default — remains genuinely open and is **not** resolved by this closure; that question is
+  outside Architect/Code-Reviewer authority to answer and stays with Product/Statistics in
+  `HANDOFF-045`.
   Status stays `BLOCKED` until that confirmation lands; ML Discovery is not the blind actor and
   does not self-close a task with a named external `Reviewer`.
 
@@ -625,7 +638,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-020, TASK-023
 - **Goal:** Extend the current skeleton with pattern, support, raw/adjusted effects, uncertainty, impact, evidence, warnings, stability, status, and lineage.
 - **Product field contract:** `docs/product/finding-product-contract.md` (Required for MVP / Optional later / Never-shown-without-qualification field lists, mapped to `ValidationReport`) is available ahead of this task, complementing `HANDOFF-008`/`HANDOFF-012`. Status remains `BLOCKED` — this is input for scoping, not implementation.
@@ -640,6 +653,11 @@ Do not mark work `DONE` without executing its required checks and completion pro
   no "reviewed" or "awaiting validation" states) and the stored/versioned `title`/`summary` snapshot
   contract (mechanical v0 template, `title_template_version`). Status remains `BLOCKED` on
   `HANDOFF-025` (Statistics-owned impact result) — this only clears the Product-owned half.
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-020` and `TASK-023` are `DONE`
+  (`task-015-official-20260816-015`'s closing run: 6/15 candidates `PASS` at
+  `adjusted_observational_association`/`SHADOW_POLICY`), and `HANDOFF-025` is now resolved with a
+  verified field-by-field mapping from `TASK-023`'s real output to `EconomicImpactPersistence`.
+  Implementation not started this iteration.
 
 ### TASK-025 — Findings API completion
 
