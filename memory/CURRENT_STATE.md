@@ -108,8 +108,8 @@ frozen; `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" is fille
 disqualifier fired — `ADR-019`). Per the gate's own action table, real customer data does not
 proceed on this result. Statistics attributes the failure to a fixable economic-impact-granularity
 defect, not a limitation of the discovery mechanism itself (direction and precision are both
-strong) — `HANDOFF-043` requests ML_DISCOVERY/FOUNDER_STRATEGY concurrence before a remediation
-rerun is authorized.
+strong) — `HANDOFF-043` requested ML_DISCOVERY/FOUNDER_STRATEGY concurrence before a remediation
+rerun is authorized; see the `HANDOFF-043` update below for ML Discovery's answer.
 
 **`TASK-016` (candidate ranking v0) landed the same day (2026-08-16, ML Discovery, ADR-020):** a
 pure, deterministic ranker (`packages/analytics/src/policy_analytics/discovery/ranking.py`) scores
@@ -145,8 +145,20 @@ found Statistics-owned reproducibility gap in `apply.py`'s cluster bootstrap, no
 `artifacts/evaluation/task-028-benchmark-evaluation.json` was regenerated in lockstep for
 consistency with its changed input; every metric held except the already-diagnostic-only
 impact-error median.
-**`HANDOFF-043` (ML_DISCOVERY/FOUNDER_STRATEGY concurrence on the FAILED-verdict attribution)
-remains OPEN and untouched — no remediation scope has been started pending that answer.**
+**`HANDOFF-043` — ML_DISCOVERY answered 2026-08-17: partial concurrence, with a dissent.** Agrees
+this is a fixable defect, not a core-approach limitation (single-remediation path, not the
+two-strikes trigger). Dissents that the fix is estimation-layer-only: `supplier`/`destination`
+were both eligible search features yet zero of the 15 candidates use any categorical condition,
+pointing to a search-selection artifact (`discovery.engine`'s beam-survival score maximizes raw
+population × effect with no precision term) as a real contributing cause, not only `TASK-021`/
+`TASK-023`'s reporting arithmetic. Also flags that Statistics' proposed ground-truth-matched
+attribution-narrowing is only computable inside the benchmark harness and cannot generalize to
+real customer findings, which have no true pattern to narrow against. Recommends a two-part
+remediation: (1) an explicitly benchmark-evaluation-only attribution-narrowed diagnostic for
+`TASK-028`'s metric 6, and (2) a small additive precision term at `TASK-015`'s search-selection
+layer (new task, not yet numbered) so future candidates are inherently tighter, not just
+differently reported. **Still open:** FOUNDER_STRATEGY's confirmation and a scoping decision on
+part 2. No remediation implementation has started.
 
 **Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
 Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`
@@ -210,8 +222,8 @@ remain undefined.
   direction accuracy, 0 leakage, 0/5 traps promoted). Per the milestone's own success condition
   ("a graded verdict exists, whatever it is — a FAILED verdict honestly reported still meets this
   milestone"), **this milestone is met.** Full detail: `docs/benchmark/task-029-benchmark-report-v1.md`,
-  `ADR-019`. Open follow-up: `HANDOFF-043` (ML_DISCOVERY/FOUNDER_STRATEGY concurrence on Statistics'
-  fixable-defect attribution, before any remediation rerun).
+  `ADR-019`. Open follow-up: `HANDOFF-043` — ML_DISCOVERY answered (partial concurrence, dissent on
+  scope, see above); FOUNDER_STRATEGY confirmation and remediation scoping still open.
 - **Commercial milestone — first documented customer/data-sharing conversation.** Still pending;
   unaffected by the technical result above. At least one real, logged serious conversation in
   `docs/customer/pipeline.md` (per its existing bar: `CALL SCHEDULED`/`CALL DONE` or an equivalent

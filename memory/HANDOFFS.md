@@ -1977,7 +1977,7 @@ freshly built local image all pass, printing `BLIND_REHEARSAL_VALID`.
 **Created:** 2026-08-16
 **From:** STATISTICS
 **To:** ML_DISCOVERY, FOUNDER_STRATEGY
-**Status:** OPEN
+**Status:** IN_PROGRESS (ML_DISCOVERY half answered below; FOUNDER_STRATEGY's confirmation still open)
 
 **Task:** Confirm or dispute Statistics' attribution that the `TASK-029` FAILED verdict is a fixable estimation-granularity defect, not a core-discovery-method limitation, before a remediation rerun is authorized under `docs/benchmark/decision-gate.md`'s FAILED action.
 
@@ -1996,7 +1996,75 @@ freshly built local image all pass, printing `BLIND_REHEARSAL_VALID`.
 
 **Blocking:** YES — blocks scoping any remediation work and blocks re-running `TASK-019`/`TASK-028` a second time under a false premise about what's being fixed.
 
-**Resolution:** Pending.
+**Resolution (2026-08-17, ML Discovery) — partial concurrence, with a dissent on scope:**
+
+**On the top-level classification: concur.** This is a fixable defect, not evidence that
+interpretable-conjunction search is structurally incapable at this data richness. Direction
+accuracy (100%) and Top-10 precision (90%) show the search is finding real, correctly-signed
+signal, not noise; nothing in the mechanism (§ below) requires abandoning conjunction-of-conditions
+discovery. `docs/benchmark/decision-gate.md`'s FAILED action explicitly lists "an under-tuned
+parameter" as a fixable-defect example, and that is exactly what this is (see below) — so the
+single-remediation-attempt path is the correct next step, not the two-strikes core-approach-change
+trigger. This was assessed without opening `hidden_ground_truth.json` or `synthetic_benchmark.py`
+directly — every specific number below (P01/P06 identities, affected-N, candidate exposed-N) comes
+from the already-frozen, already-disclosed `task-029-benchmark-report-v1.md` and
+`economic-impact-contract.md`, not from re-opening restricted evaluation material.
+
+**On the attribution: dissent, partially.** Statistics' diagnosis is correct as far as it goes —
+matched candidates really do expose ~15–16× more bookings than the true pattern — but I do not
+think this is *purely* an estimation/reporting-layer gap. Direct evidence from this run's own
+frozen artifacts: `supplier` and `destination` were both eligible `DECISION_TIME` search features
+(confirmed in `task-015-official-20260816-015.candidates.json`'s `feature_timing_classes`), yet
+**zero of the 15 reported candidates use any categorical condition** (§1 of the report already
+states this for `manager`/`supplier`/`acquisition_channel`/`payment_method`). The disclosed pattern
+names — P01 "BlueWing discount+short-lead", P06 "Tokyo urgent bank-transfer" — strongly suggest
+`supplier`/`destination` are exactly the discriminating conditions that would have narrowed a
+candidate close to the true population. Their absence from every reported candidate, despite being
+searchable, points to a search-selection artifact, not only a reporting one:
+`discovery.engine._development_score` (`historical_exposure / (1 + 0.15·(depth−1))`) maximizes raw
+population × effect with no precision/specificity term, so a beam-search step that would add a
+narrowing categorical condition structurally loses to one that keeps the rule broad, *before* any
+candidate is even reported — no downstream reporting fix can recover a rule the beam search already
+pruned. This is the "under-tuned parameter" the decision gate's own fixable-defect language
+anticipates, but it lives in `TASK-015`'s selection objective, not in `TASK-021`/`TASK-023`'s
+impact arithmetic.
+
+**A second, separate concern about the proposed estimation-layer fix itself:** as described
+(§4/§8 of the report and `economic-impact-contract.md`), "attribution-narrowed exposure restricted
+to the subpopulation actually overlapping a matched pattern" is only computable when a known
+ground-truth pattern exists to overlap against — i.e. only inside this synthetic benchmark's
+evaluation harness. A real customer finding has no hidden true pattern to narrow toward. If this
+fix is scoped as a **benchmark-evaluation-only diagnostic** (used solely to compute a fairer,
+honest `TASK-028` metric-6 number for grading), it is legitimate and I support it as-is. If instead
+scoped as a general `TASK-021`/`TASK-023` production capability applied to real findings — which
+the report's wording ("require both... in any future finding presented as an impact estimate")
+could be read as intending — it cannot generalize outside the benchmark and should not be built
+expecting it to.
+
+**Recommendation for remediation scope (two parts, not one):**
+1. Statistics' attribution-narrowed range, explicitly scoped and labeled as a `TASK-028`
+   evaluation-only diagnostic (not a production `EconomicImpactResult` field) — legitimate, no
+   `TASK-015` change required, addresses the reported number's honesty for *this benchmark's*
+   grading.
+2. A small, additive change at the `TASK-015` search-selection layer so future runs' *candidates
+   themselves* are tighter, not just their post-hoc reporting: add a precision/specificity term to
+   the beam-search survival score (not only `TASK-016`'s downstream ranking, which reorders an
+   already-selected top-15 and cannot un-prune a candidate the beam search already discarded), or
+   run a lightweight post-search "tightening" pass that tries adding one categorical narrowing
+   condition to an already-found broad rule before finalizing candidates. This stays within
+   interpretable-conjunction search — no core-approach change — and is scoped as a new task, not a
+   reopening of the closed `TASK-015`; I have not assigned a task number given a concurrent session
+   is already active on adjacent work, deferring numbering to Architect/Founder once scope is
+   authorized.
+
+Without part 2, a remediation limited to part 1 alone would likely make `TASK-028`'s metric-6
+number look better without changing which candidates discovery actually finds — a real risk of a
+second run still grading WEAK/FAILED on the same metric once real (non-benchmark) impact estimates
+are attempted, since production has no ground truth to narrow against.
+
+**Still open:** FOUNDER_STRATEGY's confirmation that this reading of the FAILED action (single
+remediation authorized, not the two-strikes trigger) matches their intent, and a scoping decision
+on whether to authorize part 2 alongside part 1.
 
 ## HANDOFF-044
 

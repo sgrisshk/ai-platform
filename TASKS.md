@@ -426,8 +426,6 @@ Do not mark work `DONE` without executing its required checks and completion pro
   default — remains genuinely open and is **not** resolved by this closure; that question is
   outside Architect/Code-Reviewer authority to answer and stays with Product/Statistics in
   `HANDOFF-045`.
-  Status stays `BLOCKED` until that confirmation lands; ML Discovery is not the blind actor and
-  does not self-close a task with a named external `Reviewer`.
 
 ## Phase 6 — Statistical validation
 
