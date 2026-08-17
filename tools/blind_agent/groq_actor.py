@@ -161,11 +161,20 @@ def search(path: str, query: str, max_matches: object = 20) -> str:
     )[:MAX_TOOL_OUTPUT]
 
 
+# Pattern rather than an exact name list: this is defense in depth (the actor itself is retired
+# from the shipped image; see infra/docker/blind-agent.Dockerfile), so a fixed 4-name blocklist
+# would silently stop protecting anything the moment a 5th provider key or an unrelated secret
+# (AWS_SECRET_ACCESS_KEY, DATABASE_URL-style credentials, a signing/private key, ...) shows up in
+# the parent environment.
+_CREDENTIAL_ENV_NAME = re.compile(
+    r"(API[_-]?KEY|SECRET|TOKEN|PASSWORD|PASSWD|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|CREDENTIAL)",
+    re.IGNORECASE,
+)
+
+
 def run_python(code: str) -> str:
     child_environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in {"GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"}
+        key: value for key, value in os.environ.items() if not _CREDENTIAL_ENV_NAME.search(key)
     }
     completed = subprocess.run(
         ["python", "-c", code],

@@ -1957,7 +1957,7 @@ hard-coded outcome contract `1.0.0` dependency are removed. It writes all three 
 outputs and passed normal freeze validation. The retired Groq actor is absent from the image, and
 its child-Python helper strips Groq/OpenAI/Anthropic/Gemini API-key variables with regression
 coverage. Truth-free production-isolated rehearsal printed `BLIND_REHEARSAL_VALID` for image
-`policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`.
+`policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`.
 No provider capacity was purchased and no official run was issued. Existing `…-014` is audit-only
 after source/runtime drift; a new unique deterministic run may now be issued.
 
@@ -1971,6 +1971,43 @@ was pinned (`Makefile`, `TASKS.md`, `blind/README.md`, `memory/CURRENT_STATE.md`
 (118 passed, 3 skipped, none blind-agent-related), `ruff check .`, `pyright`, and
 `make blind-rehearsal`-equivalent (`python -m tools.blind_agent.rehearsal --image ...`) against the
 freshly built local image all pass, printing `BLIND_REHEARSAL_VALID`.
+
+**Independent review (2026-08-17, CODE_REVIEWER):** The above was self-review, not independent —
+adversarial pass found and fixed 5 issues, none of which invalidate the already-frozen
+`task-015-official-20260816-015` result (its manifest is immutable and pinned to the
+then-current image regardless of later `BLIND_AGENT_IMAGE` changes):
+1. `tools/blind_agent/core.py`'s `docker` subprocess calls inherited the ambient environment, so
+   `DOCKER_HOST`/`DOCKER_CONTEXT` could redirect `resolve_image()`/`launch()` to an
+   attacker-controlled daemon that fabricates digest matches and ignores `--network=none`/
+   `--cap-drop=ALL` — fixed by pinning both calls to the local default daemon (`_docker_env()`).
+2. `agent="shell"` could be issued and, since nothing distinguished it from an official run,
+   hand-written output could reach `freeze()` and pass the same contract checks as a genuine
+   deterministic run — `_validated_freeze()` now rejects any manifest whose `runtime_agent` is
+   not `"deterministic"`.
+3. The Dockerfile's `FROM node:22.18.0-bookworm-slim` used a mutable tag; pinned by digest
+   (`@sha256:752ea8a2...`). This did **not** make the build reproducible: a `--no-cache` rebuild
+   of the identical Dockerfile still produced a different image digest
+   (`sha256:4ae6afba...` vs. `sha256:9ad6e1a7...`), so the "identical rebuilds produce the same
+   digest" claim above holds only for a warm local build cache, not in general. `make blind-image`
+   now fails closed on any digest drift instead of relying on an operator noticing — see
+   `blind/README.md`'s CODE_REVIEWER note. The pinned `BLIND_AGENT_IMAGE` above was updated to
+   `sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b` to match the
+   base-digest-pinned Dockerfile; verified locally via `docker image inspect` and re-ran
+   `make blind-rehearsal`, still `BLIND_REHEARSAL_VALID`.
+4. `tools/blind_agent/groq_actor.py`'s credential stripping in `run_python()` (dead code today —
+   confirmed absent from the shipped image and unreferenced by `cli.py`/`core.py`) blocklisted an
+   exact 4-name set; switched to a credential-name pattern (`API_KEY|SECRET|TOKEN|PASSWORD|...`)
+   so it doesn't silently stop protecting anything the moment a 5th provider key or unrelated
+   secret shows up, if this code is ever reintroduced.
+5. Added a workspace-integrity re-check in `launch()` immediately before `docker run` is invoked,
+   narrowing (not eliminating) the TOCTOU window between the earlier `verify()` and container
+   start in which a same-user co-resident process could tamper with the workspace.
+
+Not fixed, flagged as open: `resolve_image()` still has no independently-audited "known good"
+reference beyond the pinned `BLIND_AGENT_IMAGE` value itself — an attacker able to set that env
+var (or substitute a self-built image accepted by digest) is not caught by this layer. Verified
+`uv run pytest`, `ruff check .`, `pyright` clean after the fix; `make blind-image` correctly fails
+closed when the built digest doesn't match the pin, and succeeds once re-pinned.
 
 ## HANDOFF-043
 

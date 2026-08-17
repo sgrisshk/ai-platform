@@ -72,7 +72,7 @@ is resolved. `task-015-official-20260815-014` is issued and `VERIFIED` with sign
 networkless, and has a hard provider ceiling of zero requests, tokens, and cost. It consumes the
 signed manifest contract directly and no longer depends on an unissued dataset `manifest.json` or
 a hard-coded v1.0.0 outcome contract. Image
-`policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`
+`policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`
 passed truth-free production-isolated rehearsal and normal freeze validation on 2026-08-16.
 Provider run `…-014` is audit-only after source/runtime drift. A genuinely blind-compliant run,
 `task-015-official-20260816-015`, was then issued/launched/frozen end to end (agent
@@ -145,6 +145,22 @@ found Statistics-owned reproducibility gap in `apply.py`'s cluster bootstrap, no
 `artifacts/evaluation/task-028-benchmark-evaluation.json` was regenerated in lockstep for
 consistency with its changed input; every metric held except the already-diagnostic-only
 impact-error median.
+**`TASK-024`/`TASK-025` (real Finding persistence + API) `DONE` 2026-08-17 (Architect).** Migration
+`20260817_0003`; `app/findings/persistence.py` (candidate/report/promotion services, enforcing
+"no evidence_level → cannot promote"); `app/findings/summary.py` (product contract §12.2's exact
+mechanical title/summary template). `scripts/promote_findings.py` ran the real closing-run
+artifacts through the full pipeline against a live ephemeral Postgres: 1 `AnalysisRun`, 15
+`CandidatePattern`/`ValidationReport` rows, and — per `docs/product/finding-product-contract.md`
+§0, "a Finding is any graded candidate output," not only a `PASS`-verdict one — **all 15**
+candidates promoted to `Finding` (none `REJECT`): 6 at `adjusted_observational_association`/
+`shadow_policy`, 9 at `descriptive_observation`/`experiment_only`. (A draft of this work initially
+assumed only the 6 `PASS` candidates should promote and wrote a test expecting exactly that; the
+real run caught the wrong assumption, and the test was corrected, not the code.)
+`GET /api/v1/findings`/`GET /api/v1/findings/{id}` serve this real data — verified live via
+`uvicorn`+`curl`, not just `TestClient` — matching product contract §1's exact required field list
+(nothing from §2 "Optional later"), `affected_records` for money-at-stake per `HANDOFF-046`'s
+recommendation, and `materiality_pass` shown without its threshold (§3). `TASK-026`/`TASK-027`
+(list/detail screens) are now unblocked but not started.
 **`HANDOFF-043` — ML_DISCOVERY answered 2026-08-17: partial concurrence, with a dissent.** Agrees
 this is a fixable defect, not a core-approach limitation (single-remediation path, not the
 two-strikes trigger). Dissents that the fix is estimation-layer-only: `supplier`/`destination`

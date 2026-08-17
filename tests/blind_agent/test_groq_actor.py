@@ -52,17 +52,27 @@ def test_run_python_removes_provider_credentials(
     output.mkdir(parents=True)
     monkeypatch.setattr(groq_actor, "WORKSPACE", workspace)
     monkeypatch.setattr(groq_actor, "OUTPUT", output)
-    for name in ("GROQ_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"):
+    credential_names = (
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        # Not a provider key: this is a pattern match (API_KEY/SECRET/TOKEN/PASSWORD/...), not a
+        # fixed 4-name blocklist, so an unrelated credential must be stripped too.
+        "AWS_SECRET_ACCESS_KEY",
+        "SOME_SERVICE_TOKEN",
+        "DB_PASSWORD",
+    )
+    for name in credential_names:
         monkeypatch.setenv(name, "must-not-reach-child")
 
     result = json.loads(
-        groq_actor.run_python(
-            "import os; print(','.join(name for name in os.environ if name.endswith('_API_KEY')))"
-        )
+        groq_actor.run_python("import os; print(','.join(sorted(os.environ)))")
     )
 
     assert result["returncode"] == 0
-    assert result["stdout"].strip() == ""
+    surviving = set(result["stdout"].strip().split(","))
+    assert surviving.isdisjoint(credential_names)
 
 
 def test_paginated_read_matches_gpt_oss_call_and_preserves_isolation(

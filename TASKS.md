@@ -341,7 +341,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
   dataset identity, outcome metadata, contract versions, feature timing, method version, seed, and
   provenance hashes from signed `BLIND_MANIFEST.json`; it no longer expects the absent private
   dataset `manifest.json` or hardcodes outcome contract v1.0.0. Image
-  `policy-blind-agent@sha256:5632ca11139272623e95a82a9fa24c52f19c16d8edc236dfa500e02cbc9570c0`
+  `policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`
   passed a full truth-free Docker rehearsal and normal freeze validation on 2026-08-16.
 - **Blind-compliant run (2026-08-16, Architect):** Issued, launched, and froze
   `task-015-official-20260816-015` end to end through the deterministic, networkless, zero-token
@@ -646,7 +646,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** ARCHITECT
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-020, TASK-023
 - **Goal:** Extend the current skeleton with pattern, support, raw/adjusted effects, uncertainty, impact, evidence, warnings, stability, status, and lineage.
 - **Product field contract:** `docs/product/finding-product-contract.md` (Required for MVP / Optional later / Never-shown-without-qualification field lists, mapped to `ValidationReport`) is available ahead of this task, complementing `HANDOFF-008`/`HANDOFF-012`. Status remains `BLOCKED` — this is input for scoping, not implementation.
@@ -665,15 +665,50 @@ Do not mark work `DONE` without executing its required checks and completion pro
   (`task-015-official-20260816-015`'s closing run: 6/15 candidates `PASS` at
   `adjusted_observational_association`/`SHADOW_POLICY`), and `HANDOFF-025` is now resolved with a
   verified field-by-field mapping from `TASK-023`'s real output to `EconomicImpactPersistence`.
-  Implementation not started this iteration.
+- **Implementation (2026-08-17, Architect) → `DONE`.** Migration `20260817_0003` extends
+  `analysis_runs` with the reproducibility envelope, adds `candidate_patterns`/`validation_reports`,
+  and replaces `findings` with the real read-optimized shape (lineage as JSONB per row — a
+  deliberate v0 simplification from the 5-table relational lineage the prep doc proposed, since
+  `contracts.py`'s own `LineageReference` was already a plain value object, not a relational
+  construct). `app/findings/persistence.py` implements the three internal services the prep doc
+  specified (candidate/report persistence, promotion), enforcing the invariant that a report with
+  no `evidence_level` cannot be promoted. `app/findings/summary.py` implements the product
+  contract's exact v0-mechanical title/summary template; `harm_direction_phrase` added to
+  `OutcomeDefinition` to source it. `scripts/promote_findings.py` (the actual demo entrypoint)
+  ingests the three real closing-run artifacts and persists everything through that pipeline —
+  re-deriving per-split metrics from the real analytical dataset via `apply.py`'s own
+  `split_stats`/`rule_expr` rather than trusting anything precomputed. **Real result, run against a
+  live ephemeral PostgreSQL container: 1 `AnalysisRun`, 15 `CandidatePattern`/`ValidationReport`
+  rows, and — per `docs/product/finding-product-contract.md` §0 ("a Finding is any graded candidate
+  output," not only a `PASS`-verdict one) — all 15 candidates promote to `Finding`, since none
+  `REJECT` on this run: 6 at `adjusted_observational_association`/`shadow_policy`, 9 at
+  `descriptive_observation`/`experiment_only`.** (An earlier draft of this work assumed only the 6
+  `PASS` candidates should promote and wrote a test asserting exactly that; the test caught its own
+  wrong assumption against the real run and was corrected, not the code.) 22 new tests (unit +
+  live-Postgres integration through the real HTTP routes) pass, full suite green twice in a row
+  against the same database (rerun-safety), `ruff`/`pyright`/`pnpm typecheck` all clean.
 
 ### TASK-025 — Findings API completion
 
 - **Owner:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-024
 - **Goal:** Make existing list/detail endpoints serve real persisted validated findings with safe evidence-aligned schemas.
+- **Implementation (2026-08-17, Architect) → `DONE`.** `FindingRead` rewritten to
+  `docs/product/finding-product-contract.md` §1's exact "Required for MVP" field list — nothing
+  from §2 "Optional later" (e.g. full 16-gate detail table stays on `validation_reports`, not
+  duplicated into the API response). `affected_records` (not `exposed_records`) is used for
+  money-at-stake, per Statistics' `HANDOFF-046` recommendation. `materiality_pass` is exposed as
+  pass/fail only — the underlying threshold never appears in the response (verified: grepped a live
+  response for `min_material_annual_impact`, not present). `GET /api/v1/findings` filters to
+  `lifecycle_status=ACTIVE` by default (§12.1); non-`ACTIVE` findings remain reachable by direct
+  ID. Verified against the real closing-run data through a running `uvicorn` instance and live
+  `curl`, not just `TestClient`: 15 findings listed, evidence/impact shape matches §1 exactly for
+  both a `shadow_policy` and an `experiment_only` finding. `apps/web/lib/api/types.ts`'s `Finding`
+  type synced to match (mechanical only, same posture as `HANDOFF-044`); one pre-existing page
+  reference (`finding.status`, from the old `ResourceStatus`-based skeleton) fixed to
+  `finding.lifecycle_status` — `pnpm typecheck`/`lint`/`test` all pass.
 
 ## Phase 9 — First product UI
 
@@ -713,20 +748,24 @@ gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflow
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-025
 - **Goal:** Show ranked findings without becoming a generic dashboard.
-- **UX specification (2026-08-14):** `docs/product/findings-list-screen.md` (complete; written against the concrete `docs/architecture/finding-persistence-contract.md`/`apps/api/app/findings/contracts.py` schema, never against synthetic ground truth). Information hierarchy, sort/filter rules (default sort by `impact.historical_impact.ci_low`), field-to-copy mapping, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives. Status remains `BLOCKED` — still requires TASK-025 → TASK-024 to exist. See `HANDOFF-028` (feature display-label gap, to Data Engineer, non-blocking) and `HANDOFF-029` (implementation handoff to Architect).
+- **UX specification (2026-08-14):** `docs/product/findings-list-screen.md` (complete; written against the concrete `docs/architecture/finding-persistence-contract.md`/`apps/api/app/findings/contracts.py` schema, never against synthetic ground truth). Information hierarchy, sort/filter rules (default sort by `impact.historical_impact.ci_low`), field-to-copy mapping, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives. See `HANDOFF-028` (feature display-label gap, to Data Engineer, non-blocking) and `HANDOFF-029` (implementation handoff to Architect).
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-025` is `DONE` with real data behind
+  it. Implementation not started this iteration.
 
 ### TASK-027 — Finding detail screen
 
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-025
 - **Goal:** Explain what was found, population, impact, raw/adjusted effect, evidence, stability, alternatives, warnings, and next step in business language.
-- **UX specification:** `docs/product/finding-detail-screen.md` (complete; written ahead of the backend so TASK-024 can be scoped against real UI requirements). Status remains `BLOCKED` — implementation still requires TASK-025 → TASK-024 to exist. See `HANDOFF-008` (field requirements to Architect) and `HANDOFF-009` (implementation handoff to Architect).
+- **UX specification:** `docs/product/finding-detail-screen.md` (complete; written ahead of the backend so TASK-024 can be scoped against real UI requirements). See `HANDOFF-008` (field requirements to Architect) and `HANDOFF-009` (implementation handoff to Architect).
+- **Status note (2026-08-17, Architect):** Unblocked — `TASK-025` is `DONE` with real data behind
+  it. Implementation not started this iteration.
 - **Update (2026-08-14):** Refreshed against the now-concrete persistence schema: consolidated field-to-copy mapping table, edge cases, and loading/empty/error states tied to the real `apps/web/components/states/` primitives; `ResourceStatus`-based run-status gating replaced by `FindingLifecycleStatus` gating per the `HANDOFF-024` resolution (`docs/product/finding-product-contract.md` §12).
 - **Note (2026-08-13):** Pickup attempted by an ad hoc "Frontend" dispatch (no `agents/FRONTEND.md` or Frontend role exists in `AGENTS.md`). Confirmed still correctly `BLOCKED`: no approved Product spec/content exists, and `TASK-025`/`TASK-024` remain `BLOCKED` so no real findings API exists. See `HANDOFF-004` (spec, to PRODUCT) and `HANDOFF-005` (API + role placement, to ARCHITECT). No implementation was made against invented product semantics or an invented API contract.
 
