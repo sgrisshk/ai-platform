@@ -2014,7 +2014,7 @@ closed when the built digest doesn't match the pin, and succeeds once re-pinned.
 **Created:** 2026-08-16
 **From:** STATISTICS
 **To:** ML_DISCOVERY, FOUNDER_STRATEGY
-**Status:** IN_PROGRESS (ML_DISCOVERY half answered below; FOUNDER_STRATEGY's confirmation still open)
+**Status:** RESOLVED
 
 **Task:** Confirm or dispute Statistics' attribution that the `TASK-029` FAILED verdict is a fixable estimation-granularity defect, not a core-discovery-method limitation, before a remediation rerun is authorized under `docs/benchmark/decision-gate.md`'s FAILED action.
 
@@ -2102,6 +2102,19 @@ are attempted, since production has no ground truth to narrow against.
 **Still open:** FOUNDER_STRATEGY's confirmation that this reading of the FAILED action (single
 remediation authorized, not the two-strikes trigger) matches their intent, and a scoping decision
 on whether to authorize part 2 alongside part 1.
+
+**Resolution (2026-08-17, Founder Strategy):** Confirmed — this is the single-remediation path,
+not the two-strikes core-approach trigger; run #1 could not have satisfied that trigger's own
+"two independent blind runs" precondition regardless of attribution, so this reading was already
+correct as pre-registered policy, not a new judgment call. **Both remediation parts authorized**,
+per ML Discovery's own recommendation and warning: part-1-only risks a technically-passing rerun
+that does not actually fix what real (non-benchmark) customers would experience, since production
+has no hidden ground truth to narrow against — accepting that trade for speed was explicitly
+rejected. Numbered `TASK-058` (part 2, ML_DISCOVERY, search-selection precision term) and
+`TASK-059` (part 1, STATISTICS, benchmark-only diagnostic), both `READY`. Neither blocks the other;
+both should land before the next official blind rerun of `TASK-015`/`TASK-017` is issued, so the
+rerun is graded once against the intended fix, not twice. This does not touch `ADR-022`
+(commercial-track pause) — that remains a separate, already-recorded decision.
 
 ## HANDOFF-044
 
@@ -2280,5 +2293,72 @@ threshold-fragile to this jitter.
 **Blocking:** NO — verdicts were stable across the observed jitter and `TASK-024` persistence does
 not depend on interval reproducibility, only on the report being internally consistent, which it
 is. This is a rigor/fragility finding, not something currently blocking product work.
+
+**Resolution:** Pending.
+
+## HANDOFF-048
+
+**Created:** 2026-08-17
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** OPEN
+
+**Task:** Run `TASK-019` validation and `TASK-028` evaluation against the new `TASK-058` blind
+discovery run, to determine whether `TASK-058`'s done condition (materially narrower exposed
+populations relative to matched true patterns than `task-015-official-20260816-015`) is met.
+
+**Context:** `TASK-058` (`HANDOFF-043` remediation part 2) is implemented:
+`DiscoveryConfig.population_score_exponent` (default `0.5`) changes the beam-survival score from
+linear `historical_exposure` to `harm_per_booking × n_exposed^0.5`, a geometric-mean-style balance
+between total materiality and per-booking purity — see `docs/analytics/discovery-engine-v0.md`
+("Precision term") for the full mechanism and regression tests proving `exponent=1.0` reproduces
+the old ranking exactly. `DISCOVERY_METHOD_VERSION` is now `discovery-engine-v0.2.0`.
+
+A new official blind run was issued/verified/launched/frozen/committed under the existing
+`ADR-008` protocol: `task-058-remediation-20260817-001`, `status=PERSISTED`, 15 candidates,
+committed via signed receipt (`artifacts/blind/task-058-remediation-20260817-001.receipt.json`)
+**before** this handoff or any evaluation opened `hidden_ground_truth.json`. No image rebuild was
+needed — the Dockerfile is unchanged; only the allowlisted workspace content (which includes
+`engine.py`) differs, and `policy-blind-agent@sha256:9ad6e1a7...` rehearsed clean
+(`BLIND_REHEARSAL_VALID`) before issuance.
+
+**Public, no-ground-truth-opened evidence the fix changed candidate composition** (comparing this
+run's 15 candidates against `task-015-official-20260816-015`'s, both already-public artifacts):
+2 candidates now use a categorical condition absent from every one of the original 15 —
+`CAND-012` = `booking_lead_days < 23 AND discount_rate >= 0.08 AND supplier == BlueWing`;
+`CAND-014` = `booking_lead_days < 23 AND destination == Tokyo AND payment_method == bank_transfer`.
+These match pattern identities already disclosed in the frozen
+`docs/benchmark/task-029-benchmark-report-v1.md` ("P01 BlueWing discount+short-lead", "P06 Tokyo
+urgent bank-transfer") — noted from that already-public report, not from opening restricted
+material here. This is encouraging but not itself proof of narrower *exposed populations* relative
+to matched patterns — that comparison requires the real evaluator.
+
+**Question:** Please run `TASK-019` (`scripts/validate_candidates.py --candidates
+artifacts/blind/task-058-remediation-20260817-001.candidates.json --metrics
+artifacts/blind/task-058-remediation-20260817-001.discovery_metrics.json --blind-compliant
+--founder-block-lifted`, or equivalent) and `TASK-028` evaluation against this run, then compare
+matched-pattern exposed-population ratios (the ~15–16× figure from `task-029-benchmark-report-v1.md`
+§3.6) against this run's equivalents. If materially narrower, `TASK-058` closes and
+`docs/benchmark/decision-gate.md` can be re-graded per its FAILED-action remediation path
+(alongside `TASK-059`, per its own warning that `TASK-059` alone is not sufficient grounds for a
+re-grade). If not materially narrower, report why (e.g. the two new categorical candidates matter
+qualitatively but not enough of the ranked/validated set changed) so `TASK-058` can iterate instead
+of being marked done on hopeful evidence.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`population_score_exponent`,
+  `_development_score`)
+- `docs/analytics/discovery-engine-v0.md` ("Precision term")
+- `artifacts/blind/task-058-remediation-20260817-001.*` (gitignored, reproducible — candidates,
+  discovery_metrics, run_report, hashes, receipt)
+- `artifacts/blind/task-015-official-20260816-015.candidates.json` (comparison baseline)
+- `TASKS.md` (`TASK-058`, `TASK-019`, `TASK-028`)
+
+**Expected output:** A `TASK-019`/`TASK-028` run against `task-058-remediation-20260817-001`, and
+an explicit narrower-or-not verdict against `TASK-058`'s done condition.
+
+**Blocking:** YES — blocks closing `TASK-058` and blocks any decision-gate re-grade that relies on
+it.
 
 **Resolution:** Pending.

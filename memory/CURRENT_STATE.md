@@ -169,12 +169,28 @@ pointing to a search-selection artifact (`discovery.engine`'s beam-survival scor
 population × effect with no precision term) as a real contributing cause, not only `TASK-021`/
 `TASK-023`'s reporting arithmetic. Also flags that Statistics' proposed ground-truth-matched
 attribution-narrowing is only computable inside the benchmark harness and cannot generalize to
-real customer findings, which have no true pattern to narrow against. Recommends a two-part
+real customer findings, which have no true pattern to narrow against. Recommended a two-part
 remediation: (1) an explicitly benchmark-evaluation-only attribution-narrowed diagnostic for
 `TASK-028`'s metric 6, and (2) a small additive precision term at `TASK-015`'s search-selection
-layer (new task, not yet numbered) so future candidates are inherently tighter, not just
-differently reported. **Still open:** FOUNDER_STRATEGY's confirmation and a scoping decision on
-part 2. No remediation implementation has started.
+layer, so future candidates are inherently tighter, not just differently reported. **Resolved
+2026-08-17 (Founder Strategy):** single-remediation path confirmed; both parts authorized, numbered
+`TASK-059` (part 1, Statistics) and `TASK-058` (part 2, ML Discovery), both `READY`.
+
+**`TASK-058` implemented same day (2026-08-17, ML Discovery, `ADR-023`):**
+`DiscoveryConfig.population_score_exponent` (default `0.5`) changes the beam-survival score from
+linear `historical_exposure` to `harm_per_booking × n_exposed^0.5` — sub-linear in population, so a
+rule can no longer inflate its score just by absorbing more diluting bookings; `exponent=1.0`
+exactly reproduces the old ranking (regression-tested). `DISCOVERY_METHOD_VERSION` is now
+`discovery-engine-v0.2.0`. A new official blind run under the existing `ADR-008` protocol,
+`task-058-remediation-20260817-001` (`status=PERSISTED`, 15 candidates), was issued, verified,
+launched (deterministic, network `none`, no image rebuild needed), frozen, and **committed via
+signed receipt before any evaluation opened `hidden_ground_truth.json`**. Public, no-ground-truth
+evidence the fix changed candidate composition: 2 candidates now use a categorical condition absent
+from every one of the original 15 — `supplier == BlueWing`, `destination == Tokyo AND
+payment_method == bank_transfer` — matching pattern identities already disclosed in the frozen
+benchmark report. `TASK-058` is `IN_PROGRESS`, not `DONE`: its done condition needs `TASK-019`/
+`TASK-028` run against this new artifact to confirm materially narrower exposed populations versus
+matched true patterns, handed to Statistics/Architect in `HANDOFF-048`.
 
 **Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
 Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`
@@ -221,9 +237,10 @@ development; later splits remain diagnostic-only during discovery.
 
 The immutable ingestion contract now exists and is implemented (`TASK-005`/`TASK-006`, `DONE`), but
 no canonical travel-booking mapping (`TASK-010`) or customer-facing Data Quality Report (`TASK-009`)
-exists yet. Real customer data must additionally clear `TASK-057` (secured pilot customer),
-`TASK-037` (adversarial security review of this ingestion path), and the current decision-gate
-`FAILED` verdict (`HANDOFF-043`) before it is accepted — deletion boundaries (`TASK-055`) also
+exists yet. Real customer data must additionally clear `TASK-057` (now paused, `ADR-022`),
+`TASK-037` (adversarial security review of this ingestion path), and a STRONG/PROMISING re-grade of
+the decision gate (blocked on `TASK-058`, `IN_PROGRESS` pending `HANDOFF-048` scoring, and
+`TASK-059`, `READY`, not started) before it is accepted — deletion boundaries (`TASK-055`) also
 remain undefined.
 
 ## Next milestone
@@ -238,14 +255,19 @@ remain undefined.
   direction accuracy, 0 leakage, 0/5 traps promoted). Per the milestone's own success condition
   ("a graded verdict exists, whatever it is — a FAILED verdict honestly reported still meets this
   milestone"), **this milestone is met.** Full detail: `docs/benchmark/task-029-benchmark-report-v1.md`,
-  `ADR-019`. Open follow-up: `HANDOFF-043` — ML_DISCOVERY answered (partial concurrence, dissent on
-  scope, see above); FOUNDER_STRATEGY confirmation and remediation scoping still open.
-- **Commercial milestone — first documented customer/data-sharing conversation.** Still pending;
-  unaffected by the technical result above. At least one real, logged serious conversation in
-  `docs/customer/pipeline.md` (per its existing bar: `CALL SCHEDULED`/`CALL DONE` or an equivalent
-  real exchange about actual data), from the 7-day acquisition sprint (`ADR-017`,
-  `docs/customer/acquisition-sprint-7day.md`) and its continuation through day 14. Owner:
-  FOUNDER_STRATEGY (sends/authorizes outreach), CUSTOMER_DISCOVERY (sources, drafts, logs).
+  `ADR-019`. `HANDOFF-043` is resolved (2026-08-17): both remediation parts authorized as
+  `TASK-058`/`TASK-059`. `TASK-058` is implemented and a new blind run committed (`ADR-023`),
+  `IN_PROGRESS` pending `TASK-019`/`TASK-028` scoring (`HANDOFF-048`); `TASK-059` is `READY`, not
+  started.
+- **Commercial milestone — first documented customer/data-sharing conversation. PAUSED 2026-08-17
+  (`ADR-022`).** Not "unaffected" — this supersedes the original parallel design. `ADR-010`,
+  `ADR-017`, and `docs/strategy/30-day-validation-plan.md` all recorded acquisition as explicitly
+  parallel and non-blocking; the founder has now overridden that, as a prioritization/focus choice,
+  not a dispute of that reasoning (`ADR-022`). `TASK-057` moved `TODO`→`BLOCKED`; the remainder of
+  the `ADR-017` 7-day sprint does not continue. Already-drafted outreach material and research are
+  preserved, not discarded. Owner: FOUNDER_STRATEGY, CUSTOMER_DISCOVERY — both idle on this track
+  until re-opened. Re-opens automatically once `docs/benchmark/decision-gate.md` re-grades at
+  STRONG or PROMISING; no further ADR required to resume.
 
 **14-day go/no-go — technical half now resolved as FAILED without a hard disqualifier:**
 - Per the pre-registered logic: *"Conversation secured but mechanism grades WEAK/FAILED → do not
@@ -257,7 +279,10 @@ remain undefined.
   approach review") does **not** apply — no hard disqualifier fired. This is a single diagnosed,
   plausibly fixable failure, not (yet) grounds for the two-strikes core-approach review.
 - The commercial-track go/no-go logic (GO / adjust-if-one-lands / escalate-on-zero-conversations)
-  is unaffected by the technical result and still applies on its own terms through day 14.
+  is now moot for as long as `ADR-022`'s pause holds: with outreach paused, day 14 cannot produce a
+  real conversation count to evaluate it against. This is a known, accepted consequence of `ADR-022`,
+  not an oversight — the 14-day commercial checkpoint effectively restarts from whenever the pause
+  lifts.
 
 See `30_DAY_VALIDATION_PLAN` framing in `docs/strategy/30-day-validation-plan.md`.
 

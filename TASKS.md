@@ -906,7 +906,7 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Owner:** CUSTOMER_DISCOVERY
 - **Support:** FOUNDER_STRATEGY
 - **Priority:** P0
-- **Status:** TODO
+- **Status:** BLOCKED (paused, `ADR-022` — founder decision, not a technical dependency)
 - **Depends on:** none
 - **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
 - **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.
@@ -951,6 +951,89 @@ remains separately blocked on Architect's implementation work regardless of this
   not counted as contact, not counted as conversations. Concrete manual next steps for the founder
   are `HANDOFF-033`. Still 0 of 3 conversations and 0 explicit agreements — this iteration's success
   bar is not met, and is not being reported as met.
+- **Paused (2026-08-17, Founder, `ADR-022`):** Active outreach (new touches, new conversations, the
+  remainder of the `ADR-017` 7-day sprint) is paused until `docs/benchmark/decision-gate.md`
+  re-grades at STRONG or PROMISING — a founder prioritization call, not a dispute of `ADR-010`'s or
+  `ADR-017`'s reasoning, both of which explicitly designed this as parallel, unblocked work.
+  Already-drafted material (`docs/customer/pipeline.md` drafts, `docs/customer/prospect-target-list.md`)
+  is preserved, not discarded. Re-opens automatically on a STRONG/PROMISING re-grade; no further ADR
+  required to resume.
+
+### TASK-058 — Search-selection precision term (`HANDOFF-043` remediation, part 2)
+
+- **Owner:** ML_DISCOVERY
+- **Reviewer:** STATISTICS
+- **Priority:** P0
+- **Status:** IN_PROGRESS
+- **Depends on:** TASK-015 (DONE)
+- **Goal:** Add a precision/specificity term to `discovery.engine`'s beam-survival score (or a
+  lightweight post-search "tightening" pass trying one additional narrowing categorical condition
+  on an already-found broad rule) so future discovery runs' candidates are inherently tighter, not
+  only differently reported. Stays within interpretable-conjunction search — no core-approach
+  change.
+- **Context (2026-08-17, `HANDOFF-043`):** ML Discovery diagnosed that `_development_score`
+  (`historical_exposure / (1 + 0.15·(depth−1))`) maximizes raw population × effect with no
+  precision term, so a beam-search step adding a narrowing categorical condition (e.g.
+  `supplier`/`destination`, both eligible `DECISION_TIME` features unused by any of the 15
+  `task-015-official-20260816-015` candidates) structurally loses to one that stays broad — before
+  any candidate is even reported. `TASK-016`'s ranking cannot fix this; it only reorders an
+  already-selected top-15. Founder authorized both remediation parts 2026-08-17 (`HANDOFF-043`
+  resolution).
+- **Done when:** A new blind discovery run under the existing `TASK-015`/`TASK-017` protocol
+  produces candidates with materially narrower exposed populations relative to matched true
+  patterns than `task-015-official-20260816-015`, without a hidden-ground-truth boundary
+  violation.
+- **Implementation evidence (2026-08-17, ML Discovery):** `DiscoveryConfig.population_score_exponent`
+  (default `0.5`, `(0.0, 1.0]`, validated) added; `_development_score` now scores
+  `harm_per_booking × n_exposed^population_score_exponent` instead of linear
+  `historical_exposure` — a geometric-mean-style balance between total materiality and per-booking
+  purity. `population_score_exponent = 1.0` reproduces `v0.1.0`'s exact ranking (regression-tested).
+  `DISCOVERY_METHOD_VERSION` bumped to `discovery-engine-v0.2.0`. Methodology:
+  `docs/analytics/discovery-engine-v0.md` ("Precision term" section). 4 new tests (2 direct scoring
+  tests with hand-computed expected values, 1 config-validation test, 1 end-to-end search test at
+  both exponents); full suite, `ruff`, `pyright` pass.
+- **New official blind run (2026-08-17, ML Discovery):** Issued, verified, launched (deterministic
+  agent, network `none`, image unchanged —
+  `policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`, no
+  Dockerfile change so no rebuild was needed), frozen, and **committed via signed receipt before
+  any evaluation opened `hidden_ground_truth.json`** — run ID `task-058-remediation-20260817-001`,
+  `status=PERSISTED`, 15 candidates, `discovery_method_version=discovery-engine-v0.2.0`. Frozen
+  artifacts archived at `artifacts/blind/task-058-remediation-20260817-001.*` (gitignored,
+  reproducible, matching existing convention for `task-015-official-20260816-015.*`).
+  **Direct, pre-registration-compliant evidence the fix changed candidate composition**: comparing
+  this run's 15 candidate condition sets against `task-015-official-20260816-015`'s (both public,
+  no ground truth opened) — 2 of 15 candidates now use a categorical condition that never appeared
+  in any of the 15 original candidates: `CAND-012` = `booking_lead_days < 23 AND discount_rate >=
+  0.08 AND supplier == BlueWing`; `CAND-014` = `booking_lead_days < 23 AND destination == Tokyo AND
+  payment_method == bank_transfer`. These match the pattern identities already disclosed in the
+  frozen `docs/benchmark/task-029-benchmark-report-v1.md` ("P01 BlueWing discount+short-lead", "P06
+  Tokyo urgent bank-transfer") — a name match observed from that already-public report, not from
+  opening `hidden_ground_truth.json` here.
+- **Not yet DONE:** the done condition requires validated, scored evidence of *materially narrower
+  exposed populations relative to matched true patterns* — that requires `TASK-019`
+  (Statistics-owned validation) and `TASK-028` (evaluation, which opens
+  `hidden_ground_truth.json`), neither run against this new candidate set yet. Handed to
+  Statistics/Architect in `HANDOFF-048`; ML Discovery does not open ground truth itself.
+
+### TASK-059 — Benchmark-only attribution-narrowed impact diagnostic (`HANDOFF-043` remediation, part 1)
+
+- **Owner:** STATISTICS
+- **Reviewer:** ML_DISCOVERY
+- **Priority:** P0
+- **Status:** READY
+- **Depends on:** none (operates on already-frozen `TASK-028` inputs)
+- **Goal:** Add an explicitly benchmark-evaluation-only diagnostic to `TASK-028`'s evaluator:
+  economic impact restricted to the subpopulation actually overlapping a matched true pattern, for
+  a fairer metric-6 read on `hidden_ground_truth.json`-scored runs. **Must not** be added as a
+  general `TASK-021`/`TASK-023` production `EconomicImpactResult` field — it is only computable
+  when a known ground-truth pattern exists to overlap against, which no real customer finding has
+  (`HANDOFF-043`, ML Discovery dissent).
+- **Done when:** `scripts/evaluate_benchmark.py` reports both the existing whole-rule exposure
+  metric and the new attribution-narrowed one, clearly labeled, with the production impact
+  contract (`economic_impact.py`, `ADR-021`) untouched.
+- **Warning on record (`HANDOFF-043`):** this task alone, without `TASK-058`, would likely improve
+  the reported metric-6 number without changing which candidates discovery actually finds — do not
+  treat a `TASK-059`-only rerun as sufficient grounds for a STRONG/PROMISING re-grade.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER

@@ -376,3 +376,72 @@ bootstrap CI bounds and the derived p-value shifted (`HANDOFF-047` — traced to
 `task-028-benchmark-evaluation.json` was regenerated in lockstep for the same reason (its input
 changed); every metric except the diagnostic-only impact-error median was byte-identical
 (`2.038` → `1.995`), and no prose in `docs/benchmark/` cites the old value.
+
+## ADR-022 — Customer acquisition sequenced after MVP technical validation (supersedes the parallel-track design in ADR-010/ADR-017/30-day-validation-plan)
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+**Decision:** Active `TASK-057` outreach (sending new touches, opening new conversations, continuing the `ADR-017` 7-day sprint) is paused until the technical track (`docs/benchmark/decision-gate.md`) re-grades at STRONG or PROMISING. This explicitly overrides the "parallel, neither blocks the other" design recorded in `ADR-010`, `ADR-017`, and `docs/strategy/30-day-validation-plan.md`'s governing principle ("Both run in parallel starting day 1... everything downstream... is explicitly de-prioritized for this window" — that "everything downstream" framing did not itself contemplate pausing Track 3, which this ADR now does). This is a founder prioritization call, not a correction of those documents' reasoning, which this ADR does not dispute.
+
+**Context:** Founder Strategy's own audit (2026-08-17) of `DECISIONS.md` correctly found no prior ADR recording a sequential design — the repository's actual prior record is genuinely and intentionally parallel, three times over (ADR-010, ADR-017, 30-day-validation-plan.md). The founder holds a sequencing preference that predates this repository's task-tracking discipline and was communicated directly, outside any prior ADR; it surfaces here, formally, only now that Founder Strategy's audit exposed the conflict. Founder does not dispute Founder Strategy's counter-argument on its merits: the `ADR-019` FAILED verdict is narrow (economic-impact estimation only; 90% Top-10 precision, 100% direction accuracy, no hard disqualifier), `HANDOFF-043` (ML Discovery, 2026-08-17) confirms it is a fixable defect rather than a core-method limitation, the sales cycle has no code dependency on the engine, and the approved offer text in `docs/customer/pipeline.md` makes no delivery-timeline promise. The override is a bandwidth/focus choice, not a rebuttal.
+
+**Alternatives:** (a) Keep the parallel track as designed — rejected; founder wants undivided engineering/product focus while the mechanism's headline metric is still failing its own pre-registered bar and remediation scope (`HANDOFF-043` part 2) is still being decided, and does not want to be personally holding customer conversations about a product whose core result just failed, even on a narrow, likely-fixable metric. (b) Partial parallelism — continue only already-warm conversations without opening new outbound — considered, rejected for simplicity; a full pause is easier to reason about and cleanly re-open. (c) Defer the decision until a remediation rerun exists — rejected; the founder decision is available now and does not need to wait on engineering output.
+
+**Reason:** The founder's own time is the scarce resource `ADR-017` explicitly routes outreach through ("founder personally sends outreach... reports real responses back"); spending it on new prospect conversations while the product's headline validated-mechanism result is FAILED (even if narrowly and plausibly fixably so) is a use of that scarce resource the founder does not want to make right now. This is a deliberate, named risk: per `ADR-010`'s own reasoning ("build work beyond what a credible first pilot requires has no evidence value until at least one real dataset exists"), delaying acquisition start delays discovering whether the ICP/channel itself works — that risk is accepted, not overlooked.
+
+**Consequences:** `TASK-057` moves from `TODO` to `BLOCKED`, reason: this ADR, not a technical dependency — re-opens without a further ADR once `docs/benchmark/decision-gate.md` re-grades at STRONG or PROMISING. `TASK-046`/`TASK-047` remain `BLOCKED` as before (downstream of `TASK-057`/`MILESTONE-M3`), now additionally blocked by this ADR while it is in effect. `TASK-048`/`TASK-049` (one-liner, founder story) are unaffected and may continue — neither involves contacting a customer. `docs/strategy/30-day-validation-plan.md` Track 3/4 week-by-week objectives are superseded for as long as this ADR is in effect; the document itself is not rewritten (append-only respected) — this ADR is the binding sequencing rule until superseded. `memory/CURRENT_STATE.md`'s "Next milestone" section is updated in the same change to state the commercial milestone is paused, not "unaffected," under this ADR. Already-completed groundwork (Gmail connector authorization, `docs/customer/prospect-target-list.md` research) is not undone, only not acted on further until re-opened.
+
+## ADR-023 — Discovery engine v0.2.0: population-dampened beam-survival score (`TASK-058`, `HANDOFF-043` remediation part 2)
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+**Decision:** Change `discovery.engine`'s beam-survival score from linear
+`historical_exposure = harm_per_booking × n_exposed` to `harm_per_booking ×
+n_exposed^population_score_exponent` (default `population_score_exponent = 0.5`, a new
+`DiscoveryConfig` field validated to `(0.0, 1.0]`). `population_score_exponent = 1.0` reproduces
+the old ranking exactly and is regression-tested. `DISCOVERY_METHOD_VERSION` bumps
+`"discovery-engine-v0.1.0"` → `"discovery-engine-v0.2.0"`. Full mechanism and rationale:
+`docs/analytics/discovery-engine-v0.md` §"Precision term".
+
+**Context:** `HANDOFF-043` (2026-08-17, ML Discovery) diagnosed that linear-in-population scoring
+structurally favors broad rules over precise ones: on `task-015-official-20260816-015`,
+`supplier`/`destination` were both eligible `DECISION_TIME` search features, yet zero of the 15
+reported candidates used any categorical condition, despite disclosed pattern names ("BlueWing",
+"Tokyo") implying those features would have narrowed a candidate toward the true population. This
+is a search-selection artifact — a beam-search step adding a narrowing condition loses to one that
+stays broad before any candidate is even reported — not fixable by `TASK-016`'s downstream
+re-ranking of an already-selected top-K, and not fixable by `TASK-021`/`TASK-023`'s reporting layer
+alone (`ADR-021` explicitly deferred attribution-narrowing to this decision). Founder authorized
+both `HANDOFF-043` remediation parts the same day.
+
+**Alternatives:** (a) A lightweight post-search "tightening" pass that tries adding one narrowing
+categorical condition to an already-found broad rule — considered, not chosen for v0.2.0: it would
+only patch the specific top-K the old objective already selected, rather than changing which rules
+survive the beam at every depth, and is more implementation surface for a similar effect. (b) A
+hard cap on `n_exposed` (reject any rule above some population ceiling) — rejected: an arbitrary
+cliff, harder to justify from generic reasoning, and would wrongly penalize a genuinely broad true
+effect. (c) The chosen exponent-dampening — a single, continuous, generically-motivated parameter
+(geometric mean between total exposure and per-booking purity), with `1.0` as an exact escape hatch
+back to the old behavior for comparison.
+
+**Reason:** `n_exposed^0.5` is the minimal change that directly targets the diagnosed mechanism —
+sub-linear population scaling means a rule can no longer inflate its score just by absorbing more
+diluting bookings — while remaining a symmetric, standard form (equivalent to
+`sqrt(historical_exposure × harm_per_booking)`) chosen from generic reasoning, not fit to this
+run's specific numbers. Chosen and implemented without opening `hidden_ground_truth.json` or
+`synthetic_benchmark.py` at any point.
+
+**Consequences:** A new official blind run under the existing `ADR-008` protocol,
+`task-058-remediation-20260817-001` (`status=PERSISTED`, 15 candidates, committed via signed
+receipt before this entry or any evaluation opened ground truth), now includes two candidates using
+`supplier`/`destination` conditions absent from every one of the original 15 — `CAND-012`
+(`supplier == BlueWing`), `CAND-014` (`destination == Tokyo`, `payment_method == bank_transfer`) —
+both matching pattern identities already disclosed in the frozen
+`docs/benchmark/task-029-benchmark-report-v1.md`. This is direct, public evidence the fix changed
+candidate composition, not proof of `TASK-058`'s done condition (materially narrower exposed
+populations relative to matched true patterns), which requires `TASK-019`/`TASK-028` against this
+new run — handed to Statistics/Architect in `HANDOFF-048`. No Docker image rebuild was needed (the
+Dockerfile is unchanged; only allowlisted workspace content differs), so this remediation run
+consumed zero provider requests/tokens/cost, same as `HANDOFF-042`'s deterministic executor.
