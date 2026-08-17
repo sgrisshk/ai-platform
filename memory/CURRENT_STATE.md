@@ -279,6 +279,18 @@ clean. `TASK-007` (schema profiler) is unblocked. This does not touch or lift th
 real-data block below — that remains gated on the decision-gate `FAILED` verdict and
 `TASK-057`/`TASK-037` regardless of ingestion readiness.
 
+**`TASK-014` (baseline business statistics) `DONE` 2026-08-17 (Statistics), the first pass over
+this task — never picked up before now, run independently of and after `TASK-015` already
+completed.** `scripts/baseline_statistics.py` (reuses `load_analytical_frame`/`summarize_group`/
+`mnar_bounds`, no new outcome-handling logic), frozen at
+`artifacts/baseline/task-014-baseline-statistics.json`
+(`docs/analytics/baseline-statistics-v1.md`): confirms `TASK-012`'s split date boundaries hold
+exactly (no gap/overlap), reconfirms `TASK-013`'s 0%/9.7% missingness independently across all 7
+outcomes, and reports overall feature distributions plus time/segment/supplier/manager trend
+against the primary outcome — purely `descriptive_observation`-level, no interval or p-value
+attached to anything, no `hidden_ground_truth.json` access. No data-quality flag found. 8 new
+tests.
+
 ## Current hypothesis
 
 Historical decision/outcome data may contain actionable interaction patterns the business does not currently recognize. This remains a hypothesis, not a validated finding.

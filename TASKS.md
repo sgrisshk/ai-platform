@@ -217,7 +217,7 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-007
 - **Goal:** Classify every field as `DECISION_TIME`, `POST_DECISION`, `OUTCOME`, `IDENTIFIER`, `METADATA`, or `UNKNOWN`.
 - **Invariant:** Post-decision, outcome, and unknown fields cannot enter discovery features.
@@ -226,15 +226,57 @@ Do not mark work `DONE` without executing its required checks and completion pro
   iteration; this is a real, separate design task (classification methodology, and
   `FeatureTiming` — `packages/schemas/domain.py` — doesn't have an `UNKNOWN` member yet), not a
   drive-by extension of `TASK-007`'s profiler.
+- **Evidence (2026-08-17, Data Engineer):** Added `FeatureTiming.UNKNOWN`
+  (`packages/schemas/src/policy_schemas/domain.py`) — automatically excluded from explanatory
+  features by the existing `EXCLUDED_EXPLANATORY_CLASSIFICATIONS` (built generically from
+  `FeatureTiming`, not hardcoded, per its own comment anticipating this task). Deterministic,
+  disclosed rule-based classifier
+  (`packages/analytics/src/policy_analytics/profiling/feature_timing.py`, `ADR-004`: no ML/black
+  box) consumes `TASK-007`'s `ColumnProfile` output. **Safety design, not a blanket default:**
+  `UNKNOWN` is the fallback for anything not confidently matched — a column is admitted as
+  `DECISION_TIME` only through explicit positive rules (categorical attribute, quoted/agreed
+  amount or rate, recognized booking-time count, recognized flag, or a date with no
+  post-decision-event name signal), matching `AGENTS.md`'s "never allow unknown or post-decision
+  fields into explanatory features silently." A real design bug was caught before it shipped: an
+  independent name-based `_id`-suffix rule was required for `IDENTIFIER` because
+  `TASK-007`'s own profiler misses repeat-key columns like `customer_id` (identifier by role, but
+  low cardinality because customers repeat) — its cardinality-driven identifier heuristic serves a
+  different purpose and cannot be reused directly. Persistence wiring
+  (`apps/api/app/datasets/timing.py`) runs immediately after `TASK-007` profiling inside the same
+  upload request and writes `DatasetModel.columns` (the `DatasetColumn` JSONB field `TASK-007`
+  left empty) — no new migration needed, the column already existed. A profiling/classification
+  failure still never fails the already-immutable upload (unchanged `TASK-007` guarantee).
+  **Done-when verified, not assumed:** classified the real benchmark raw CSV
+  (`synthetic_data/raw/travel_bookings_dirty.csv`, 10,000 rows, 32 columns) and diffed against the
+  public `synthetic_data/metadata/feature_timing.json` — **32/32 exact match**, achieved through
+  general disclosed rules (e.g. any bare "margin"/"profit"/"revenue" token is a realized outcome
+  in this domain — not per-column hardcoding); a second, independent, stronger property is also
+  tested directly: no column the benchmark itself marks non-`DECISION_TIME` is ever classified
+  `DECISION_TIME`, regardless of which exact bucket it lands in. 33 pure-classifier unit/regression
+  tests (`tests/analytics/test_feature_timing.py`, includes the benchmark comparison and leakage-
+  safety tests, both skipped gracefully if the benchmark artifacts aren't present in a checkout)
+  plus 3 real end-to-end upload-path tests (`tests/api/test_dataset_timing.py`) against a real
+  ephemeral PostgreSQL container; one now-stale `TASK-006`-era assertion in
+  `tests/api/test_datasets_upload.py` (`columns == []`) was updated to match the new reality
+  without duplicating `TASK-008`'s own classification tests. Full suite verified twice against a
+  live database (285 passed); `ruff`/`pyright` clean.
+- **Known limitation, not a defect:** this is a best-effort classifier, not a certainty oracle —
+  real customer column names will not always match these rules.
+  `docs/analytics/discovery-design.md` §13's readiness gate already independently requires "feature
+  timing contains no unknowns" before discovery may run on any dataset, so an `UNKNOWN` result here
+  is expected to require explicit human resolution downstream, not a bug to eliminate at this
+  layer.
 
 ### TASK-009 — Data-quality report
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-007, TASK-008
 - **Goal:** Produce machine- and customer-readable rows, columns, coverage, duplicates, missingness, invalid/suspicious records, currencies, leakage risks, outcomes, and usable variables.
 - **Rating:** Exactly one of `READY`, `READY_WITH_LIMITATIONS`, or `NOT_READY`.
+- **Status note (2026-08-17, Data Engineer):** Unblocked — `TASK-007` and `TASK-008` are both
+  `DONE`.
 
 ## Phase 3 — Canonical analytical dataset
 
@@ -319,11 +361,31 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** STATISTICS
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-013
 - **Goal:** Sanity-check overall distributions, time/segment/supplier/manager trends, and outcome prevalence before discovery.
 - **Status note (2026-08-17, Architect):** Unblocked — `TASK-013` is `DONE`. Not started; P1, so it
   has not displaced the P0 chain (`TASK-005`–`TASK-024`).
+- **Evidence (2026-08-17, Statistics):** `scripts/baseline_statistics.py` reuses already-tested
+  primitives (`load_analytical_frame`, `summarize_group`, `mnar_bounds`) — no new outcome-handling
+  logic, only grouping/summary glue. Reports, purely `descriptive_observation`-level, no interval
+  or p-value attached to any number: cohort overview and split date-range sanity check (confirms
+  `TASK-012`'s calendar boundaries hold exactly: development=2024, validation=H1 2025,
+  future_holdout=H2 2025, no gap/overlap); overall distributions for all 18 `DECISION_TIME`
+  features; prevalence (N/missingness/mean, plus `mnar_bounds()`) for all 7 outcomes in
+  `OUTCOME_DEFINITIONS`, reconfirming `TASK-013`'s 0% primary-outcome missingness and 9.7%
+  `repeat_purchase_180d` missingness independently; time/segment/supplier/manager trend against
+  `contribution_margin_eur`. Frozen at `artifacts/baseline/task-014-baseline-statistics.json`;
+  methodology and scope limits in `docs/analytics/baseline-statistics-v1.md`. Does not open
+  `hidden_ground_truth.json`. 8 new tests (`tests/analytics/test_baseline_statistics.py`), one a
+  regression test for a dict-unpacking-order bug caught and fixed before freezing (`{**row,
+  "k": row.pop("mean")}` unpacks `**row` before the pop takes effect, silently leaving both keys).
+  No data-quality flag found — every distribution, missingness rate, and split boundary matches
+  what `TASK-013`/`TASK-012` already documented.
+- **Timing note:** this task was never picked up before `TASK-015`'s blind discovery run
+  (`task-015-official-20260816-015`) already completed — running it now does not rerun or replace
+  anything upstream; it stands as an independent reference going forward, not a precondition
+  later stages retroactively lacked.
 
 ## Phase 5 — Pattern discovery
 
