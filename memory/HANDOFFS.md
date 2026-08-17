@@ -2071,3 +2071,109 @@ reflects actual approved business priority, versus being a placeholder that happ
 reasonable — is a business-judgment call this session has no standing to make on Product's or
 Statistics' behalf, and is left `IN_PROGRESS` for them. Downstream use of ranking order (e.g.
 scoping `HANDOFF-043`) should treat it as an unapproved v0 default until that review lands.
+
+## HANDOFF-046
+
+**Created:** 2026-08-17
+**From:** STATISTICS
+**To:** PRODUCT
+
+**Task:** Correct one factual assumption in `docs/product/finding-product-contract.md`'s money-at-stake
+field table: `affected_records` is **not** the same population as `exposed_records`.
+
+**Context:** `HANDOFF-025`'s resolution lands the real, tested `TASK-023` economic-impact contract
+(`packages/analytics/src/policy_analytics/validation/economic_impact.py`,
+`ECONOMIC_IMPACT_CONTRACT_VERSION = "1.0.0"`, `docs/analytics/economic-impact-contract.md`). While
+writing it, this assumption in the contract's §"Money at stake" table turned out not to hold:
+
+> `affected_records` (window) | Same population as `exposed_records`, restated for the impact
+> section
+
+In the actual implementation, `exposed_records` (`ValidationMetadataPersistence`) is the
+candidate's exposed count on the **development split only** — the population evidence grading was
+fit and tested against. `affected_records` (`EconomicImpactResult`) is the exposed count over the
+**full combined window** (development + validation + future_holdout) — every historical booking
+the pattern actually touches. These are two different, both-legitimate numbers that answer
+different questions and are not generally equal: on the closing `TASK-019` run
+(`task-015-official-20260816-015`), `CAND-004`'s development-only `exposed_records` is 1,283 while
+its combined-window `affected_records` is 2,239 — a 1.7× difference, not a restatement.
+
+This was not a late-breaking design choice — computing `affected_records` over the full window,
+distinct from grading-time `exposed_records`, is how gate G15 (economic materiality) has computed
+it since before this resolution; the contract doc's assumption was simply wrong about the existing
+statistical implementation it was documenting.
+
+**Question:** Update the table row to state the two are different populations (development-only vs.
+full combined window) and decide which one belongs on a customer-facing Finding — Statistics'
+recommendation is `affected_records` for the customer-facing "money at stake" section (it answers
+the actual business question: how many historical bookings does this pattern touch), with
+`exposed_records` reserved for an audit/validation-detail view, since displaying `affected_records`
+under the "restated `exposed_records`" framing would otherwise materially overstate how the two
+counts relate.
+
+**Files:**
+
+- `docs/product/finding-product-contract.md` (§"Money at stake", the `affected_records` row)
+- `docs/analytics/economic-impact-contract.md` §2 (full derivation, includes the CAND-004 numbers above)
+- `packages/analytics/src/policy_analytics/validation/economic_impact.py` (source of truth, docstring)
+
+**Expected output:** `finding-product-contract.md`'s table row corrected, and an explicit choice of
+which count (or both, clearly labeled) appears on the customer-facing Finding.
+
+**Blocking:** NO — `TASK-023`/`TASK-024` are not blocked on this; it is a documentation-accuracy
+correction that should land before `TASK-025`/`TASK-026` build UI against the wrong assumption.
+
+**Resolution:** Pending.
+
+## HANDOFF-047
+
+**Created:** 2026-08-17
+**From:** ARCHITECT
+**To:** STATISTICS
+
+**Task:** `apply.py`'s cluster bootstrap is not reproducible run-to-run under a fixed
+`bootstrap_seed`, despite point estimates being deterministic.
+
+**Context:** Found while regenerating `artifacts/validation/task-019-official-20260816-015.json`
+with `--force` to pick up the newly-wired `economic_impact` field (same inputs, same
+`--analysis-run-id`, same `bootstrap_seed=BOOTSTRAP_SEED`) so `TASK-024` persistence has real data
+to work with. Point estimates (`adjusted_effect.value`, `raw_effect.value`) were byte-identical
+across the two runs for every candidate, as expected. Confidence intervals were **not**:
+`CAND-001`'s `adjusted_effect` CI moved from `[264.34, 352.70]` to `[265.20, 354.21]`, its
+BH-adjusted p-value from `3.32e-39` to `8.93e-39`, and `G15`'s exposure CI from `[714998, 886325]`
+to `[724825, 886354]` EUR — all candidates' verdicts happened to stay `PASS`/`DOWNGRADE`-stable
+across this particular pair of runs, but nothing guarantees that for a candidate sitting near a
+gate threshold.
+
+Root cause, traced but not fixed (this file is Statistics-owned, not touched here):
+`cluster_cells()` (`apply.py`) builds its `dict[str, ClusterCell]` from
+`grouped.iter_rows(named=True)`, where `grouped` is a Polars `.group_by([...]).agg(...)` result.
+Polars does not guarantee row order from `group_by` unless `maintain_order=True` is passed (it
+isn't, here). `cluster_bootstrap_replicates()` then does `population = list(cells.values())` and
+resamples by **index** via `rng.choices(population, k=len(population))` — a fixed-seed
+`random.Random` produces the same sequence of indices every run, but if `population`'s element
+order shifts between runs (because `group_by`'s row order shifted), the same indices now pick
+different clusters, changing every bootstrap replicate. The point estimates survive because they
+sum over the *entire* population regardless of order; only the resampling is order-sensitive.
+
+**Question:** Sort `population` (e.g. by cluster key) before resampling, or add
+`maintain_order=True` to the `group_by` call in `cluster_cells()` — either fixes it. Given `G05`
+(multiple comparisons) and `G15` (economic materiality) both gate on these intervals, worth
+confirming no already-frozen `PASS` verdict is sitting close enough to a threshold that this jitter
+could flip it under re-grading.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/validation/apply.py` (`cluster_cells`,
+  `cluster_bootstrap_replicates`)
+- `artifacts/validation/task-019-official-20260816-015.json` (regenerated with `--force` in this
+  session; verdicts unchanged, CIs shifted as described above)
+
+**Expected output:** A deterministic ordering fix, plus a note on whether any frozen verdict is
+threshold-fragile to this jitter.
+
+**Blocking:** NO — verdicts were stable across the observed jitter and `TASK-024` persistence does
+not depend on interval reproducibility, only on the report being internally consistent, which it
+is. This is a rigor/fragility finding, not something currently blocking product work.
+
+**Resolution:** Pending.

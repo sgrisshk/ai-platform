@@ -631,6 +631,16 @@ Do not mark work `DONE` without executing its required checks and completion pro
   qualitative finding are correct (`docs/benchmark/task-029-benchmark-report-v1.md` §3.6). A
   remediation (reporting a range bounded by whole-rule exposure and attribution-narrowed exposure)
   is proposed there and tracked via `HANDOFF-043`, not yet implemented.
+- **Versioned result contract (2026-08-17, `HANDOFF-025` resolution, `ADR-021`):**
+  `EconomicImpactResult`/`build_economic_impact_result`
+  (`packages/analytics/src/policy_analytics/validation/economic_impact.py`,
+  `ECONOMIC_IMPACT_CONTRACT_VERSION = "1.0.0"`) gives G15's already-computed diagnostics a
+  field-for-field, tested output shape matching `EconomicImpactPersistence` — the point estimate is
+  now the real combined-window sample statistic (not the bootstrap replicate mean), with a
+  per-record CI exposed separately from the total-exposure CI. `affected_records` is confirmed to
+  be the full combined window, not `exposed_records` — a correction flagged to Product
+  (`HANDOFF-046`). Full semantics: `docs/analytics/economic-impact-contract.md`. Does not change the
+  known-limitation above; that remains `HANDOFF-043`'s open question.
 
 ## Phase 8 — Validated findings
 

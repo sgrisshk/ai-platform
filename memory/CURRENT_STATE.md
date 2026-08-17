@@ -1,6 +1,6 @@
 # Current Project State
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-17
 
 ## Current objective
 
@@ -123,6 +123,30 @@ methodology in `docs/analytics/candidate-ranking-v0.md`. `TASK-016` is `DONE`. `
 listed dependencies (`TASK-003`, `TASK-016`) are both now satisfied; its closure is an
 Architect/Code-Reviewer wiring confirmation, requested in `HANDOFF-045` along with a
 Product/Statistics review of the v0 ranking weights.
+
+**`HANDOFF-025` (economic-impact result contract for `TASK-024`) resolved 2026-08-17 (`ADR-021`):**
+`packages/analytics/src/policy_analytics/validation/economic_impact.py`
+(`EconomicImpactResult`/`build_economic_impact_result`, `ECONOMIC_IMPACT_CONTRACT_VERSION =
+"1.0.0"`), wired into gate G15 in `validation/apply.py`, replaces Architect's stopgap hand-mapping
+of `EconomicImpactPersistence` with the real, tested computation
+(`docs/analytics/economic-impact-contract.md`; `tests/analytics/test_economic_impact.py`, 7 tests;
+177 tests total pass). `affected_records` is the full combined-window exposure (development +
+validation + future_holdout), not `exposed_records` (development-only, used for grading) —
+correcting a wrong assumption in `docs/product/finding-product-contract.md` that treated the two as
+the same population, flagged back to Product as `HANDOFF-046` (not blocking — a documentation
+correction, not an implementation dependency). Annualization remains hard-gated off
+(`annualization_justified=False`, always) pending a stability check not yet implemented. `TASK-024`
+is now `READY` (Architect, 2026-08-17) — implementation not yet started. The `v1.0.0` dry-run
+artifact is untouched; the closing-run official artifact
+(`artifacts/validation/task-019-official-20260816-015.json`) *was* subsequently regenerated with
+`--force` (Architect, same day) so `TASK-024` has a real `economic_impact` field — verdicts and
+point estimates identical, only bootstrap CI bounds/p-value shifted (see `HANDOFF-047`, a newly
+found Statistics-owned reproducibility gap in `apply.py`'s cluster bootstrap, not fixed here).
+`artifacts/evaluation/task-028-benchmark-evaluation.json` was regenerated in lockstep for
+consistency with its changed input; every metric held except the already-diagnostic-only
+impact-error median.
+**`HANDOFF-043` (ML_DISCOVERY/FOUNDER_STRATEGY concurrence on the FAILED-verdict attribution)
+remains OPEN and untouched — no remediation scope has been started pending that answer.**
 
 **Ingestion pipeline landed the same day, independently of the above result (2026-08-16, Data
 Engineer + Architect):** `TASK-005`/`TASK-006` are `DONE`. `docs/architecture/ingestion-contract.md`

@@ -314,3 +314,65 @@ Separately, `scripts/validate_candidates.py`'s `process_compliance` block (blind
 **Reason:** A five-component transparent score with every weight and value exposed is falsifiable and auditable in a way a single opaque importance number is not, and it directly answers the task's own stated requirement. Reusing `validation.apply`'s public `Condition`/`rule_expr`/`split_stats`/`load_analytical_frame` avoids a third duplicate condition-evaluation implementation (engine.py already has one, validation/apply.py has another) while keeping the two modules decoupled from `discovery.ranking`'s own pure scoring function, which remains testable with zero I/O.
 
 **Consequences:** `docs/analytics/discovery-engine-v0.md`'s "actionability" logic was extracted from `discovery.engine` into a new shared `discovery.actionability` module so the search-time label and the ranking component can never silently diverge; `engine.py`'s own candidate output and existing tests are unchanged. `TASK-016` is `DONE`; per its own prior status note, `TASK-017`'s two listed dependencies (`TASK-003`, `TASK-016`) are now both satisfied — closing `TASK-017` is Architect/Code-Reviewer confirmation, not new implementation (`HANDOFF-045`). The weights are provisional pending Product/Statistics review and must not be treated as a final business-approved contract until that review lands.
+
+## ADR-021 — Economic impact result contract v1.0.0 (resolves HANDOFF-025)
+
+**Date:** 2026-08-17
+**Status:** Accepted
+
+**Decision:** `TASK-023`'s economic-impact output is a new, independently-versioned contract —
+`packages/analytics/src/policy_analytics/validation/economic_impact.py`
+(`EconomicImpactResult`, `build_economic_impact_result`, `ECONOMIC_IMPACT_CONTRACT_VERSION =
+"1.0.0"`) — wired into gate G15 inside `validation/apply.py`, in exact field-for-field
+correspondence with Architect's storage envelope (`EconomicImpactPersistence`,
+`apps/api/app/findings/contracts.py`) so `TASK-024` can persist it without recomputing or
+reinterpreting any statistical meaning. Full semantics: `docs/analytics/economic-impact-contract.md`.
+
+**Key choices, each made without opening `hidden_ground_truth.json`:**
+1. `affected_records` is the candidate's exposed count over the **full combined window**
+   (development + validation + future_holdout), not `ValidationMetadataPersistence.exposed_records`
+   (development-split-only). These answer different questions and are not generally equal — this
+   corrects a wrong assumption in `docs/product/finding-product-contract.md` that treated them as
+   the same population (`HANDOFF-046`, sent to Product).
+2. The point estimate (`per_record_effect.value`) is the real, unresampled combined-window sample
+   statistic (`split_stats`), not the bootstrap replicates' own mean — G15 previously used the
+   latter, sufficient for a pass/fail gate but not a persistence-ready point estimate. This is a
+   precision correction (≤0.2% numeric difference on the closing `TASK-019` run), not a
+   re-estimation; it does not alter any frozen verdict.
+3. `historical_impact`'s interval is `per_record_effect`'s interval scaled by `affected_records`
+   from the *same* cluster-bootstrap replicate set (`customer_id`, combined window) — kept
+   internally consistent, and explicitly distinct from `ValidationMetadataPersistence.raw_effect`'s
+   development-only bootstrap, which grades evidence rather than sizes impact.
+4. `annualization_justified`/`annualized_impact` are hard-gated to `False`/`None` by
+   `EconomicImpactResult.__post_init__` — v1.0.0 does not implement the exposure-rate-stability
+   check `docs/analytics/validation-contract.md` §8 requires before annualizing, so it can never
+   silently claim it did.
+5. Exposure is **not** narrowed to a ground-truth-matched subpopulation — that is `HANDOFF-043`'s
+   pending remediation question, explicitly forbidden by this module's own docstring until
+   ML_DISCOVERY concurs; this contract reports each candidate's own whole-rule exposure, unchanged.
+
+**Alternatives:** (a) Leave `EconomicImpactPersistence` populated by Architect's stopgap hand-mapping
+of existing G15 diagnostics — rejected; it borrowed `validation_contract_version` for
+`impact_contract_version` (wrong — impact evolves on its own schedule) and used
+`validation_report.adjusted_effect` (development-split grading estimate) as `per_record_effect`
+(wrong population for sizing impact). (b) Attribution-narrow exposure now, folding
+`HANDOFF-043`'s remediation into this contract — rejected; that is a design decision pending
+ML_DISCOVERY's concurrence, not something a persistence-contract resolution should pre-empt.
+
+**Consequences:** `HANDOFF-025` is resolved; `TASK-024` moves from `BLOCKED` to `READY` (Architect,
+2026-08-17). `HANDOFF-046` asks Product to correct `finding-product-contract.md`'s
+`affected_records`/`exposed_records` row and choose which count is customer-facing — not blocking
+implementation, since Statistics' contract already states the correct semantics regardless of
+Product's display choice. 177 tests pass (7 new in `tests/analytics/test_economic_impact.py`); both
+prior frozen validation artifacts remained untouched by this ADR itself (only future runs use the
+corrected point estimate) — **superseded immediately after, 2026-08-17, Architect:** the
+`v1.0.0` dry-run artifact is still untouched, but the closing-run official artifact
+(`artifacts/validation/task-019-official-20260816-015.json`) *was* subsequently regenerated with
+`--force` so `TASK-024` persistence has a real `economic_impact` field to read, since nothing short
+of re-running `apply.py`'s current code can add a field it didn't compute before. Verified before
+doing so: every verdict (`PASS`/`DOWNGRADE`) and point estimate identical between the two runs; only
+bootstrap CI bounds and the derived p-value shifted (`HANDOFF-047` — traced to a `Polars`
+`group_by`-order/seeded-resampling interaction, not fixed here). `artifacts/evaluation/`
+`task-028-benchmark-evaluation.json` was regenerated in lockstep for the same reason (its input
+changed); every metric except the diagnostic-only impact-error median was byte-identical
+(`2.038` → `1.995`), and no prose in `docs/benchmark/` cites the old value.
