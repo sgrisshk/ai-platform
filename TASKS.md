@@ -879,14 +879,23 @@ gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflow
   impact is inflated 2–4.8× because validated candidates' exposed populations are ~15–16× larger
   than the true patterns they partially recover — diagnosed mechanism, not just an observed
   number, in report §3.6. `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" appended
-  (not edited above the line) with the full band-by-band scoring. **Overall verdict: FAILED**,
-  driven by the impact-error metric alone; no hard disqualifier fired. `HANDOFF-043` requests
-  ML_DISCOVERY/FOUNDER_STRATEGY concurrence on Statistics' fixable-defect attribution before a
-  remediation rerun is authorized. `ADR-019` records the verdict and its consequences.
+  (not edited above the line) with the full band-by-band scoring. **Overall verdict at the time
+  this evidence was written: FAILED**, driven by the impact-error metric alone; no hard
+  disqualifier fired. `HANDOFF-043` requests ML_DISCOVERY/FOUNDER_STRATEGY concurrence on
+  Statistics' fixable-defect attribution before a remediation rerun is authorized. `ADR-019`
+  records that original verdict and its consequences.
+- **Superseded same day (2026-08-17, Statistics/Architect, `ADR-025`):** the `TASK-058`/`TASK-059`
+  remediation produced a new blind run (`task-058-remediation-20260817-001`), re-graded by
+  `TASK-019`/`TASK-028` for real. **Overall verdict is now PROMISING**, not FAILED — median
+  economic impact estimation error dropped from 204% to 37.5% (FAILED band → PROMISING band);
+  Top-K precision (90%), leakage (0), and direction accuracy (100%) held or improved. This entry's
+  own `FAILED` line above is historical record of the first grading, not the current state — see
+  `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" second entry for the full
+  band-by-band re-score, and `memory/CURRENT_STATE.md` for the consolidated current picture.
 
 ## MILESTONE-M1 — Synthetic end-to-end MVP
 
-- **Status:** ACHIEVED TECHNICALLY, QUALITY BAR NOT MET
+- **Status:** DONE (synthetic-benchmark scope)
 - **Depends on:** TASK-029
 
 Complete when synthetic CSV → ingestion → profiling → canonical dataset → discovery → validation → impact → persisted finding → UI → blind evaluation works end to end. Several true patterns must be recovered, high-impact patterns rank near the top, major traps are rejected/downgraded, no post-treatment leakage occurs, and findings are understandable.
@@ -900,15 +909,39 @@ and the overall `docs/benchmark/decision-gate.md` verdict is FAILED. This milest
 STRONG or PROMISING. The UI/persisted-finding half of this milestone's scope (`TASK-024`–`TASK-027`)
 remains separately blocked on Architect's implementation work regardless of this benchmark result.
 
+**Reconciled 2026-08-17 (Architect) → `DONE` for its stated "Synthetic end-to-end MVP" scope.**
+Every blocking condition in the assessment above has since cleared, verified, not assumed:
+`docs/benchmark/decision-gate.md`'s overall verdict is **PROMISING**, not FAILED (`ADR-025`,
+same-day remediation, `TASK-058`/`TASK-059` both `DONE`); the "UI/persisted-finding half"
+(`TASK-024`–`TASK-027`) is `DONE` with real data, verified live against a running instance
+(this session). Every stage the milestone's own text lists runs for the synthetic path: synthetic
+CSV (`TASK-003`) → the synthetic analytical dataset (`TASK-011`, which serves as this path's
+canonical-equivalent stage — see caveat below) → discovery (`TASK-015`) → validation (`TASK-019`)
+→ impact (`TASK-023`) → persisted finding (`TASK-024`) → UI (`TASK-026`/`TASK-027`) → blind
+evaluation (`TASK-028`/`TASK-029`), all `DONE`, all against the real closing run.
+**Explicit caveat, not swept under this closure:** "ingestion → profiling → canonical dataset" in
+the literal pipeline description above refers to the *real-customer-data* path
+(`TASK-005`→`TASK-006`→`TASK-007`→`TASK-008`→`TASK-009`→`TASK-010`). `TASK-005`/`006`/`007` are now
+`DONE`, but `TASK-010` (canonical schema, real inputs) is still genuinely `BLOCKED` — the synthetic
+benchmark's dataset was built directly by `TASK-011` from the generator's already-canonical-shaped
+output, never exercising `TASK-010`'s general-purpose normalizer. This milestone's title is
+"**Synthetic** end-to-end MVP," so closing it on the synthetic path is faithful to its own scope,
+not a redefinition — but the real-ingestion path is a materially separate, still-open piece of
+work, correctly gating `TASK-038` on its own terms (see `memory/CURRENT_STATE.md` "Current
+blocker"), not reopened or implied-done by this closure.
+
 ## Phase 11 — Policy candidates (after M1)
 
 ### TASK-030 — Policy candidate domain model
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** MILESTONE-M1
 - **Goal:** Define trigger, scope, action, expected benefit, evidence, exceptions, and status.
+- **Status note (2026-08-17, Architect):** Unblocked — `MILESTONE-M1` is `DONE` for its synthetic
+  scope (see its own entry). Real, persisted, UI-visible Findings now exist to attach a policy
+  candidate concept to (`TASK-024`–`TASK-027`). Implementation not started this iteration.
 
 ### TASK-031 — Policy candidate generator
 - **Owner:** PRODUCT
@@ -918,6 +951,8 @@ remains separately blocked on Architect's implementation work regardless of this
 - **Status:** BLOCKED
 - **Depends on:** TASK-030
 - **Goal:** Deterministically translate validated findings into reviewable interventions; an LLM may later explain but never invent numerical thresholds.
+- **Status note (2026-08-17, Architect):** Correctly still `BLOCKED` — `TASK-030` (the domain
+  model this generator would produce instances of) is `READY`, not `DONE`.
 
 ## Phase 12 — Historical policy backtesting
 
@@ -1279,9 +1314,19 @@ Do not overbuild before demand.
 
 ### TASK-053 — Basic authentication
 - **Owner:** ARCHITECT
-- **Priority:** P2
-- **Status:** BLOCKED
-- **Depends on:** Real external users
+- **Priority:** P1
+- **Status:** READY
+- **Depends on:** none (implementation-ready)
+- **Status note (2026-08-17, Architect):** Reprioritized `P2`→`P1`, `BLOCKED`→`READY`. Originally
+  deprioritized pending "real external users" (no auth-worthy multi-user need yet). That's no
+  longer the only justification: `TASK-035` (finding feedback) is `READY` and its detail-screen UI
+  slot is already built (`findingDetail-feedback`, currently a visibly-disabled placeholder,
+  `TASK-027`), but real feedback persistence has no way to attribute *who* gave it without some
+  identity concept — `TASK-035` cannot become more than a UI mock without this. Not implemented
+  this iteration — real authentication (session/token handling, credential storage) is a genuinely
+  separate, security-sensitive design task deserving its own pass, not a drive-by addition to a
+  status-reconciliation sweep. `TASK-054` (tenant isolation) remains correctly `BLOCKED` below —
+  this reprioritization is about single-identity attribution for `TASK-035`, not multi-tenancy.
 
 ### TASK-054 — Tenant-isolation design
 - **Owner:** ARCHITECT

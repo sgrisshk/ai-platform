@@ -321,6 +321,17 @@ customer data still requires `TASK-057` (reopened `TODO` today, zero conversatio
 `docs/benchmark/decision-gate.md`'s ambiguous PROMISING action-row wording (`ADR-025` consequence
 2) before it is accepted — deletion boundaries (`TASK-055`) also remain undefined.
 
+**TASKS.md reconciled 2026-08-17 (Architect)** now that the PROMISING re-grade is real and
+recorded: `MILESTONE-M1` marked `DONE` for its stated synthetic-benchmark scope (real-ingestion
+canonicalization, `TASK-010`, stays a separate, still-`BLOCKED` piece, explicitly not implied done
+by this); `TASK-029`'s own stale `FAILED`-verdict evidence text annotated as superseded rather than
+left to silently contradict `ADR-025` elsewhere. `TASK-030` (policy candidate domain model)
+unblocked to `READY` — a real, persisted, UI-visible Finding now exists to attach one to;
+`TASK-031` correctly stays `BLOCKED` on `TASK-030` itself. `TASK-053` (basic auth) reprioritized
+P2→P1, `BLOCKED`→`READY`: no longer just "wait for real external users" — `TASK-035` (finding
+feedback) is real and `READY` but cannot attribute *who* gave feedback without some identity
+concept. Not implemented, a genuinely separate security-sensitive design task.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
