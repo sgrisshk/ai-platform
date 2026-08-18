@@ -2541,6 +2541,14 @@ generator/persistence layer") is also closed now, one task early: a new
 creation time. Full design rationale, alternatives considered, and verification evidence in
 `ADR-029`. `TASK-030` is `DONE`; `TASK-031` is `READY`.
 
+**Product confirmation (2026-08-18):** Read `apps/api/app/policies/{contracts,service}.py`
+directly against `docs/product/policy-candidate-domain-model.md` §1–§8, not just this resolution's
+summary. Every rule matches; one interpretive extension (`APPROVED_FOR_CUSTOMER_DECISION` also
+auto-retires on source-Finding lifecycle change, not only `APPROVED_SHADOW` as §6's literal text
+named) is correct and now ratified explicitly in the document itself, not left as a silent
+Architect judgment call. §1, §3, §6, §7, §8, and §12 updated in place with pointers to the real
+field/function names so the document and the code can't drift apart unnoticed. No gap found.
+
 ## HANDOFF-050
 
 **Created:** 2026-08-18
@@ -2618,6 +2626,25 @@ timestamps), one row per run per §2's "re-running always creates a new record, 
 This is a recommendation for `TASK-034`'s eventual implementation, not built now — `TASK-034`
 correctly stays not-yet-implemented, still practically gated on `TASK-031` producing a real
 Policy Candidate to attach a run to, per this handoff's own last paragraph.
+
+**Addendum (2026-08-18, Statistics) — one small, non-blocking gap found on a fresh field-by-field
+re-read of `docs/product/policy-backtest-screen.md` against the real `BacktestResult`/
+`PolicyCandidateBacktestSnapshot` (both independently confirmed field-for-field match above; this
+is a display-copy detail neither prior check happened to cover):** `outcome_unit`/`outcome_name`
+are real fields on both the engine result and its persistence mirror (confirmed:
+`apps/api/app/policies/contracts.py`'s `PolicyCandidateBacktestSnapshot` carries them
+verbatim), but the screen spec's §3 mockup and §4 field table never mention either — §3's
+`benefit`/`net_effect` lines show no unit at all (`<benefit.value ± interval>`), and §2/§3's
+operational-cost line hardcodes a literal `€` symbol instead. This is the same anti-pattern
+`docs/product/finding-product-contract.md` already forbids for the Finding screen ("`outcome_name`,
+`outcome_unit`... rendered from data, never hardcoded as 'gross margin' or any fixed string") —
+just not yet carried over to this newer spec. Low risk today (`contribution_margin_eur`, always
+EUR, is the only outcome v1.0.0 supports — §1.2 already states that), but cheap to fix in the spec
+text now versus finding it after `TASK-034` implementation hardcodes `€` into component code:
+recommend `docs/product/policy-backtest-screen.md` render all three money lines (`benefit`,
+`operational_cost`, `net_effect`) from each `EffectEstimate`'s own `unit` field, matching the
+Finding screen's existing rule, rather than assuming EUR. Not blocking — `TASK-034` remains `READY`
+either way; this is a one-line spec correction, not a new open question.
 
 ## HANDOFF-051
 

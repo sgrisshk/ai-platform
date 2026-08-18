@@ -1212,7 +1212,7 @@ blocker"), not reopened or implied-done by this closure.
 - **Implementation:** ARCHITECT
 - **Reviewer:** STATISTICS
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-030
 - **Goal:** Deterministically translate validated findings into reviewable interventions; an LLM may later explain but never invent numerical thresholds.
 - **Status note (2026-08-17, Architect):** Correctly still `BLOCKED` — `TASK-030` (the domain
@@ -1231,6 +1231,38 @@ blocker"), not reopened or implied-done by this closure.
 - **Status note (2026-08-18, Architect):** `BLOCKED` → `READY` — `TASK-030` is `DONE` (`ADR-029`).
   The persistence layer this generator would call (`app.policies.service`) is real and tested; the
   generator's own deterministic algorithm (§12's procedure) is not implemented this iteration.
+- **Product verification (2026-08-18):** Read `app.policies.service`/`contracts` directly against
+  §12's procedure — compatible without changes: `create_draft_policy_candidate(force=False)`
+  already raises on a Finding that has a candidate (the idempotency rule); `scope_narrowing_features`
+  vs. `potential_confounders` is enforced inside it, so the generator must populate the field
+  correctly but must not re-implement the check; `action_detail` is accepted as `str | None` with no
+  default, so the generator's own job is simply to pass `None`, not to suppress a persistence-layer
+  default. §12 needs no revision before implementation starts. `docs/product/policy-candidate-domain-model.md`
+  §1/§3/§6/§7/§8/§12 updated in place with the real field/function names (`HANDOFF-049`).
+- **Implementation (2026-08-18, Architect) → `DONE`.** Implements §12 exactly, as a script
+  (`scripts/generate_policy_candidates.py`, matching `scripts/promote_findings.py`/
+  `run_backtest.py`'s own "manually triggered" precedent) over a thin, independently-tested
+  orchestration function (`apps/api/app/policies/generation.py: generate_policy_candidates`).
+  **Delegates every rule to `create_draft_policy_candidate` — this module adds none of its own**:
+  eligibility, the §3 guardrail, and idempotency are all enforced one layer down (`TASK-030`); the
+  generator only classifies each Finding's outcome as created/skipped and reports the real
+  service-layer reason, never a re-derived one. Batch mode (every `ACTIVE` Finding, `force=False`
+  always) or `--finding-id` for one; `--force` only accepted alongside `--finding-id` (§12: "never
+  automatic proliferation" — enforced by the CLI itself, not just documented). `title`/`rationale`
+  reuse the Finding's own mechanical `title`/`summary` verbatim — neither field is specified by
+  §0–§12 (both predate the domain model), and direct reuse avoided building a second, duplicate
+  mechanical-template generator next to `app.findings.summary`'s existing one.
+  **Verified:** 6 new integration tests against a real ephemeral Postgres (creates exactly one
+  candidate per eligible Finding and skips the rest with the real reason, deterministic field
+  values, unknown `--finding-id` reported not crashed, batch rerun is a no-op, `--force` creates an
+  explicit additional candidate) plus a live subprocess test against the real 15 closing-run
+  Findings (`scripts/promote_findings.py`) — 6 created (the `shadow_policy` ones), 9 correctly not.
+  One transient duplicate-key failure appeared on a single full-suite run against a long-lived,
+  manually-poked-at container; reproduced cleanly (twice) against a fresh container and in
+  isolation, confirming this was leftover local state from ad hoc debugging, not a real
+  non-idempotency defect — recorded here rather than silently dropped. Full suite (381 tests) green
+  twice on a fresh database; `ruff`/`ruff format`/`pyright` clean. No new ADR — this wires together
+  already-decided architecture (`ADR-029`), not a new decision.
 
 ## Phase 12 — Historical policy backtesting
 

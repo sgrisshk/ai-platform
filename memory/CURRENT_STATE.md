@@ -221,6 +221,19 @@ real closing-run Findings — created, transitioned all the way to `APPROVED_SHA
 Finding was manually superseded and the cascade correctly auto-retired it. Full suite (375 tests)
 green twice against a live database. `TASK-031` (the generator — not built here) is now `READY`.
 
+**`TASK-031` (Policy Candidate generator) `DONE` 2026-08-18 (Architect).** Implements
+`docs/product/policy-candidate-domain-model.md` §12 exactly, as
+`scripts/generate_policy_candidates.py` over a tested orchestration function
+(`apps/api/app/policies/generation.py`) — delegates every rule (eligibility, the §3 guardrail,
+idempotency) to `create_draft_policy_candidate` (`TASK-030`), adding none of its own. Batch (every
+`ACTIVE` Finding) or `--finding-id`; `--force` only alongside `--finding-id`, never in batch mode
+(§12: "never automatic proliferation"). `title`/`rationale` reuse the Finding's own mechanical
+`title`/`summary` verbatim. Verified against a real ephemeral Postgres (6 new tests) and live,
+non-test runs against the 15 real closing-run Findings: 6 created (the `shadow_policy` ones), 9
+correctly skipped with the real reason; a rerun was a clean no-op. Full suite (381 tests) green
+twice on a fresh database. `MILESTONE-M2` (policy discovery demo) now only needs `TASK-034` (the
+backtest UI, `READY`, not started) to close.
+
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote
