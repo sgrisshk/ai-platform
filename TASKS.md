@@ -1155,7 +1155,7 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** MILESTONE-M1
 - **Goal:** Define trigger, scope, action, expected benefit, evidence, exceptions, and status.
 - **Status note (2026-08-17, Architect):** Unblocked — `MILESTONE-M1` is `DONE` for its synthetic
@@ -1179,13 +1179,40 @@ blocker"), not reopened or implied-done by this closure.
   including a real gap flagged for `TASK-031` to close (the guardrail is not, and cannot be,
   enforced inside the backtest engine itself). Status stays `READY`, not `DONE` — Architect's own
   persistence-shape half of `HANDOFF-049` is still open.
+- **Implementation (2026-08-18, Architect) → `DONE`.** Resolves `HANDOFF-049`'s remaining half
+  (full rationale in `ADR-029`). Migration `20260818_0007` drop/recreates `policy_candidates`
+  (confirmed empty — no `TASK-031` has ever run) into the real shape: `trigger_conditions` (always
+  derived from the Finding, never caller-supplied — §2), `effective_population`/`mode`/
+  `effective_from` (§3), a new `scope_narrowing_features` field closing §3's confounder-guardrail
+  gap one task early (checked against the source Finding's `potential_confounders` at creation),
+  `expected_benefit_snapshot`/`evidence_snapshot` (§4/§6, frozen copies — `validation_contract_version`
+  fetched from the linked `ValidationReportModel` row, not present on `FindingModel`'s own
+  snapshot), `backtest_result` (§7, nullable, validated against a new
+  `PolicyCandidateBacktestSnapshot` mirroring `BacktestResult.to_dict()`'s exact shape when
+  present), and the full forward-only `PolicyCandidateStatus` state machine (§8).
+  **§6's "block/auto-retire on source Finding lifecycle change" rule is a service-layer check
+  (`app.policies.service.cascade_finding_lifecycle_change`), not a DB trigger** — consistent with
+  every other lifecycle rule in this codebase. **Real, disclosed gap:** nothing in this codebase
+  currently transitions a Finding's `lifecycle_status` away from `ACTIVE` (no supersede/withdraw
+  endpoint exists), so this function isn't wired to any live trigger point today — built and
+  verified directly instead of left unbuilt. `mode` is contract-locked to `SHADOW` (§1's
+  "unreachable today" is now an enforced Pydantic invariant, not just a doc claim). No new API
+  routes — mirrors `app.findings.persistence`'s own internal-only precedent; §10 explicitly
+  excludes review UI. **Verified**: 13 new integration tests against a real ephemeral Postgres
+  (eligibility, verbatim trigger copy, guardrail rejection/acceptance, idempotency + `force`, the
+  full transition state machine including illegal-edge and entry-condition rejections, both
+  cascade behaviors, a real backtest-shaped payload round-trip), plus a live, non-test run against
+  one of the 15 real closing-run Findings: created a candidate, transitioned it all the way to
+  `APPROVED_SHADOW`, manually superseded the source Finding, confirmed the cascade actually
+  auto-retired it. Full suite (375 tests) green twice against the same live database; `ruff`/
+  `ruff format`/`pyright` clean.
 
 ### TASK-031 — Policy candidate generator
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Reviewer:** STATISTICS
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-030
 - **Goal:** Deterministically translate validated findings into reviewable interventions; an LLM may later explain but never invent numerical thresholds.
 - **Status note (2026-08-17, Architect):** Correctly still `BLOCKED` — `TASK-030` (the domain
@@ -1201,6 +1228,9 @@ blocker"), not reopened or implied-done by this closure.
   default is a UI-suggested placeholder, never machine-written into the field itself), and discloses
   skipped Findings with a reason. `TASK-030` still correctly not `DONE`; `TASK-031` still correctly
   `BLOCKED` — this is further prep, not a status change.
+- **Status note (2026-08-18, Architect):** `BLOCKED` → `READY` — `TASK-030` is `DONE` (`ADR-029`).
+  The persistence layer this generator would call (`app.policies.service`) is real and tested; the
+  generator's own deterministic algorithm (§12's procedure) is not implemented this iteration.
 
 ## Phase 12 — Historical policy backtesting
 

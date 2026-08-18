@@ -204,6 +204,23 @@ default held findings from the wrong-era run. Parametrized like `evaluate_benchm
 `rank_candidates.py`; the remediation run's missing `TASK-016` ranking artifact was generated for
 real. Re-verified end to end against a live database: 15/15 promote, 6 `shadow_policy`/9
 `experiment_only` as expected. See `TASK-024`'s evidence for the exact numbers.
+
+**`TASK-030` (Policy Candidate domain model) `DONE` 2026-08-18 (Architect, `ADR-029`, resolves
+`HANDOFF-049`).** `policy_candidates` extended to the real shape
+`docs/product/policy-candidate-domain-model.md` §0–§12 defines (migration `20260818_0007`,
+drop/recreate — table confirmed empty). §6's block/auto-retire-on-Finding-lifecycle-change rule is
+a service-layer check (`app.policies.service.cascade_finding_lifecycle_change`), not a DB trigger —
+**a real, disclosed gap: nothing in this codebase yet transitions a Finding's `lifecycle_status`
+away from `ACTIVE`**, so this function isn't wired to any live trigger point today, only built and
+verified directly. §3's confounder-scope guardrail (a real gap Statistics' own `HANDOFF-049`
+resolution flagged) is closed one task early via a new `scope_narrowing_features` field. `mode` is
+contract-locked to `SHADOW` (§1's "unreachable today" is now an enforced invariant). No new API
+routes — internal persistence only, matching `app.findings.persistence`'s own precedent. Verified:
+13 new integration tests against a real ephemeral Postgres, plus a live run against one of the 15
+real closing-run Findings — created, transitioned all the way to `APPROVED_SHADOW`, then the source
+Finding was manually superseded and the cascade correctly auto-retired it. Full suite (375 tests)
+green twice against a live database. `TASK-031` (the generator — not built here) is now `READY`.
+
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote

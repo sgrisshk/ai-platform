@@ -2463,7 +2463,7 @@ change the graded band or fire the hard disqualifier, but is a real precision ga
 **Created:** 2026-08-18
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** IN_PROGRESS
+**Status:** RESOLVED
 
 **Task:** Future persistence design for the Policy Candidate domain model (`TASK-030`/`TASK-031`), against `docs/product/policy-candidate-domain-model.md`. Not a request to implement now.
 
@@ -2526,6 +2526,20 @@ answered against real code rather than a proposal:
 
 Architect's persistence-shape question (extending `policy_candidates`, trigger-vs-constraint for
 §6's lifecycle rule) remains open — outside Statistics' remit.
+
+**Resolution (2026-08-18, Architect's half, `ADR-029`) — now fully resolved:** Yes, the shape maps
+cleanly onto an extended `policy_candidates` table (migration `20260818_0007`, drop/recreate — the
+table was confirmed empty, same precedent `TASK-024` used for `findings`). §6's rule is a
+**service-layer check, not a trigger** — `app.policies.service.cascade_finding_lifecycle_change`,
+consistent with every other lifecycle rule in this codebase being Python-enforced, not SQL.
+Real, disclosed gap: nothing currently transitions a Finding's `lifecycle_status` away from
+`ACTIVE` (no supersede/withdraw endpoint exists), so this function isn't wired to any live trigger
+point yet — built and verified directly instead, including a live run against a real closing-run
+Finding. Statistics' own §3 guardrail gap ("a real gap for `TASK-031` to close... at the
+generator/persistence layer") is also closed now, one task early: a new
+`scope_narrowing_features` field, checked against the source Finding's `potential_confounders` at
+creation time. Full design rationale, alternatives considered, and verification evidence in
+`ADR-029`. `TASK-030` is `DONE`; `TASK-031` is `READY`.
 
 ## HANDOFF-050
 

@@ -763,3 +763,77 @@ existing) can now be implemented against a real, frozen field shape instead of a
 297 tests pass project-wide (13 new, `tests/analytics/test_backtest_engine.py`, synthetic
 fixtures only — `scripts/run_backtest.py`/`validate_backtest_synthetic.py` are exercised by the
 real dry runs recorded above, not separate unit tests), `ruff`/`pyright` clean.
+
+## ADR-029 — Policy Candidate persistence: service-layer lifecycle cascade, not a DB trigger (resolves `HANDOFF-049`, closes `TASK-030`)
+
+**Date:** 2026-08-18
+**Status:** Accepted
+
+**Decision:** `policy_candidates` is extended from its intentionally-minimal skeleton (`id`,
+`finding_id`, `title`, `rationale`, `rule_definition: JSONB`, `status: str`) to the full shape
+`docs/product/policy-candidate-domain-model.md` §0–§12 defines
+(`apps/api/app/db/models.py: PolicyCandidateModel`, migration `20260818_0007`, drop/recreate since
+the table is confirmed empty — no `TASK-031` generator has ever run). This answers `HANDOFF-049`'s
+open Architect question with real, tested code, not a proposal:
+
+- **§6's "block/auto-retire on source Finding lifecycle change" rule is a service-layer check, not
+  a DB trigger** (`apps/api/app/policies/service.py: cascade_finding_lifecycle_change`) —
+  consistent with every other lifecycle rule in this codebase (`FindingLifecycleStatus`
+  forward-only transitions, `TASK-035`'s `WRONG ⇒ comment` rule) being enforced in Python, not
+  SQL. A new `blocked_by_source_lifecycle: bool` column records the "blocked from advancing"
+  half of §6 without itself changing `status`; `APPROVED_SHADOW`/`APPROVED_FOR_CUSTOMER_DECISION`
+  auto-retire with `retirement_reason = "source finding no longer active"` — the latter extends §6's
+  literal text (which only names `APPROVED_SHADOW`) on the same stated rationale ("must never keep
+  quietly running against a finding the system no longer stands behind"), since
+  `APPROVED_FOR_CUSTOMER_DECISION` is equally a live-standing approval.
+- **Real, disclosed gap: nothing in this codebase currently transitions a Finding's
+  `lifecycle_status` away from `ACTIVE`** — no supersede/withdraw endpoint exists yet.
+  `cascade_finding_lifecycle_change` is built and verified directly (unit tests plus a real
+  end-to-end run against a live database and a real closing-run Finding, manually setting
+  `lifecycle_status` to simulate the not-yet-built trigger point) rather than left unbuilt until
+  that endpoint exists. It is not called from anywhere in production today, and this ADR states
+  that plainly rather than letting the migration's existence imply otherwise.
+- **§3's confounder-scope guardrail needed a structured field the domain model doesn't literally
+  define.** `effective_population` is free text (matches §3's own wording exactly); nothing
+  mechanically checkable existed for "scope narrowed by variable X." `HANDOFF-049`'s own Statistics
+  resolution already named this "a real gap for `TASK-031` to close... at the generator/persistence
+  layer." A new `scope_narrowing_features: tuple[str, ...]` field (empty by default) closes it now:
+  `app.policies.contracts.PolicyCandidateCreate` accepts it, and
+  `create_draft_policy_candidate` rejects any value intersecting the source Finding's
+  `potential_confounders` before a row is ever written.
+- **`mode` is contract-locked to `SHADOW`.** §1: "no code path today can produce an enforcement
+  proposal, by construction, not by an omitted feature." A Pydantic validator on
+  `PolicyCandidateCreate` turns that sentence into an enforced invariant — `ENFORCEMENT_PROPOSAL`
+  is rejected outright, not merely undocumented as a path nothing currently takes.
+- **One candidate per Finding by default; `force=True` for an explicit additional one** —
+  operationalizes §6/§12's "default is exactly one; additional candidates only from explicit human
+  review action."
+- **`trigger_conditions` is always derived from the Finding, never accepted from a caller** —
+  operationalizes §2's "the generator may not edit, loosen, or tighten this condition set";
+  `evidence_snapshot.validation_contract_version` is fetched from the linked
+  `ValidationReportModel` row (not present on `FindingModel`'s own snapshot) rather than omitted.
+- **`backtest_result`** stays nullable JSONB, validated against
+  `PolicyCandidateBacktestSnapshot` (mirrors `BacktestResult.to_dict()`'s exact shape,
+  `packages/analytics/src/policy_analytics/backtest/contract.py`) when present — reserved per §7,
+  not populated by anything here.
+- **No new API routes** — mirrors `app.findings.persistence`'s own precedent of staying internal
+  until something real needs to call it; §10 explicitly excludes review UI from this document's
+  scope, and `TASK-031` (the only thing that would call this layer for real) stays `BLOCKED`.
+
+**Alternatives:** A Postgres trigger/constraint for §6 (rejected — no other lifecycle rule in this
+codebase uses one; Python enforcement stays consistent, inspectable, and testable the same way as
+everything else). Leaving `effective_population` as the only scope field and enforcing §3 by
+string-matching free text against `potential_confounders` (rejected — fragile, not what
+`HANDOFF-049` recommended, and indistinguishable-by-construction from a legitimate free-text
+description that happens to mention a confounder's name). Building `TASK-031` alongside this pass
+since the domain model and this persistence layer are both ready (rejected — out of scope for what
+was asked; `TASK-031` remains a separate, correctly-`BLOCKED` task).
+
+**Consequences:** `TASK-030` is `DONE`; `TASK-031` is unblocked to `READY` but not started. Verified
+against a real ephemeral Postgres: 13 new integration tests (eligibility, verbatim trigger copy,
+guardrail rejection/acceptance, idempotency + `force`, the full §8 transition state machine
+including illegal-edge and entry-condition rejections, both cascade behaviors, a real
+`BacktestResult`-shaped payload round-trip) plus a live, non-test run against one of the 15 real
+closing-run Findings (`scripts/promote_findings.py`) — created, transitioned to `APPROVED_SHADOW`,
+then the source Finding was manually superseded and the cascade correctly auto-retired it. Full
+suite (375 tests) green twice against the same live database; `ruff`/`ruff format`/`pyright` clean.
