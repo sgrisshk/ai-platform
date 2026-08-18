@@ -837,3 +837,72 @@ including illegal-edge and entry-condition rejections, both cascade behaviors, a
 closing-run Findings (`scripts/promote_findings.py`) — created, transitioned to `APPROVED_SHADOW`,
 then the source Finding was manually superseded and the cascade correctly auto-retired it. Full
 suite (375 tests) green twice against the same live database; `ruff`/`ruff format`/`pyright` clean.
+
+## ADR-030 — Analytical dataset identity: stop hashing this module's own source file
+
+**Date:** 2026-08-18
+**Status:** Accepted
+
+**Decision:** `build_analytical_dataset`'s `identity_payload` (the input to
+`dataset_identity_sha256`) no longer includes `transformation_implementation_sha256`, a whole-file
+`sha256` of `analytical_dataset.py` itself. `dataset_identity_sha256` is now a hash of the things
+that actually determine the dataset's content — `source_sha256`, `feature_timing_sha256`,
+`transformation_config`, `outcome_contract_version`, and the four written partitions'
+`partition_sha256` — and nothing else. `synthetic_data/analytical/travel-bookings-analytical-v1.0.0`
+is re-pinned once, from `dataset_identity_sha256 =
+98ad4e7e08e63ee9e31f9317ca408f2895da8bece49324482915e24df0aee04c` to
+`e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707`; `packages/analytics/src/policy_analytics/outcomes/contract.py`'s
+`DATASET_IDENTITY_SHA256` constant (pinned by ADR-009, checked at runtime by
+`blind_isolation.py`'s workspace guard and `promote_findings.py`) is updated to match, as are the
+`dataset_identity_sha256` fields already baked into the 8 gitignored-but-locally-present frozen
+artifacts under `artifacts/` for both `task-015-official-20260816-015` and
+`task-058-remediation-20260817-001` (`artifacts/blind/`, `artifacts/validation/`,
+`artifacts/baseline/`) — a mechanical find-and-replace of one string field, touching no other
+content.
+
+**Context:** `ef5885d` (TASK-010, formalizing `policy_analytics.cleaning.canonical_schema`)
+re-exported `CANONICAL_SCHEMA_VERSION` from the new module into `analytical_dataset.py` instead of
+redefining it locally — same string value, same target shape, zero behavioral change to
+`build_analytical_dataset`. Because `transformation_implementation_sha256` hashed
+`Path(__file__)` — every byte of the module, not just the functions that shape the output — this
+value-preserving edit changed `dataset_identity_sha256`, which tripped
+`scripts/build_synthetic_analytical_dataset.py`'s immutability guard (`"immutable analytical
+version differs... bump dataset_version"`) and broke the `backend` CI job's "Verify generated
+analytical artifacts and blind export" step. Investigation confirmed byte-for-byte: every generated
+partition (`features.csv`/`outcomes.csv`/`identifiers.csv`/`metadata.csv`) and every other artifact
+were unchanged before and after the refactor — only `version_metadata.json` and `manifest.json`'s
+hash fields differed, and only because of what got hashed, not because any real content moved.
+
+Two narrower fixes were considered and rejected. Scoping the implementation hash to only the
+functions that shape output (via `ast`, hashing `build_analytical_dataset` and its private
+helpers) was verified to produce an identical digest before and after this specific refactor — but
+it is still a *different algorithm* than the one that produced the currently-frozen `98ad4e7e...`,
+so it still changes `dataset_identity_sha256` once, same as removing the field outright; it adds
+implementation complexity without avoiding the one-time re-pin, so it was dropped in favor of the
+simpler deletion. Reverting the TASK-010 refactor to keep `analytical_dataset.py`'s bytes untouched
+was rejected per direct instruction — the refactor is correct and wanted.
+
+Removing the field entirely (rather than keeping some implementation fingerprint outside the
+identity hash) was chosen because nothing in the codebase ever read
+`transformation_implementation_sha256` independently — every consumer (`blind_isolation.py`,
+`promote_findings.py`, the outcome contract's pinned constant, `tests/analytics/
+test_outcome_contract.py`) checks the aggregate `dataset_identity_sha256`, never that sub-field —
+so it was pure churn risk with no independently-checked guarantee attached. Which commit built a
+given dataset version is already answered by `git log -- packages/analytics/src/
+policy_analytics/analytical_dataset.py`, which does not go stale the way a baked-in file hash does
+across an intentional refactor.
+
+**Consequences:** Future value-preserving edits to `analytical_dataset.py` (docstrings, unrelated
+new functions, import restructuring that doesn't touch `build_analytical_dataset`'s actual
+behavior) no longer force a `dataset_version` bump — only a change to the source data, the feature
+timing manifest, the transformation config, the outcome contract version, or the written partitions
+does. `tests/analytics/test_synthetic_benchmark.py`'s two blind-workspace fixture tests, which
+constructed a fake `manifest.json` with the old hash literal, now import
+`DATASET_IDENTITY_SHA256` from `policy_analytics.outcomes.contract` instead, so they can't drift
+out of sync with the live constant again. Verified: `make analytical-dataset` and
+`scripts/prepare_blind_workspace.py`'s `git diff --exit-code -- synthetic_data` (the CI
+immutability check) both pass clean; full suite (375 tests), `ruff`, `ruff format`, `pyright` all
+clean; `scripts/promote_findings.py` re-run end-to-end against the real
+`task-058-remediation-20260817-001` closing run with the corrected artifacts (still 15/15 promote,
+unchanged). No finding, evidence level, statistic, or conclusion in any frozen artifact changed —
+only the one metadata fingerprint they were stamped with.
