@@ -2241,7 +2241,13 @@ which count (or both, clearly labeled) appears on the customer-facing Finding.
 **Blocking:** NO — `TASK-023`/`TASK-024` are not blocked on this; it is a documentation-accuracy
 correction that should land before `TASK-025`/`TASK-026` build UI against the wrong assumption.
 
-**Resolution:** Pending.
+**Resolution (2026-08-18, Product):** Table row corrected — `docs/product/finding-product-contract.md`
+§"Money at stake" now states the two are different populations and accepts Statistics'
+recommendation: `affected_records` (full combined window) is the customer-facing money-at-stake
+number, `exposed_records` stays in the evidence section as the grading-population count. Confirmed
+this already matches the live implementation (`FindingImpactRead.affected_records`,
+`apps/api/app/api/schemas.py`) — a documentation catch-up, not a new decision; `TASK-025`/`TASK-026`
+were already built correctly per Architect's note in `memory/CURRENT_STATE.md`.
 
 ## HANDOFF-047
 
@@ -2444,3 +2450,153 @@ change the graded band or fire the hard disqualifier, but is a real precision ga
 `_matches_trap()`, recorded rather than smoothed over. Full record: `ADR-025`;
 `docs/benchmark/decision-gate.md` "Post-benchmark comparison" (2026-08-17 entry). `TASK-058` and
 `TASK-059` both close `DONE`. Decision-gate overall verdict is now **PROMISING**, up from FAILED.
+
+## HANDOFF-049
+
+**Created:** 2026-08-18
+**From:** PRODUCT
+**To:** ARCHITECT
+**Status:** OPEN
+
+**Task:** Future persistence design for the Policy Candidate domain model (`TASK-030`/`TASK-031`), against `docs/product/policy-candidate-domain-model.md`. Not a request to implement now.
+
+**Context:** `TASK-030` is `READY` (real Findings exist, `MILESTONE-M1` `DONE` for synthetic scope). `docs/product/policy-candidate-domain-model.md` defines: eligibility (gated on source Finding `policy_readiness` ∈ {`SHADOW_POLICY`, `HIGH_CONFIDENCE`}), trigger (immutable copy of the Finding's conditions, never re-derived), scope (effective population/mode/effective-from, with a hard rule that scope may never be narrowed by a variable the Finding already flagged as a potential confounder), expected benefit (a frozen snapshot of the Finding's own impact fields — never recomputed — plus a reserved, currently-`null` `backtest_result` for `TASK-032`), action (the generator may only ever propose one safe default — "flag for human review" — with any more specific `action_detail` required to be human-authored, never LLM-invented), evidence (a frozen `evidence_snapshot` of the source Finding, with defined behavior if that Finding is later `SUPERSEDED`/`WITHDRAWN`), and a forward-only `PolicyCandidateStatus` enum (`DRAFT → UNDER_REVIEW → {REJECTED | APPROVED_SHADOW} → {RETIRED | APPROVED_FOR_CUSTOMER_DECISION} → RETIRED`) extending the current minimal `PolicyCandidateModel` skeleton (`id`, `finding_id`, `title`, `rationale`, `rule_definition: JSONB`, `status: str`).
+
+**Question:** When `TASK-031` starts, does this shape map cleanly onto an extended `policy_candidates` table (mirroring how `docs/architecture/finding-persistence-contract.md` extended the old minimal `Finding` skeleton), and does the "block/auto-retire on source Finding lifecycle change" rule (§6) need a trigger/service-layer check versus a database constraint? Separately for Statistics: does §3's confounder-based scope-narrowing guardrail and §7's reserved `backtest_result` shape match what `TASK-032` will eventually need, or should either be adjusted before `TASK-031` locks its output shape?
+
+**Files:**
+
+- `docs/product/policy-candidate-domain-model.md`
+- `apps/api/app/db/models.py` (`PolicyCandidateModel`)
+- `docs/architecture/finding-persistence-contract.md` (the precedent this mirrors)
+- `docs/analytics/validation-contract.md` §7–§9
+
+**Expected output:** Eventually, a `TASK-031` persistence/generator proposal consuming this contract — no immediate output required.
+
+**Blocking:** NO — explicitly deferred. `TASK-031` remains `BLOCKED` on `TASK-030` reaching `DONE` (Architect/Statistics review of this document), which itself has no other dependency. This handoff exists so the domain model is available ahead of time, not to unblock anything now.
+
+**Resolution (2026-08-18, Statistics half only — Architect's persistence-shape question remains
+open):** `TASK-032`/`TASK-033` are now built and frozen
+(`packages/analytics/src/policy_analytics/backtest/`, `docs/analytics/policy-backtest-contract.md`,
+`docs/benchmark/task-033-backtest-validation-v1.md`), so both Statistics-facing questions can be
+answered against real code rather than a proposal:
+
+- **§7's reserved `backtest_result` shape matches, field-for-field, and is extended.**
+  `BacktestResult` carries exactly `affected_decisions`, `avoided_bad_outcomes`,
+  `suppressed_good_outcomes` (both sides, always — enforced in `__post_init__`, not just
+  documented), `benefit`, `operational_cost`, and `net_effect` with interval, computed only
+  against `future_holdout` (a hard constant, `BACKTEST_WINDOW_SPLIT`, not a caller parameter — a
+  result computed against any other split is rejected). Five fields beyond §7's minimum were added
+  because a UI cannot safely render the number without them: `bad_outcome_definition` (what "bad"
+  means, so the count isn't opaque), `benefit_is_adjusted` (always `False` in v1.0.0 — §9's
+  "upper-bound" framing uses the raw, not confounder-adjusted, effect; a display layer needs to
+  know this to caveat correctly), `operational_cost_per_review_eur` (echoes the assumed input back
+  for audit, since v1.0.0 never invents this figure — `ADR-028`), `net_effect_is_cost_exclusive`
+  (distinguishes a real net figure from a benefit-only one not yet netted against cost — a
+  one-word field name a UI can check instead of inspecting whether `operational_cost` is `null`
+  itself), and `no_measurable_net_effect` (the zero-crossing check computed once, here, so §7's
+  own display rule — "must be shown as 'no measurable net effect', never as a positive" — reads a
+  field instead of re-deriving an interval comparison per caller). None of these are new
+  statistical methodology; they are disclosure fields that make the existing methodology safe to
+  render.
+- **§3's confounder-based scope-narrowing guardrail is out of `TASK-032`'s reach by
+  construction, not by an enforced check — this is a real gap for `TASK-031` to close, not
+  something already handled.** `run_backtest()`/`backtest_from_mask()` take whatever exposure
+  condition (or mask) a caller supplies and never modify it — by design, since narrowing a
+  condition is a different statistical claim requiring its own Finding (`docs/product/
+  policy-candidate-domain-model.md` §2). But the engine also has **no way to distinguish** a
+  legitimate non-statistical scope narrowing (§3's own example: "only new bookings from Tuesday's
+  rollout onward") from an illegitimate confounder-based one (§3's guardrail: never narrow by a
+  variable the Finding's own `potential_confounders` flagged) — it does not receive
+  `potential_confounders` as an input today, and has no reason to, since `TASK-031` does not exist
+  yet to call it with a narrowed scope in the first place. **Recommendation for `TASK-031`:** the
+  guardrail must be enforced *before* a scope-narrowed condition set ever reaches
+  `run_backtest()` — at the generator/persistence layer, checking any additional scope condition's
+  feature against the source Finding's `potential_confounders` — not inside the backtest engine,
+  which has no independent basis to tell the two cases apart. This is not a change requested to
+  `TASK-032`'s existing code; it is a boundary this handoff should make explicit so `TASK-031`
+  doesn't assume the backtest engine already checks it.
+
+Architect's persistence-shape question (extending `policy_candidates`, trigger-vs-constraint for
+§6's lifecycle rule) remains open — outside Statistics' remit.
+
+## HANDOFF-050
+
+**Created:** 2026-08-18
+**From:** PRODUCT
+**To:** ARCHITECT
+**Status:** OPEN
+
+**Task:** Future implementation of the Policy Backtest screen (`TASK-034`), against `docs/product/policy-backtest-screen.md`. Not a request to implement now.
+
+**Context:** `docs/product/policy-backtest-screen.md` specifies the screen written against `docs/analytics/validation-contract.md` §9's already-fixed backtest methodology, ahead of `TASK-032` (which doesn't exist). Key design points Architect/Statistics should confirm before building: (1) a triggered backtest run is modeled as a job reusing the existing `ResourceStatus` pattern (`pending`/`running`/`completed`/`failed`), not a new status enum — same shape as `AnalysisRunModel.status`; (2) the backtest's own affected-decisions count is explicitly a third, distinct population from the Finding's `exposed_records` (development-only) and `affected_records` (full combined window, per `HANDOFF-046`) — it must get its own field name, never reuse either; (3) upside and downside (avoided bad outcomes / suppressed good outcomes) are structurally required together — no schema shape should make it possible to populate one without the other; (4) operational cost is a separate visible field, never pre-netted into the benefit number server-side before it reaches the client.
+
+**Question:** Does this shape match what `TASK-032`'s eventual `BacktestResult` contract will produce? In particular, can Statistics confirm the three-population distinction (exposed / affected / backtest-affected) is real and intended, not something to collapse for simplicity?
+
+**Files:**
+
+- `docs/product/policy-backtest-screen.md`
+- `docs/analytics/validation-contract.md` §9
+- `docs/product/policy-candidate-domain-model.md` §7 (`backtest_result`, reserved)
+- `apps/api/app/db/models.py` (`AnalysisRunModel`, the job-status precedent)
+
+**Expected output:** Eventually, a `TASK-032`/`TASK-034` implementation proposal consuming this contract — no immediate output required.
+
+**Blocking:** NO — explicitly deferred. `TASK-034` remains `BLOCKED` on `TASK-032` → `TASK-031` → `TASK-030`, none of which this handoff unblocks.
+
+**Resolution (2026-08-18, Statistics half only — Architect's job-status/`ResourceStatus` question
+(1) is outside Statistics' remit and remains open):** `TASK-032` is now built and frozen
+(`ADR-028`), so points (2)–(4) can be confirmed against the real `BacktestResult` contract instead
+of a proposal:
+
+- **(2) Confirmed — the three-population distinction is real, intended, and structurally
+  enforced, not something to collapse.** `BacktestResult.affected_decisions` is computed only over
+  `future_holdout` under the trigger condition — genuinely disjoint in general from
+  `exposed_records` (development-only, `ValidationMetadataPersistence`) and `affected_records`
+  (full combined window: development + validation + future_holdout, `EconomicImpactResult`,
+  `HANDOFF-046`). All three answer different questions and are not interchangeable; a UI must
+  label `affected_decisions` distinctly (Product's own instinct here was correct before the field
+  existed).
+- **(3) Confirmed — both-sides-always is enforced in code, not just convention.**
+  `avoided_bad_outcomes`/`suppressed_good_outcomes` must sum to `affected_decisions`, checked in
+  `BacktestResult.__post_init__` — a `BacktestResult` populating only one side cannot be
+  constructed at all, so the screen never has to guard against that case itself.
+- **(4) Confirmed — operational cost is never pre-netted server-side.** `operational_cost` is its
+  own field, separate from `benefit`; `net_effect` only nets it in when a real
+  `cost_per_review_eur` was supplied (`net_effect_is_cost_exclusive` says which case applies), and
+  no default cost figure is ever invented (`ADR-004`; matches this handoff's own point (4)
+  exactly).
+
+Two additions the screen should plan for, beyond what this handoff asked about:
+`benefit_is_adjusted` (always `False` in v1.0.0 — the number is raw/unadjusted by design, §9's
+"upper bound" framing; the screen should caveat accordingly, not imply confounder-adjusted rigor)
+and `no_measurable_net_effect` (a precomputed bool for this handoff's context's own
+"no measurable net effect" wording rule — read the field, don't re-derive the zero-crossing check
+client-side). Full contract: `docs/analytics/policy-backtest-contract.md`.
+
+## HANDOFF-051
+
+**Created:** 2026-08-18
+**From:** PRODUCT
+**To:** ARCHITECT
+**Status:** OPEN
+
+**Task:** Future implementation of the Customer Review Workflow (`TASK-036`), against `docs/product/customer-review-workflow.md`. Not a request to implement now.
+
+**Context:** `docs/product/customer-review-workflow.md` specifies the missing screen-flow layer between `docs/customer/findings-review-protocol.md` (interview methodology) and `docs/product/finding-feedback-contract.md` (frozen v0 field contract) — queue, one-at-a-time review reusing `TASK-027`'s detail-screen content, and a real form replacing the currently-disabled `FeedbackSlot` placeholder (`apps/web/app/(app)/findings/[id]/page.tsx`, `findingDetail-feedback` class, static `FEEDBACK_REACTIONS` chips today). Two independent blockers are flagged, not resolved by this document: `TASK-035` itself (`READY`, not `DONE`), and separately `TASK-053` (basic auth, `READY`, not `DONE`) — `captured_by` cannot be attributed without it, and the spec explicitly refuses to fabricate or anonymize reviewer identity as a workaround.
+
+**Question:** When both `TASK-035` and `TASK-053` land, does this queue/form/append-only-save shape map cleanly onto real persistence, and does the not-yet-formalized `review_session` reference (company + date today, per `docs/customer/pipeline.md`'s markdown-log reality, also flagged in `HANDOFF-031`) need to be resolved before or can it start loosely-typed as `HANDOFF-031` already discussed?
+
+**Files:**
+
+- `docs/product/customer-review-workflow.md`
+- `docs/product/finding-feedback-contract.md`
+- `docs/customer/findings-review-protocol.md`
+- `apps/web/app/(app)/findings/[id]/page.tsx` (`FeedbackSlot`)
+- `memory/HANDOFFS.md#HANDOFF-031` (the still-open `review_session` question this reuses rather than re-asks)
+
+**Expected output:** Eventually, a `TASK-036` implementation proposal — no immediate output required.
+
+**Blocking:** NO — explicitly deferred. `TASK-036` remains `BLOCKED` on `TASK-035`; real implementation additionally needs `TASK-053`, independently.
+
+**Resolution:** Pending.

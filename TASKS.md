@@ -95,11 +95,57 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-003
 - **Goal:** Add `EASY`, `MEDIUM`, `HARD`, and `BRUTAL` presets varying noise, effects, missingness, confounding, rarity, and temporal instability.
 - **Status note (2026-08-16, Data Engineer):** Unblocked — `TASK-003` is `DONE` (`HANDOFF-030`
   accepted). Not picked up this iteration; `TASK-005`/`TASK-006` (below) were the assigned priority.
+- **Evidence (2026-08-18, Data Engineer):** `docs/benchmark/difficulty-presets.md` +
+  `Difficulty`/`DIFFICULTY_PRESETS`/`difficulty_config` in
+  `packages/analytics/src/policy_analytics/synthetic_benchmark.py`. All six requested knobs
+  implemented as `BenchmarkConfig` multipliers on already-existing generator mechanisms —
+  `effect_scale` (pattern magnitudes), `noise_scale` (outcome-generation noise width/stddev via a
+  new `scaled_uniform` helper), `confounding_scale` (manager/supplier trap weight boosts),
+  `missingness_scale` (the `repeat_purchase_180d` MNAR selection-bias probability),
+  `rarity_scale` (per-pattern trigger thresholds, capped so tightening can never make a threshold
+  exceed its field's real achievable range — `_tightened_min`), and `drift_scale` (P07's effect
+  magnitude specifically, the one pattern whose own trigger is temporal).
+  **The one non-negotiable constraint — `MEDIUM` must reproduce the already-frozen benchmark
+  byte-for-byte — was treated as a hard regression gate, not an aspiration:** every new field
+  defaults to its own mechanism's identity value; not one of the six knobs adds, removes, or
+  reorders a single `rng.*()` call versus the pre-`TASK-004` generator (verified: a scaled-by-1.0
+  `scaled_uniform` call consumes the exact same single draw as the original bare
+  `rng.uniform(...)`); `scale_effect_leaves` returns its input *completely untouched* at
+  `scale=1.0` (not `value * 1.0`) specifically so an int magnitude in the ground truth never
+  silently becomes a float and changes the file's hash. **Verified directly against the real,
+  already-referenced artifact, not just logically argued:** regenerated the default benchmark
+  before and after every change and diffed byte-for-byte against both a pre-change snapshot and
+  the actual committed `synthetic_data/` tree — `hidden_ground_truth.json`'s SHA-256 stayed
+  exactly `5c41aab8ad6765332b708fd8b91567b63839b84add2dd8aa206d87c159cab506` throughout (asserted
+  directly, permanently, in `tests/analytics/test_difficulty_presets.py`). A real design bug was
+  caught and fixed before shipping: an initial `rarity_scale` for `BRUTAL` (0.45) pushed two
+  patterns (P04, P08) to *zero* support on the full 10,000-row benchmark — each requires reaching
+  the tail of its own capped-gaussian feature on top of two other conditions, so over-tightening
+  made them structurally absent rather than merely rare. Found by actually generating the full
+  10,000-row benchmark at each preset and checking per-pattern support, not assumed; fixed by
+  empirically raising `BRUTAL`'s `rarity_scale` to 0.65, verified to keep all 9 patterns present at
+  every preset. Confirmed on the full benchmark: total exposed rows and total absolute economic
+  impact both move strictly monotonically EASY (1,433 rows / EUR 1,287,180) > MEDIUM (1,163 / EUR
+  668,522) > HARD (561 / EUR 244,114) > BRUTAL (525 / EUR 152,182); the same paired
+  factual-minus-counterfactual arithmetic Statistics verified for the frozen artifact
+  (`realized_economic_impact == |realized_effect| × affected_n`, `HANDOFF-030`) holds at every
+  difficulty, asserted directly by a new test. CLI (`scripts/generate_synthetic_benchmark.py
+  --difficulty=hard`, `make benchmark-difficulty difficulty=hard`) writes to
+  `synthetic_data_presets/<difficulty>/` (gitignored), never to `synthetic_data/` — only the
+  unchanged no-flags path touches the real frozen directory. 17 new tests
+  (`tests/analytics/test_difficulty_presets.py`); full suite verified against a live database (335
+  passed, up from 318); `ruff`/`pyright` clean.
+- **Deliberately not built this iteration** (see the doc's "out of scope" section): wiring a
+  preset into the actual blind-discovery/validation pipeline (own issuance/freeze/scoring cycle
+  under `ADR-008`, not implied by presets existing); a public/blind-export path for preset runs;
+  re-tuning the baseline (non-pattern) feature-generation noise (only outcome-generation noise is
+  scaled, keeping a harder preset "the same population, harder to read" rather than a different
+  population).
 
 ## Phase 2 — Data ingestion
 
@@ -271,12 +317,46 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-007, TASK-008
 - **Goal:** Produce machine- and customer-readable rows, columns, coverage, duplicates, missingness, invalid/suspicious records, currencies, leakage risks, outcomes, and usable variables.
 - **Rating:** Exactly one of `READY`, `READY_WITH_LIMITATIONS`, or `NOT_READY`.
 - **Status note (2026-08-17, Data Engineer):** Unblocked — `TASK-007` and `TASK-008` are both
   `DONE`.
+- **Evidence (2026-08-17, Data Engineer):** `DataQualityReport`
+  (`packages/analytics/src/policy_analytics/profiling/quality_report.py`) aggregates `TASK-007`
+  `ColumnProfile`s and `TASK-008` classifications from the same in-memory dataframe those stages
+  already loaded — no re-read of the CSV, no independent re-guessing of column meaning. Covers
+  every field the spec and `agents/DATA_ENGINEER.md` list: `row_count`/`column_count`; exact-
+  duplicate-row detection (`duplicate_row_count`/`distinct_row_count`, via `frame.n_unique()` on
+  the already-loaded frame); per-column date coverage; missingness (total, overall ratio, and a
+  disclosed 30%-per-column high-missingness flag); "invalid/suspicious records" interpreted
+  explicitly as `TASK-007`'s existing suspicious-value counts (documented as such, not a new
+  independent validity check); detected currency values (scanned directly from any
+  currency-named column, not just the capped 3-example preview `TASK-007` stores); `excluded_columns`
+  (every non-`DECISION_TIME` column with its `TASK-008` timing and reason — the leakage-risk list);
+  `available_outcomes`/`usable_decision_variables` (straight from `TASK-008`); a
+  `constant_decision_variables` check (zero-variance decision-time columns, useless for discovery);
+  and `DataQualityRating` (new `policy_schemas.domain` enum) via a disclosed threshold decision
+  tree, never a learned/opaque score (`ADR-004`) — `NOT_READY` only for a hard usability floor
+  (fewer than 50 rows, aligned with the validation contract's own gate G03 floor, not a new
+  invented number; zero usable decision variables; zero available outcomes), else
+  `READY_WITH_LIMITATIONS` if any disclosed limitation fires (unknown columns, high missingness,
+  >5% duplicate rows, suspicious values, constant decision variables), else `READY`. Persisted as a
+  single JSONB document on a new nullable `datasets.quality_report` column (migration
+  `20260817_0005`, alembic up/down/up round-trip verified against a live database) — one document,
+  not a relational table, matching `ValidationReportModel`'s own precedent for versioned diagnostic
+  documents that are always read as a unit. Wired into the same upload-time pipeline as
+  `TASK-007`/`TASK-008`; a failure still never fails the already-immutable upload.
+  **Verified against real data, not just synthetic unit fixtures:** ran against the actual
+  benchmark raw CSV (`synthetic_data/raw/travel_bookings_dirty.csv`) — correctly found 37 real
+  duplicate rows, correctly flagged `refund_date`'s expected high missingness, correctly detected
+  the dirty-variant's injected suspicious values in two columns, and correctly did **not** score a
+  false-clean `READY` on deliberately dirty data. 12 pure-computation unit tests
+  (`tests/analytics/test_quality_report.py`, every rating branch exercised individually) plus 2
+  real end-to-end upload-path tests (`tests/api/test_dataset_quality.py`) against a real ephemeral
+  PostgreSQL container. Full suite verified against a live database (299 passed); `ruff`/`pyright`
+  clean.
 
 ## Phase 3 — Canonical analytical dataset
 
@@ -284,9 +364,51 @@ Do not mark work `DONE` without executing its required checks and completion pro
 
 - **Owner:** DATA_ENGINEER
 - **Priority:** P0
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-009
 - **Goal:** Reproducibly normalize travel-agency inputs into a typed canonical representation.
+- **Status note (2026-08-17, Data Engineer):** Unblocked — `TASK-009` is `DONE`; the
+  `TASK-005`→`TASK-009` real-ingestion pipeline (upload → immutable storage → schema profile →
+  feature-timing classification → data-quality report) is now complete end to end and verified
+  against a real ephemeral PostgreSQL container.
+- **Evidence (2026-08-17→18, Data Engineer):** `docs/architecture/canonical-schema-contract.md` +
+  `packages/analytics/src/policy_analytics/cleaning/` (`canonical_schema.py`/`mapping.py`/
+  `normalize.py`). Resolves the design question flagged above: version stays
+  `travel-booking-canonical-v1.0.0` — the target shape doesn't change, only that it is now a real,
+  checkable 32-field contract (`CanonicalField`: name/`FeatureTiming` role/dtype/required/unit)
+  instead of an unbacked label; `analytical_dataset.py` now imports the constant from here rather
+  than defining its own copy. Every field and its `required` flag is either read off the
+  benchmark's own public schema or cross-referenced against a real structural dependency
+  (`analytical_dataset.py`'s hard assertions, or the `TASK-013` outcome contract's
+  `MissingDataPolicy.COMPLETE` columns) — not editorial guessing, and
+  `tests/analytics/test_canonical_schema.py` regenerates the required-set from the outcome
+  contract directly so that stays a real cross-check, not a hand-copied assertion.
+  **Mapping is never automatic for real data** (`ADR-004`, `AGENTS.md`'s "never allow ... fields
+  into explanatory features silently"): `suggest_mapping` proposes exact-name/known-alias
+  candidates only and is explicitly advisory; `validate_mapping` is the actual gate — every
+  `required` field must have a source, no source column mapped twice, and (the one safety-critical
+  cross-check) a source column `TASK-008` classified as anything other than `DECISION_TIME` can
+  never be mapped onto a canonical `DECISION_TIME` field, however the mapping was constructed;
+  `canonicalize` applies a validated mapping with explicit type coercion (booleans via a token
+  allowlist, not `bool(str)`) and fails closed on any problem, recording unmapped source columns
+  rather than silently dropping them. **Verified on three real cases, not just the trivially
+  already-canonical one:** the benchmark's clean CSV maps/canonicalizes to all 32 fields correctly;
+  the benchmark's deliberately dirty CSV correctly **fails closed** on the same corrupted
+  `booking_date` values `TASK-007` already flagged suspicious (proving this doesn't paper over
+  known-bad data); and the older, differently-named `tests/fixtures/synthetic_travel_bookings.csv`
+  fixture — a genuinely different raw schema — correctly resolves aliased names and correctly
+  refuses to canonicalize given its real missing required fields (`customer_id`, `currency`,
+  `support_cost_eur`, `contribution_margin_eur`). 19 new tests
+  (`tests/analytics/test_canonical_schema.py`, `tests/analytics/test_canonicalization.py`); full
+  suite verified against a live database (318 passed); `ruff`/`pyright` clean.
+- **Deliberately not built this iteration** (see the contract doc's "out of scope" section):
+  automatic wiring into the upload endpoint (canonicalization needs a *confirmed* mapping, which
+  cannot exist automatically for a dataset nobody has reviewed — stays a deliberate, explicit step,
+  unlike `TASK-006`–`TASK-009`); any persistence layer for a `ColumnMapping` or canonicalization
+  run (no real customer dataset exists yet to justify one); currency/unit conversion. This
+  completes the real-ingestion half of Phase 2/3 (`TASK-005`→`TASK-010` all `DONE`) — remaining
+  Phase 3 work (`TASK-011`'s real-customer equivalent) is gated on `TASK-057`/`TASK-037` like the
+  rest of the real-data path, not on this task.
 
 ### TASK-011 — Analytical dataset builder
 
@@ -300,8 +422,13 @@ Do not mark work `DONE` without executing its required checks and completion pro
   feature timing, customer clustering key, chronological splits, missingness diagnostics, and an
   attached Statistics-owned TASK-013 outcome contract. Standalone feature, outcome-column,
   excluded-column, and version manifests plus `make analytical-dataset` provide the first blind
-  discovery input contract. Completed 2026-08-13 by explicit founder direction; production
-  customer-input canonicalization under TASK-010 remains blocked and is not implied.
+  discovery input contract. Completed 2026-08-13 by explicit founder direction, ahead of and
+  without depending on TASK-010's own resolution.
+- **Update (2026-08-18, Data Engineer):** `TASK-010` is now `DONE` — the note above ("production
+  customer-input canonicalization under TASK-010 remains blocked and is not implied") no longer
+  reflects current state and is corrected here rather than rewritten in place. This dataset's own
+  build still used the benchmark's already-canonical column names directly, not TASK-010's mapping
+  layer — that remains true and unchanged; only the "still blocked" characterization was stale.
 
 ### TASK-012 — Temporal split builder
 
@@ -849,6 +976,19 @@ once `TASK-025` unblocks — infrastructure is not what's blocking `TASK-026`/`T
 gap handed to Architect, not fixed directly (CI/CD ownership): `.github/workflows/ci.yml`'s
 `frontend` job doesn't run `pnpm --filter web test` — see `HANDOFF-032`.
 
+**Visual identity repalette (2026-08-18, `ADR-026`):** At explicit user direction, `apps/web`'s
+color tokens and typefaces changed product-wide — not just the standalone Claude Artifact brief
+where the palette was first prototyped. New palette: `--ink:#001514`, `--paper:#fbfffe`,
+`--acid:#e6af2e` (was chartreuse `#dfff00`), `--line`/`--muted` re-derived via `color-mix()`, plus
+two new tokens (`--surface`, `--danger:#a3320b`) replacing hardcoded hex scattered across
+`app-shell.css`. Typography: Urbanist (new `--font-display` token, headings only) + Open Sans
+(`--font-body`, replaces Manrope), both self-hosted variable fonts via `next/font/google` in
+`layout.tsx`; `--font-mono` (IBM Plex Mono) unchanged. Token *names* kept stable to avoid a riskier
+rename across every consumer. Semantic status colors (live/health-check greens) deliberately left
+alone — not part of the brand accent. `pnpm --filter web lint/typecheck/test/build` all pass; no
+`*.md` in the repo quoted the old literal hex values, so nothing else went stale. Full rationale in
+`ADR-026`.
+
 ### TASK-026 — Findings list screen
 
 - **Owner:** PRODUCT
@@ -1004,6 +1144,18 @@ blocker"), not reopened or implied-done by this closure.
 - **Status note (2026-08-17, Architect):** Unblocked — `MILESTONE-M1` is `DONE` for its synthetic
   scope (see its own entry). Real, persisted, UI-visible Findings now exist to attach a policy
   candidate concept to (`TASK-024`–`TASK-027`). Implementation not started this iteration.
+- **Domain model (2026-08-18, Product):** `docs/product/policy-candidate-domain-model.md` (complete).
+  Eligibility gated on source Finding `policy_readiness` ∈ {`SHADOW_POLICY`, `HIGH_CONFIDENCE`} (the
+  latter currently unreachable system-wide); trigger is an immutable copy of the Finding's
+  conditions, never re-derived; scope carries a hard rule against narrowing by a variable already
+  flagged as a potential confounder; expected benefit is a frozen snapshot of the Finding's own
+  impact fields (never recomputed) plus a reserved `backtest_result` for `TASK-032`; action is
+  limited to one safe machine-proposed default ("flag for human review") with any more specific
+  intervention required to be human-authored; evidence is a frozen per-candidate snapshot with
+  defined behavior if the source Finding is later superseded/withdrawn; status is a forward-only
+  `PolicyCandidateStatus` enum. Extends the existing minimal `PolicyCandidateModel` skeleton
+  (`apps/api/app/db/models.py`). Status remains `READY`, not `DONE` — this is the domain-model
+  content Architect/Statistics review before implementation; see `HANDOFF-049`.
 
 ### TASK-031 — Policy candidate generator
 - **Owner:** PRODUCT
@@ -1015,6 +1167,9 @@ blocker"), not reopened or implied-done by this closure.
 - **Goal:** Deterministically translate validated findings into reviewable interventions; an LLM may later explain but never invent numerical thresholds.
 - **Status note (2026-08-17, Architect):** Correctly still `BLOCKED` — `TASK-030` (the domain
   model this generator would produce instances of) is `READY`, not `DONE`.
+- **Note (2026-08-18, Product):** `TASK-030`'s domain model is now written (see above) but `TASK-030`
+  itself stays `READY` rather than `DONE` pending Architect/Statistics review (`HANDOFF-049`);
+  `TASK-031` correctly remains `BLOCKED` until that review closes `TASK-030`.
 
 ## Phase 12 — Historical policy backtesting
 
@@ -1022,24 +1177,70 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** STATISTICS
 - **Implementation support:** ARCHITECT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-031
 - **Goal:** Estimate affected decisions, avoided bad outcomes, affected good outcomes, benefit, opportunity/operational costs, net effect, and uncertainty.
+- **Evidence (2026-08-18, Statistics, `ADR-028`):** The stated dependency (`TASK-031`) gates
+  wiring `backtest_result` into a real, persisted `PolicyCandidate` row — it does not gate the
+  engine itself, which operates directly on a Finding's frozen `pattern.conditions`, the same
+  relationship `TASK-021`/`TASK-023` had to `TASK-024` before persistence existed. Built and
+  frozen: `packages/analytics/src/policy_analytics/backtest/`
+  (`BacktestResult`/`run_backtest`/`backtest_from_mask`, `BACKTEST_CONTRACT_VERSION = "1.0.0"`),
+  `scripts/run_backtest.py`, methodology `docs/analytics/policy-backtest-contract.md`. Implements
+  `docs/analytics/validation-contract.md` §9 exactly: `future_holdout`-only (hard constant, not a
+  parameter), raw/unadjusted `benefit` (an honest "upper bound," not the smaller adjusted figure),
+  both-sides-always avoided/suppressed counts (enforced, not just documented), never-invented
+  operational cost, and the same cluster bootstrap used everywhere else in this repository. Run
+  for real against the 6 `shadow_policy`-eligible candidates in the current best validation
+  artifact — all 6 show a measurable positive net effect in `future_holdout`
+  (`artifacts/backtest/task-032-backtest-task-058-remediation-001.json`). Fills
+  `docs/product/policy-candidate-domain-model.md` §7's reserved `backtest_result` field-for-field,
+  plus disclosure fields a UI needs to render it safely (`HANDOFF-049`'s Statistics half,
+  answered). **Still blocked, correctly:** wiring this into a real `PolicyCandidate.backtest_result`
+  column is `TASK-031`'s job, not done here.
 
 ### TASK-033 — Synthetic backtest validation
 - **Owner:** STATISTICS
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** DONE
 - **Depends on:** TASK-003, TASK-032
 - **Goal:** Compare backtest estimates with synthetic policy ground truth.
+- **Evidence (2026-08-18, Statistics, `ADR-028`):** `scripts/validate_backtest_synthetic.py`, run
+  only after `TASK-032`'s methodology and code were frozen (`TASK-018`→`TASK-028` sequencing
+  discipline). Isolates engine correctness from `TASK-028`'s already-diagnosed candidate-matching
+  dilution by running `backtest_from_mask()` on each of the 9 hidden patterns' own true
+  `affected_booking_ids`, not a discovered candidate's broader rule: **9/9 correct direction,
+  median 31.0% relative error** against an explicitly-approximated true value (ground truth has no
+  `future_holdout`-only breakdown, disclosed, not presented as exact). Also ran against all 5
+  confounding traps as a disclosure check (not pass/fail): every trap shows a nonzero raw benefit
+  despite a known-zero true direct effect, confirming the "not causal, unadjusted" disclosure is
+  necessary, not decorative. Full report: `docs/benchmark/task-033-backtest-validation-v1.md`;
+  frozen artifact: `artifacts/backtest/task-033-backtest-validation.json`.
 
 ### TASK-034 — Policy backtest UI
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-032
 - **Goal:** Present rule, affected records, upside/downside, uncertainty, evidence, and next action.
+- **UX specification (2026-08-18, Product):** `docs/product/policy-backtest-screen.md` (complete),
+  originally written against `docs/analytics/validation-contract.md` §9's methodology ahead of
+  `TASK-032`, then revised the same day field-for-field against the real, frozen `BacktestResult`
+  once `TASK-032` shipped (`docs/analytics/policy-backtest-contract.md`, `ADR-028`). Fixes:
+  job-status pattern for a triggered run (reusing `ResourceStatus`); a backtest-specific
+  `affected_decisions` count Statistics confirmed is a genuinely third population, never conflated
+  with the Finding's `affected_records`/`exposed_records` (`HANDOFF-050`, extending `HANDOFF-046`'s
+  lesson); both-sides-always upside/downside (structurally enforced in code, not just displayed
+  that way); a visible, never-pre-netted operational-cost line with its `cost_per_review_eur`
+  assumption always shown alongside; `benefit_is_adjusted`/`net_effect_is_cost_exclusive` caveats;
+  reading `no_measurable_net_effect` directly rather than re-deriving it; and rendering the engine's
+  own `methodology_disclosure` string verbatim rather than authoring new disclaimer copy.
+- **Status change (2026-08-18, Product):** `BLOCKED → READY` — the stated dependency, `TASK-032`,
+  is now `DONE`. Practically, there is still no real, persisted Policy Candidate to attach this
+  screen to (`TASK-031`/`TASK-030` not yet `DONE`) — the computation this screen renders is real and
+  tested, but nothing in production produces one yet. See `HANDOFF-050` for the implementation
+  handoff, updated the same day with Statistics' field-shape confirmation.
 
 ## MILESTONE-M2 — Policy discovery demo
 
@@ -1052,7 +1253,7 @@ blocker"), not reopened or implied-done by this closure.
 ### TASK-035 — Finding feedback model
 - **Owner:** PRODUCT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-027
 - **Values:** `KNOWN_ALREADY`, `NEW`, `WRONG`, `NOT_ACTIONABLE`, `INTERESTING`, `ACTIONABLE`.
 - **Semantic contract (2026-08-14, FROZEN v0):** `docs/product/finding-feedback-contract.md`. Splits
@@ -1068,14 +1269,53 @@ blocker"), not reopened or implied-done by this closure.
   visibly non-interactive chip row). Real persistence/auth for who is giving feedback is a
   separate concern — `TASK-053` (basic authentication) is still needed before this can be more
   than a UI mock. Implementation not started this iteration.
+- **Evidence (2026-08-18, Architect, `ADR-027`):** Implemented on top of `TASK-053`. `finding_feedback`
+  table (append-only — every submission a new row, matching `CandidatePatternModel`/
+  `ValidationReportModel`'s existing immutability posture), field set and rules exactly as
+  `docs/product/finding-feedback-contract.md` §2–§4 specify (novelty/actionability nullable
+  single-selects, `WRONG`/`INTERESTING` multi-select tags, `WRONG ⇒ customer_comment` required —
+  enforced in the Pydantic input contract). `created_by_user_id` is the authenticated internal
+  reviewer (`TASK-053`), not the customer — `review_session` (free text, per §4/§9: no formal
+  session-persistence model exists yet, not invented here) identifies which customer/session.
+  `POST`/`GET /api/v1/findings/{id}/feedback` (`POST` requires auth; `GET` stays open like every
+  other read route). No code path writes to `FindingModel` — §7's
+  "never changes `evidence_level`/`policy_readiness`" holds structurally, not just by convention.
+  `TASK-027`'s disabled `findingDetail-feedback` chip row is replaced with a real form
+  (`apps/web/components/findings/FeedbackForm.tsx`): novelty/actionability toggles, tag checkboxes,
+  a comment box that appears and becomes required exactly when `WRONG` is checked, an optional-field
+  disclosure for the remaining §4 fields, a login prompt instead of the form when anonymous, and a
+  rendered history of past submissions. Verified: real ephemeral-Postgres integration tests
+  (`tests/api/test_finding_feedback.py` — 401 without auth, `WRONG` without comment 422s, append-only
+  across two submissions, 404 for an unknown finding, `evidence_level`/`policy_readiness`
+  byte-identical before/after), frontend component tests, full repo suite (349 backend + 46
+  frontend) and `pnpm build` all clean, and a real end-to-end run against a live `uvicorn`/`pnpm dev`
+  pair using the real closing-run findings (`scripts/promote_findings.py`'s 15 rows): logged in,
+  submitted a `WRONG`+comment feedback entry, confirmed it persisted and the finding's own
+  evidence/readiness fields were unchanged.
 
 ### TASK-036 — Customer review workflow
 - **Owner:** PRODUCT
 - **Priority:** P1
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-035
 - **Goal:** Structured one-by-one finding review.
 - **Note (2026-08-14):** Session mechanics are already specified in `docs/customer/findings-review-protocol.md`; `docs/product/finding-feedback-contract.md` now fixes what each per-finding capture actually stores. Remains `BLOCKED` on `TASK-035`.
+- **UX specification (2026-08-18, Product):** `docs/product/customer-review-workflow.md` (complete).
+  The missing third piece between the interview protocol and the feedback field contract: queue
+  (`ACTIVE` findings only, same default sort as the findings list), one-at-a-time flow reusing the
+  detail screen's content plus a real form for `TASK-027`'s currently-disabled `FeedbackSlot`
+  placeholder, explicit skip-vs-partial-save distinction, append-only "back" semantics, and a
+  deliberately non-interpretive session-completion view. Flags two independent implementation
+  blockers: `TASK-035` itself and, separately, `TASK-053` (basic auth, `READY`) — without it,
+  `captured_by` cannot be attributed and this workflow has no real reviewer identity. Status remains
+  `BLOCKED`. See the new implementation handoff below.
+- **Status note (2026-08-18, Architect):** `BLOCKED` → `READY` — both flagged blockers are now
+  `DONE` (`TASK-035`, `TASK-053`), and `TASK-027`'s `FeedbackSlot` placeholder this spec names is
+  already replaced by a real form (`FeedbackForm.tsx`, see `TASK-035`'s evidence). **Not implemented
+  this iteration**: this task's own scope per `docs/product/customer-review-workflow.md` is the
+  dedicated one-at-a-time review *queue* (session start, skip/partial-save, completion view) — a
+  materially different screen from the per-finding capture form `TASK-035` shipped, which the queue
+  is meant to sequence through, not a duplicate of it.
 
 ## Phase 14 — First real customer data
 
@@ -1377,7 +1617,7 @@ Do not overbuild before demand.
 ### TASK-053 — Basic authentication
 - **Owner:** ARCHITECT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** none (implementation-ready)
 - **Status note (2026-08-17, Architect):** Reprioritized `P2`→`P1`, `BLOCKED`→`READY`. Originally
   deprioritized pending "real external users" (no auth-worthy multi-user need yet). That's no
@@ -1389,6 +1629,22 @@ Do not overbuild before demand.
   separate, security-sensitive design task deserving its own pass, not a drive-by addition to a
   status-reconciliation sweep. `TASK-054` (tenant isolation) remains correctly `BLOCKED` below —
   this reprioritization is about single-identity attribution for `TASK-035`, not multi-tenancy.
+- **Evidence (2026-08-18, Architect, `ADR-027`):** Internal-staff login implemented for real —
+  `users`/`sessions` tables, bcrypt password hashing, DB-backed opaque session cookie (httpOnly,
+  `SameSite=Lax`, real revocation on logout, no JWT/signing secret). No self-serve signup; accounts
+  are created via `scripts/create_user.py` only. `POST/GET /api/v1/auth/{login,logout,me}`
+  (`apps/api/app/auth/`). **Deliberately narrow protected surface**, matching this task's own
+  attribution-only justification above: only `TASK-035`'s feedback-write endpoint requires auth;
+  every other route, including dataset upload, stays open — `SECURITY.md` updated to say this
+  explicitly so it isn't misread as a full lockdown. Login rate-limiting/bot protection are not
+  implemented (no rate-limit infra exists in this repo; adding one ad hoc here would be the exact
+  "drive-by addition" this task's status note already warned against) — real, tracked follow-on
+  work, not silently skipped. Frontend: `/login` page, `nav-user` header widget. Verified: real
+  ephemeral-Postgres integration tests (`tests/api/test_auth.py`, wrong-password/unknown-email give
+  the same generic 401, expired sessions rejected, logout actually invalidates the session), full
+  repo suite (349 passed) twice against a live database, and a real end-to-end run — `uvicorn` +
+  `pnpm dev`, a user created via the CLI, logged in through the real `/login` page, confirmed
+  `/api/v1/auth/me` 401s again after logout.
 
 ### TASK-054 — Tenant-isolation design
 - **Owner:** ARCHITECT

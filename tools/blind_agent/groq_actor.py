@@ -271,9 +271,7 @@ def dispatch(name: str, arguments: str) -> str:
         line_end = payload.get("line_end")
         return read_file(str(payload["path"]), cast(int, line_start), cast(int | None, line_end))
     if name == "search":
-        return search(
-            str(payload["path"]), str(payload["query"]), payload.get("max_matches", 20)
-        )
+        return search(str(payload["path"]), str(payload["query"]), payload.get("max_matches", 20))
     if name == "run_python":
         return run_python(str(payload["code"]))
     raise ValueError(f"unknown tool: {name}")
@@ -485,9 +483,7 @@ def run(model: str, *, rehearsal: bool = False) -> None:
             function = cast(dict[str, Any], raw_function)
             function_name = str(function.get("name"))
             try:
-                raw_audit_arguments: object = json.loads(
-                    str(function.get("arguments", "{}"))
-                )
+                raw_audit_arguments: object = json.loads(str(function.get("arguments", "{}")))
             except json.JSONDecodeError:
                 raw_audit_arguments = {}
             audit_arguments = (

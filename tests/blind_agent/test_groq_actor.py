@@ -66,9 +66,7 @@ def test_run_python_removes_provider_credentials(
     for name in credential_names:
         monkeypatch.setenv(name, "must-not-reach-child")
 
-    result = json.loads(
-        groq_actor.run_python("import os; print(','.join(sorted(os.environ)))")
-    )
+    result = json.loads(groq_actor.run_python("import os; print(','.join(sorted(os.environ)))"))
 
     assert result["returncode"] == 0
     surviving = set(result["stdout"].strip().split(","))
@@ -140,9 +138,7 @@ def test_bounded_search_matches_generated_gpt_oss_call_and_preserves_isolation(
     with pytest.raises(ValueError, match="safe workspace-relative"):
         groq_actor.search("../discovery", "eligible")
     with pytest.raises(ValueError, match="non-symlink"):
-        groq_actor.search(
-            "packages/analytics/src/policy_analytics/discovery/link.py", "eligible"
-        )
+        groq_actor.search("packages/analytics/src/policy_analytics/discovery/link.py", "eligible")
     with pytest.raises(ValueError, match="between"):
         groq_actor.search("packages", "eligible", groq_actor.MAX_SEARCH_MATCHES + 1)
 
