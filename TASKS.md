@@ -920,6 +920,23 @@ Do not mark work `DONE` without executing its required checks and completion pro
   wrong assumption against the real run and was corrected, not the code.) 22 new tests (unit +
   live-Postgres integration through the real HTTP routes) pass, full suite green twice in a row
   against the same database (rerun-safety), `ruff`/`pyright`/`pnpm typecheck` all clean.
+- **Fixed (2026-08-18, Architect):** `scripts/promote_findings.py` had its four artifact paths
+  hardcoded to `task-015-official-20260816-015` — the run `ADR-019` graded **FAILED** overall,
+  superseded same day by `ADR-025`'s remediation. Any database seeded from that script's default
+  held findings from the wrong-era run, not the current PROMISING-verdict one. Parametrized
+  (`--candidates`/`--metrics`/`--ranking`/`--validation-report`, mirroring
+  `scripts/evaluate_benchmark.py`/`scripts/rank_candidates.py`'s own CLI convention); default now
+  points at `task-058-remediation-20260817-001`. Its `TASK-016` ranking artifact didn't exist yet
+  (only the superseded run had one) — generated it for real via `scripts/rank_candidates.py`
+  (gitignored under `artifacts/`, regenerable, not committed). Re-ran against a real ephemeral
+  Postgres: 15/15 promote (6 `PASS`/`adjusted_observational_association`/`shadow_policy` —
+  `CAND-003/006/007/011/013/015` — 9 `DOWNGRADE`/`experiment_only`, split 7
+  `descriptive_observation` + 2 `predictive_association`), `evaluated_hypotheses=6557` matching the
+  remediation run's own frozen metrics. `tests/api/test_promote_findings.py`'s
+  live-subprocess integration test asserted the old run's exact numbers/candidate keys — updated to
+  the new default's real, verified values (not guessed) rather than only patched to pass; backward
+  compatibility with the old run's explicit paths re-verified by hand. Full suite (362 tests) green
+  twice against a live database.
 
 ### TASK-025 — Findings API completion
 
@@ -1156,6 +1173,12 @@ blocker"), not reopened or implied-done by this closure.
   `PolicyCandidateStatus` enum. Extends the existing minimal `PolicyCandidateModel` skeleton
   (`apps/api/app/db/models.py`). Status remains `READY`, not `DONE` — this is the domain-model
   content Architect/Statistics review before implementation; see `HANDOFF-049`.
+- **Statistics half of `HANDOFF-049` answered (2026-08-18):** §7's reserved `backtest_result`
+  shape and §3's confounder-scope guardrail both confirmed against the now-real `TASK-032`
+  `BacktestResult` contract (`ADR-028`) — see `HANDOFF-049`'s resolution for the full answer,
+  including a real gap flagged for `TASK-031` to close (the guardrail is not, and cannot be,
+  enforced inside the backtest engine itself). Status stays `READY`, not `DONE` — Architect's own
+  persistence-shape half of `HANDOFF-049` is still open.
 
 ### TASK-031 — Policy candidate generator
 - **Owner:** PRODUCT
@@ -1170,6 +1193,14 @@ blocker"), not reopened or implied-done by this closure.
 - **Note (2026-08-18, Product):** `TASK-030`'s domain model is now written (see above) but `TASK-030`
   itself stays `READY` rather than `DONE` pending Architect/Statistics review (`HANDOFF-049`);
   `TASK-031` correctly remains `BLOCKED` until that review closes `TASK-030`.
+- **Generation-procedure prep (2026-08-18, Product):** `docs/product/policy-candidate-domain-model.md`
+  §12 added — Statistics' half of `HANDOFF-049` is now answered (`TASK-032` shipped and confirmed
+  the reserved `backtest_result`/confounder-guardrail shape), leaving only Architect's
+  persistence-shape question open. §12 fixes what §0–§11 didn't: generation is manually triggered
+  (not automatic on readiness), idempotent per Finding, produces `action_detail = null` (the safe
+  default is a UI-suggested placeholder, never machine-written into the field itself), and discloses
+  skipped Findings with a reason. `TASK-030` still correctly not `DONE`; `TASK-031` still correctly
+  `BLOCKED` — this is further prep, not a status change.
 
 ## Phase 12 — Historical policy backtesting
 
@@ -1292,6 +1323,17 @@ blocker"), not reopened or implied-done by this closure.
   pair using the real closing-run findings (`scripts/promote_findings.py`'s 15 rows): logged in,
   submitted a `WRONG`+comment feedback entry, confirmed it persisted and the finding's own
   evidence/readiness fields were unchanged.
+- **Product sign-off (2026-08-18):** Read the actual implementation against
+  `docs/product/finding-feedback-contract.md` line by line, not just the evidence summary above —
+  `FeedbackNovelty`/`FeedbackActionability`/`FeedbackTag`/`FeedbackCertainty`/
+  `FeedbackCommitmentStrength` (`packages/schemas/src/policy_schemas/domain.py`) match §2's values
+  and code comments cite the contract's own section numbers; `wrong_requires_comment` is enforced
+  in both `FeedbackCreate` (server) and `FeedbackForm.tsx` (client, disabled submit) per §3 rule 1;
+  `customer_certainty` is UI-labeled "their own, not statistical confidence" in the form itself,
+  not just in a docstring; `feedback_service.create_feedback` only ever `INSERT`s, never touches
+  `FindingModel`, matching §5/§7 structurally; `review_session` is free text, matching this
+  contract's own deferral of a formal session object. No deviation found. `DONE` confirmed by its
+  owner, not just recorded by the implementing role. Closes `HANDOFF-031`.
 
 ### TASK-036 — Customer review workflow
 - **Owner:** PRODUCT

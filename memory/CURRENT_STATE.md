@@ -196,6 +196,14 @@ real closing-run findings, confirmed it persisted and the finding's own `evidenc
 `docs/product/customer-review-workflow.md`) is now `READY`, not `BLOCKED`: both blockers it named
 are `DONE`, but its own scope (the dedicated one-at-a-time review queue) is separate, un-started
 work, not delivered by this pass.
+
+**Fixed 2026-08-18 (Architect): `scripts/promote_findings.py` was hardcoded to the superseded
+`task-015-official-20260816-015` run (`ADR-019`, graded FAILED overall) instead of the current
+PROMISING-verdict `task-058-remediation-20260817-001` (`ADR-025`)** — any database seeded from its
+default held findings from the wrong-era run. Parametrized like `evaluate_benchmark.py`/
+`rank_candidates.py`; the remediation run's missing `TASK-016` ranking artifact was generated for
+real. Re-verified end to end against a live database: 15/15 promote, 6 `shadow_policy`/9
+`experiment_only` as expected. See `TASK-024`'s evidence for the exact numbers.
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote

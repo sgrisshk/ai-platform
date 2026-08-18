@@ -1610,7 +1610,14 @@ scoring input for `TASK-028`/`TASK-029` (`docs/benchmark/task-029-benchmark-repo
 
 **Blocking:** NO — explicitly deferred. `TASK-035` remains `BLOCKED` on `TASK-027`, which remains `BLOCKED` on `TASK-025`→`TASK-024`. This handoff exists so the contract is available ahead of time, not to unblock anything now.
 
-**Resolution:** Pending.
+**Resolution (2026-08-18):** Implemented (Architect, `ADR-027`) — a `finding_feedback` table
+(append-only), `POST`/`GET /api/v1/findings/{id}/feedback`, and `FeedbackForm.tsx` replacing the
+`TASK-027` placeholder. `review_session` started as a loosely-typed free-text field, answering this
+handoff's second question — no formal Customer Discovery session-persistence object was built or
+required. Product verified the implementation against the contract directly (`TASKS.md`, `TASK-035`
+"Product sign-off," 2026-08-18): field values, the `WRONG`⇒comment rule, the "never named
+confidence" rule, and the "never touches `FindingModel`" boundary all hold in the real code, not
+just in the plan.
 
 ## HANDOFF-032
 
@@ -2456,7 +2463,7 @@ change the graded band or fire the hard disqualifier, but is a real precision ga
 **Created:** 2026-08-18
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** OPEN
+**Status:** IN_PROGRESS
 
 **Task:** Future persistence design for the Policy Candidate domain model (`TASK-030`/`TASK-031`), against `docs/product/policy-candidate-domain-model.md`. Not a request to implement now.
 
@@ -2525,7 +2532,7 @@ Architect's persistence-shape question (extending `policy_candidates`, trigger-v
 **Created:** 2026-08-18
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** OPEN
+**Status:** IN_PROGRESS
 
 **Task:** Future implementation of the Policy Backtest screen (`TASK-034`), against `docs/product/policy-backtest-screen.md`. Not a request to implement now.
 
