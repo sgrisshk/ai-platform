@@ -906,3 +906,68 @@ clean; `scripts/promote_findings.py` re-run end-to-end against the real
 `task-058-remediation-20260817-001` closing run with the corrected artifacts (still 15/15 promote,
 unchanged). No finding, evidence level, statistic, or conclusion in any frozen artifact changed —
 only the one metadata fingerprint they were stamped with.
+
+## ADR-031 — Synthetic benchmark CSV writer: pin lineterminator to "\n"
+
+**Date:** 2026-08-18
+**Status:** Accepted
+
+**Decision:** `_write_csv` in `packages/analytics/src/policy_analytics/synthetic_benchmark.py` (and
+the same pattern in `scripts/generate_synthetic_fixture.py`) now constructs `csv.DictWriter` with
+`lineterminator="\n"` instead of accepting the `csv` module's default. A regenerated
+`travel_bookings_dirty.csv`/`travel_bookings_clean.csv`/`synthetic_travel_bookings.csv` is now
+byte-identical to what's committed on every machine and every OS, verified by direct `sha256`
+comparison, not just `git diff`. Because `dataset_identity_sha256` includes `source_sha256` (a hash
+of `travel_bookings_clean.csv`), this is the second re-pin of
+`synthetic_data/analytical/travel-bookings-analytical-v1.0.0` today: `dataset_identity_sha256` moves
+from ADR-030's `e7aff995359222bfedb6ee7332934a9238ce10b7e889f8812f27a0ff7da1e707` to
+`dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423`, propagated the same way as
+ADR-030: `outcomes/contract.py`'s `DATASET_IDENTITY_SHA256`, the frozen artifact's
+`manifest.json`/`version_metadata.json`, and the same 8 gitignored local artifacts under
+`artifacts/`.
+
+**Context:** Python's `csv` module's default (`excel`) dialect writes `"\r\n"` regardless of
+platform — this is deliberate per-RFC-4180 behavior, not an accident, and is why `_write_csv`
+already used `path.open(..., newline="")` (the documented way to stop the file object from *also*
+translating those bytes). The committed `synthetic_data/` CSVs are `"\n"`-only. Whichever machine
+first generated and committed them evidently had `core.autocrlf` (or an editor/tool) silently
+normalize `"\r\n"` → `"\n"` at commit time — invisible on that machine and on any contributor's
+machine with the same git config, because `core.autocrlf=input` normalizes CRLF/LF for `git
+status`/`git diff` comparison purposes even when the working-tree file itself still has `"\r\n"`.
+GitHub Actions' Linux runners do not: `git diff --exit-code -- synthetic_data` (the CI step added in
+`ci.yml`, verifying a regeneration matches what's committed) did a literal byte comparison and
+failed on every line of both files — 10036 of 10038 lines flagged in
+`travel_bookings_dirty.csv` — even though every field value was identical; only each line's
+trailing `\r` differed. Confirmed harmless by stripping `\r` from the pre-fix working copy and
+diffing against the committed blob: zero differences. This was invisible locally for the same
+reason ADR-030's blast-radius risk was initially underestimated — a machine-local git config
+absorbing what should be a hard failure everywhere.
+
+This also explains why `synthetic_data/metadata/checksums.json`'s recorded hashes for these two
+files didn't match the actual committed file content even before this session touched anything: the
+generator computes and writes `checksums.json` from the raw bytes it just wrote (`"\r\n"`,
+in-process, before any git normalization happens), while the `.csv` files themselves got silently
+LF-normalized by whichever contributor's `core.autocrlf` config committed them — the two were never
+consistent with each other. Fixing the writer's `lineterminator` corrects both at once: this
+session's regeneration now produces `checksums.json` values that match the actual committed CSV
+bytes for the first time.
+
+Discovered by reproducing the live CI `backend` job's remaining red step end-to-end (via the
+GitHub API against the actual run for `340e569`, using the git-configured credential — `gh` isn't
+installed in this environment) after ADR-030 and the `blind_isolation` key-bootstrap fix
+(`340e569`) both went in; the pasted CI log's diff was mistaken at first glance for a data-drift
+bug (only "+" lines were visible in the truncated snippet shown) before the full log revealed
+matched-content `-`/`+` pairs, which is the CRLF signature, not a content regression.
+
+**Consequences:** `git diff --exit-code -- synthetic_data` (and the equivalent for
+`tests/fixtures/synthetic_travel_bookings.csv`, covered by the same fix) now passes on a genuinely
+fresh checkout regardless of the running machine's git configuration — the guarantee no longer
+depends on `core.autocrlf`. Verified: regenerating locally reproduces the committed
+`travel_bookings_dirty.csv`/`travel_bookings_clean.csv`/`synthetic_travel_bookings.csv` byte-for-byte
+(`sha256` match, not just `git diff`); the full backend CI sequence — `ruff`/`pyright`/alembic
+x3/`pytest` (375 tests)/`check_repository_data.py`/`make analytical-dataset`/`init-key`/
+`prepare_blind_workspace.py`/`git diff --exit-code -- synthetic_data`/`pip-audit` — replayed
+end-to-end locally against a fresh Postgres, all green. `scripts/promote_findings.py` re-verified
+against the real `task-058-remediation-20260817-001` closing run with the newly-corrected artifacts
+(still 15/15 promote). No finding, evidence level, statistic, or row of data changed anywhere in
+this fix — only fingerprint fields.
