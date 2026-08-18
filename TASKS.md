@@ -1302,6 +1302,14 @@ blocker"), not reopened or implied-done by this closure.
   screen to (`TASK-031`/`TASK-030` not yet `DONE`) — the computation this screen renders is real and
   tested, but nothing in production produces one yet. See `HANDOFF-050` for the implementation
   handoff, updated the same day with Statistics' field-shape confirmation.
+- **`HANDOFF-050` fully resolved (2026-08-18, Architect).** Statistics' three-population claim
+  (`exposed_records`/`affected_records`/`affected_decisions` genuinely disjoint, not collapsible)
+  independently re-verified against the real `split_stats` call sites, not just the doc text.
+  Architect's own open point — job-status modeling — answered: a future run reuses `ResourceStatus`
+  (same enum `AnalysisRunModel.status` already uses), one new row per triggered run
+  (`PolicyBacktestRunModel`, not built now). `TASK-030` closed the same day (`ADR-029`), so the only
+  remaining practical blocker is `TASK-031` (still `BLOCKED`→`READY` itself, not started) actually
+  producing a Policy Candidate to attach a real run to. Status stays `READY`, not started.
 
 ## MILESTONE-M2 — Policy discovery demo
 

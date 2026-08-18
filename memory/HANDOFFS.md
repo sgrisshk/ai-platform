@@ -2546,7 +2546,7 @@ creation time. Full design rationale, alternatives considered, and verification 
 **Created:** 2026-08-18
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** IN_PROGRESS
+**Status:** RESOLVED
 
 **Task:** Future implementation of the Policy Backtest screen (`TASK-034`), against `docs/product/policy-backtest-screen.md`. Not a request to implement now.
 
@@ -2594,6 +2594,30 @@ Two additions the screen should plan for, beyond what this handoff asked about:
 and `no_measurable_net_effect` (a precomputed bool for this handoff's context's own
 "no measurable net effect" wording rule — read the field, don't re-derive the zero-crossing check
 client-side). Full contract: `docs/analytics/policy-backtest-contract.md`.
+
+**Resolution (2026-08-18, Architect's half) — now fully resolved.** Independently re-verified
+Statistics' three-population claim against the real code, not just the doc text, before signing
+off: `exposed_records` (`ValidationMetadataPersistence`) comes from `split_stats` over the
+development split only (`apply.py`); `affected_records` (`EconomicImpactPersistence`) comes from
+`split_stats` over `combined_mask = full_mask` — development + validation + future_holdout,
+explicitly commented as such in `apply.py`; `affected_decisions` (`BacktestResult`) comes from
+`split_stats` over `holdout_frame = frame.filter(split_label == "future_holdout")` alone
+(`backtest/engine.py`). Same helper, three genuinely disjoint frame scopes — confirmed real, not
+just claimed.
+
+**Point (1), Architect's own open question:** yes, a triggered backtest run should be modeled as
+its own row reusing `ResourceStatus` (`pending`/`running`/`completed`/`failed`) — the same enum
+`AnalysisRunModel.status` already uses, not a new vocabulary and not `PolicyCandidateStatus`
+(a different concept: job execution state, not domain lifecycle). Concretely, for whoever
+implements `TASK-034`: a future `PolicyBacktestRunModel` (`policy_candidate_id` FK,
+`cost_per_review_eur` nullable — the caller input echoed per §2 of the screen spec, `status:
+ResourceStatus`, `backtest_result: JSONB` nullable — populated on `completed`, validated against
+`app.policies.contracts.PolicyCandidateBacktestSnapshot` (`ADR-029`) which already mirrors
+`BacktestResult.to_dict()`'s exact shape, `failure_reason: Text` nullable — populated on `failed`,
+timestamps), one row per run per §2's "re-running always creates a new record, never overwrites."
+This is a recommendation for `TASK-034`'s eventual implementation, not built now — `TASK-034`
+correctly stays not-yet-implemented, still practically gated on `TASK-031` producing a real
+Policy Candidate to attach a run to, per this handoff's own last paragraph.
 
 ## HANDOFF-051
 
