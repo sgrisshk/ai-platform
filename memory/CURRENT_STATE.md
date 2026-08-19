@@ -234,6 +234,25 @@ correctly skipped with the real reason; a rerun was a clean no-op. Full suite (3
 twice on a fresh database. `MILESTONE-M2` (policy discovery demo) now only needs `TASK-034` (the
 backtest UI, `READY`, not started) to close.
 
+**`TASK-034` (policy backtest UI) `DONE` 2026-08-19 (Architect, `ADR-033`).** Two real gaps closed:
+nothing computed/persisted a backtest *run* yet (only the pure engine existed), and no screen
+anywhere reached a Policy Candidate (`TASK-030`/`031` had no routes/UI) — per explicit user
+direction, a minimal Policy Candidate detail screen was built alongside the backtest screen, not
+worked around. `PolicyBacktestRunModel` reuses `ResourceStatus` exactly as `HANDOFF-050`
+recommended, computed synchronously inside the request (no async/worker infrastructure exists
+anywhere in this codebase). First public routes for `app.policies` — no auth, matching `ADR-027`'s
+narrow protected surface. **Built against `apps/web`'s new static-export architecture (`ADR-032`,
+landed the same day)** — both screens are flat `?id=`-reading routes under `Suspense`, Client
+Components fetching in `useEffect`, mirroring `findings/detail`'s established pattern, not the
+server-component pattern this repo used before that day. Verified: a live backtest trigger matched
+byte-for-byte against a direct, independent `run_backtest()` call
+(`affected_decisions=570`/`avoided_bad_outcomes=108`/`suppressed_good_outcomes=462`); 19 new
+backend + 9 new frontend tests; `next build` producing both new static routes cleanly; full suite
+(391 backend, 55 frontend) green twice. `MILESTONE-M2` is `READY` — "create a policy candidate" is
+real but script-mediated (§12's own design), not yet a UI button, so whether that satisfies the
+milestone's literal success criterion is a Product call, not made here. `TASK-036` (customer review
+workflow) was deliberately not bundled into this pass.
+
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote

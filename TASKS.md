@@ -1314,7 +1314,7 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** PRODUCT
 - **Implementation:** ARCHITECT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-032
 - **Goal:** Present rule, affected records, upside/downside, uncertainty, evidence, and next action.
 - **UX specification (2026-08-18, Product):** `docs/product/policy-backtest-screen.md` (complete),
@@ -1342,12 +1342,39 @@ blocker"), not reopened or implied-done by this closure.
   (`PolicyBacktestRunModel`, not built now). `TASK-030` closed the same day (`ADR-029`), so the only
   remaining practical blocker is `TASK-031` (still `BLOCKED`→`READY` itself, not started) actually
   producing a Policy Candidate to attach a real run to. Status stays `READY`, not started.
+- **Implementation (2026-08-19, Architect) → `DONE`.** Full rationale in `ADR-033`. Real gap closed
+  first: nothing computed/persisted a backtest *run* (only the pure engine existed), and no screen
+  anywhere reached a Policy Candidate (`TASK-030`/`031` had no routes/UI) — per explicit user
+  direction, a minimal Policy Candidate detail screen was built alongside the backtest screen, not
+  worked around. `PolicyBacktestRunModel` (migration `20260818_0008`) reuses `ResourceStatus`
+  exactly as `HANDOFF-050` recommended; computed synchronously inside the request (no async/worker
+  infrastructure exists anywhere in this codebase — a real `pending`/`running` state would be
+  theater). First public routes for `app.policies` (`GET`/`POST /policy-candidates`, `.../transition`,
+  `.../backtest`) — no auth, matching `ADR-027`'s narrow protected surface; nothing here carries
+  attribution the way `TASK-035` feedback does. **Frontend built against `apps/web`'s new
+  static-export architecture (`ADR-032`, landed the same day this task started)** — both new
+  screens are flat `?id=`-reading routes under `Suspense`, Client Components fetching in
+  `useEffect`, mirroring `app/(app)/findings/detail`'s already-established pattern exactly, not the
+  server-component pattern this repo used before that day. **Verified**: 19 new backend integration
+  tests against a real ephemeral Postgres, including a backtest trigger matched byte-for-byte
+  against a direct, independent `run_backtest()` call (`affected_decisions=570`,
+  `avoided_bad_outcomes=108`, `suppressed_good_outcomes=462`); 9 new frontend component tests;
+  `next build` producing the two new static routes cleanly; a live `uvicorn`/`pnpm dev` pair
+  confirming both pages' static shells render against the real API. Full suite (391 backend, 55
+  frontend) green twice against a live database. `TASK-036` (customer review workflow) was
+  explicitly not bundled into this pass — follows separately.
 
 ## MILESTONE-M2 — Policy discovery demo
 
-- **Status:** BLOCKED
+- **Status:** READY
 - **Depends on:** TASK-034
 - **Success:** A user can upload data, run analysis, open evidence, create a policy candidate, and run a historical backtest.
+- **Status note (2026-08-19, Architect):** `BLOCKED` → `READY` — its stated dependency, `TASK-034`,
+  is now `DONE` (`ADR-033`). Not marked `DONE` here: "create a policy candidate" is real but
+  script-mediated (`scripts/generate_policy_candidates.py`, §12's explicit "manually triggered, not
+  automatic" design), not a UI button — a human runs the script, then uses the real UI
+  (`/policy-candidates/detail`) to review/approve/backtest it. Whether that satisfies this
+  milestone's success criterion as literally worded is a Product call, not made here.
 
 ## Phase 13 — Customer feedback
 

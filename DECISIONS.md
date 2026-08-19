@@ -1062,3 +1062,71 @@ build` produces the expected static routes (`/`, `/datasets`, `/findings`, `/fin
 `NEXT_PUBLIC_API_URL` set; the rebuilt Docker image built, ran, and served real `200`s including
 through its own `HEALTHCHECK` command; `CNAME` present with the correct content in the exported
 `out/`.
+
+## ADR-033 — Policy backtest UI: synchronous run persistence, no auth, static-export-safe routing (closes `TASK-034`)
+
+**Date:** 2026-08-19
+**Status:** Accepted
+
+**Decision:** Two real gaps closed `TASK-034`: nothing computed/persisted a backtest *run* yet
+(only the pure `run_backtest()` engine existed, `TASK-032`), and no screen anywhere let a human
+reach a Policy Candidate at all (`TASK-030`/`031` were persistence/generator only, no routes, no
+UI). Per explicit user direction, a minimal Policy Candidate detail screen was built alongside the
+backtest screen itself, rather than working around the gap.
+
+- **A backtest run is its own row** (`PolicyBacktestRunModel`, migration `20260818_0008`),
+  reusing `ResourceStatus` exactly as `HANDOFF-050` recommended — same enum
+  `AnalysisRunModel.status` already uses. **Computed synchronously inside the request, not a
+  background job** — no async/worker infrastructure exists anywhere in this codebase; a row is
+  only ever inserted already resolved to `completed`/`failed`, never left `pending`/`running`,
+  which would be theater with nothing actually running concurrently. A `failed` run (an engine
+  `ValueError` — e.g. no `future_holdout` records under the trigger) still commits with the
+  engine's own disclosed reason, never a raw 500. Re-running always inserts a new row (§2 of the
+  screen spec) — never an overwrite.
+- **First public routes for `app.policies`** (`apps/api/app/policies/routes.py`) —
+  `TASK-030`/`031` stayed internal-only on purpose (`app.policies.service`'s own module
+  docstring); this is the first real consumer. `GET`/`POST /policy-candidates` (list/detail),
+  `POST .../transition` (thin wrapper over `transition_policy_candidate`, `ADR-029` — sets
+  `action_detail` first when moving to `UNDER_REVIEW` so the UI needs one call, not two),
+  `POST`/`GET .../backtest` (trigger, history). **No auth on any of these** — matches `ADR-027`'s
+  deliberately narrow protected surface; nothing here was asked to carry attribution the way
+  `TASK-035` feedback explicitly was, and gating it now would be scope creep beyond what was
+  requested.
+- **Eligibility enforced server-side**, mirroring `docs/product/policy-backtest-screen.md` §1: a
+  backtest may only be triggered on a candidate already `APPROVED_SHADOW` or later, and
+  (defensively, though always true today) only for the engine's one supported outcome,
+  `contribution_margin_eur`.
+- **Frontend built against `apps/web`'s new static-export architecture (`ADR-032`), not the
+  pre-existing server-component pattern this repo used until 2026-08-19.** `apps/web` was
+  converted to a GitHub Pages static export the same day this task started; a `[id]` dynamic
+  route needs every ID pre-rendered via `generateStaticParams()`, impossible for an open-ended,
+  growing set of Policy Candidates. Both new screens follow `app/(app)/findings/detail`'s
+  already-established replacement pattern exactly: flat routes reading `?id=` via
+  `useSearchParams()` inside a `Suspense` boundary, Client Components fetching in `useEffect`
+  with the `{ attempt, ...data | error }` result shape, `ErrorState`'s `onRetry` callback (not
+  `retryHref`, which doesn't remount a client-fetched page on retry under static export). A new
+  "Policy candidates" section on the Finding detail screen links out to
+  `/policy-candidates/detail?id=`, fetched as a third, independently-failable supplementary call
+  alongside feedback history, exactly like that view already treats provenance.
+
+**Alternatives considered:** Building the candidate/backtest screens as `[id]` dynamic
+server-component routes, matching this repo's *original* pattern (rejected — would have shipped
+already broken against the static-export deployment that landed the same day; not a hypothetical,
+verified via a real `next build` failure during development). Gating the new mutation routes
+behind `TASK-053` auth, matching feedback's own posture (rejected — out of scope for what was
+asked here, and no field on `PolicyCandidateModel` currently records who transitioned it, unlike
+`FindingFeedbackModel.created_by_user_id`; revisit if that changes). A background-job/polling UI
+for the backtest trigger (rejected — no async execution actually happens; a fake `pending` state
+the UI would poll against would be dishonest given the computation is already complete by the time
+the HTTP response returns).
+
+**Consequences:** A real end-to-end path now exists: upload → finding → policy candidate → review
+→ approve → backtest → propose/retire, fully live and verified, not just persisted. Verified: 19
+new backend integration tests against a real ephemeral Postgres (candidate CRUD/transitions,
+backtest trigger matched byte-for-byte against a direct, independent `run_backtest()` call —
+`affected_decisions=570`, `avoided_bad_outcomes=108`, `suppressed_good_outcomes=462` — re-run
+creates a new row, cost-per-review nets correctly, ineligible-candidate and unknown-ID rejections),
+9 new frontend component tests, `next build` producing the expected two new static routes
+alongside the existing ones, and a live `uvicorn`/`pnpm dev` pair confirming both new pages' static
+shells render correctly against the real API. Full suite (391 backend, 55 frontend) green twice.
+`TASK-036` (customer review workflow) follows as a separate pass — not bundled into this one.
