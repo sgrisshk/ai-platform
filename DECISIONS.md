@@ -971,3 +971,94 @@ end-to-end locally against a fresh Postgres, all green. `scripts/promote_finding
 against the real `task-058-remediation-20260817-001` closing run with the newly-corrected artifacts
 (still 15/15 promote). No finding, evidence level, statistic, or row of data changed anywhere in
 this fix — only fingerprint fields.
+
+## ADR-032 — apps/web deployed as a static export to GitHub Pages
+
+**Date:** 2026-08-19
+**Status:** Accepted
+
+**Decision:** `apps/web` builds as a static export (`output: "export"` in `next.config.ts`, added
+`trailingSlash: true`) and deploys to GitHub Pages via `.github/workflows/pages.yml`, on every push
+to `main` under `apps/web/**`. Custom domain `app.grisshk.work` (`apps/web/public/CNAME`; DNS on
+Cloudflare — `CNAME app → sgrisshk.github.io`, DNS-only/grey-cloud to avoid a redirect loop with
+GitHub's own Let's-Encrypt TLS; registrar Spaceship, uninvolved once DNS is delegated to
+Cloudflare). `NEXT_PUBLIC_API_URL` is a GitHub Actions repository variable, currently the
+placeholder `https://api.grisshk.work` — the site renders, but every data-fetching view shows a
+network error until that variable is repointed at a real, CORS-enabled, publicly reachable API
+(none is deployed yet; unaffected by this decision, see `docs/operations/deployment.md`'s
+unchanged API section).
+
+**Context:** This was possible without picking a server host at all because the app was already
+architected for it: every live-data view already read `NEXT_PUBLIC_API_URL` client-side
+(`lib/api/config.ts`, throws in production if unset — a build-time guard, not a runtime one, so it
+doesn't fire during static prerendering since the calls it guards only ever run inside
+`useEffect`), and auth already lived in an httpOnly cookie read client-only
+(`components/nav-user.tsx`'s own comment: "the session lives in an httpOnly cookie the server
+component tree can't read"). Static export's actual unsupported-feature list
+(`node_modules/next/dist/docs/01-app/02-guides/static-exports.md` — this repo pins Next 16.3.0,
+materially different from older versions, per `apps/web/AGENTS.md`) is narrower than it first
+looks: no `cookies()`, no dynamic routes without `generateStaticParams()`, no `force-dynamic`. Three
+routes used `force-dynamic` specifically to force per-request server rendering
+(`app/(app)/findings/page.tsx`, `app/(app)/datasets/page.tsx`, and the removed
+`app/(app)/findings/[id]/page.tsx`) — converted to Client Components fetching in `useEffect`, the
+documented static-export pattern (same doc, "Client Components" section) — mirroring
+`app/(app)/login/page.tsx`, which already did this for `useSearchParams`.
+
+`app/(app)/findings/[id]/page.tsx` couldn't convert to a plain Client Component in place: a
+dynamic-segment page under static export needs every value pre-rendered via
+`generateStaticParams()`, impossible for an open-ended, constantly-growing set of finding IDs.
+Moved to `app/(app)/findings/detail/page.tsx`, reading `?id=` via `useSearchParams()` instead of a
+path segment — one static HTML file instead of one per finding, no path-segment routing trick
+needed on a host (GitHub Pages) that has no server-side rewrite capability. `docs/product/
+finding-detail-screen.md` and `docs/product/customer-review-workflow.md` updated to the new path;
+internal links (`Link href` in `FindingsView.tsx`'s row) and `retryHref`s updated to match. Every
+other route was already a fixed path, unaffected.
+
+`components/states/ErrorState.tsx` gained an optional `onRetry` callback, additive alongside the
+existing `retryHref`. Its old comment was correct for the previous server-rendered pages
+(navigating `retryHref` back to the same URL re-ran the server component); for a client-fetched
+page under static export, navigating to the identical URL doesn't remount the component or
+re-trigger its `useEffect`, so `retryHref`-only retry would have silently stopped working. All
+three new/converted views pass `onRetry` instead. The three-line `eslint-plugin-react-hooks`
+`set-state-in-effect` rule (flags any direct `setState` call synchronously in an effect body, not
+just ones with control-flow issues) meant the natural first-draft shape — reset state, then fetch —
+had to become a `{ attempt, ...data | error }` result keyed by an incrementing `attempt` counter,
+with loading derived (`result === null || result.attempt !== attempt`) rather than separately
+tracked; every `setState` call now lives inside a `.then`/`.catch`, never in the effect body itself.
+
+`infra/docker/web.Dockerfile`'s runtime stage copied `.next/standalone` and ran `node
+apps/web/server.js` — meaningless once there's no server, and `.next/standalone` isn't even
+produced under `output: "export"`. `docker-compose.yml`'s `web` service (the `make dev` local
+loop) builds this same Dockerfile, so it wasn't just a CI concern. Rewritten to copy the `out/`
+directory and serve it with a new zero-dependency script (`apps/web/scripts/static-server.mjs`,
+Node's built-in `http`/`fs` only). `serve` was tried first (pinned as an `apps/web` devDependency)
+and dropped — `pnpm audit --audit-level=high` (`.github/workflows/ci.yml`'s `frontend` job, already
+a CI gate) flagged three high-severity CVEs in `serve`'s `serve-handler` → `minimatch` chain,
+unrelated to anything this app does; serving a folder of prebuilt HTML/CSS/JS with trailing-slash
+resolution doesn't warrant pulling in an unmaintained transitive dependency. `package.json`'s
+`start` script changed from `next start` (only valid for a server build) to `node
+scripts/static-server.mjs out 3000`, matching the Dockerfile and keeping port 3000/the existing
+`HEALTHCHECK`/`docker-compose.yml`'s healthcheck-gated `depends_on` all unchanged.
+`.github/workflows/ci.yml`'s `frontend` job (`pnpm --filter web build`, no `NEXT_PUBLIC_API_URL`
+set) keeps passing unmodified — confirmed by running it locally — because the throwing
+`getApiBaseUrl()` call only ever executes inside a `useEffect`, which never runs during `next
+build`'s server-side prerendering pass, static export or not.
+
+**Alternatives considered:** Pre-rendering findings via the GH-Pages SPA 404-redirect trick
+(`sessionStorage` + a crafted `404.html`, the standard workaround for clean dynamic-segment URLs on
+static hosts with no server-side rewrites) — rejected in favor of the `?id=` query param after
+discussing the tradeoff directly: simpler, no host-specific routing hack, at the cost of
+`/findings/{id}` becoming `/findings/detail?id={id}` (an internal-only URL change — this is an
+internal tool, not indexed/bookmarked-by-customers content, so the aesthetic cost was judged
+acceptable against the fragility of the alternative).
+
+**Consequences:** `apps/web` has a real, working deployment for the first time; `apps/api` still
+does not (unchanged, `docs/operations/deployment.md`'s original scope). The deployed site will
+show network errors on every data view until `NEXT_PUBLIC_API_URL` points at a real API — expected,
+not a bug, and requires no further code or workflow change when that happens, only updating the
+repository variable. Verified: `pnpm --filter web lint`/`typecheck`/`test` (46 tests) clean; `next
+build` produces the expected static routes (`/`, `/datasets`, `/findings`, `/findings/detail`,
+`/login`, `/dev/status` 404'd in production as designed) both with and without
+`NEXT_PUBLIC_API_URL` set; the rebuilt Docker image built, ran, and served real `200`s including
+through its own `HEALTHCHECK` command; `CNAME` present with the correct content in the exported
+`out/`.
