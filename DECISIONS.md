@@ -1198,3 +1198,65 @@ counts) and a resume-with-prior-progress case that would have caught the off-by-
 it shipped; `next build` producing the new static route cleanly; a live `uvicorn`/`pnpm dev` pair
 confirming the real login → list findings → submit feedback path an actual session drives, with
 the submitted record independently confirmed via the API afterward.
+
+## ADR-035 — Discovery engine v0.3.0: greedy marginal-gain diversity in top-K selection (`TASK-060`)
+
+**Date:** 2026-08-18
+**Status:** Accepted
+
+**Decision:** Replace the single-pass, score-sorted top-K selection in `discovery.engine` with a
+two-phase (interactions, then singletons — preserving the existing preference) greedy loop scored
+by marginal gain: each round, every remaining eligible rule's `_development_score` is discounted by
+its current maximum development-split exposure overlap (Jaccard) with everything already selected,
+via `DiscoveryConfig.diversity_discount_weight` (default `1.0`; `0.0` reproduces `v0.2.0`'s exact
+selection sequence, regression-tested). `max_candidate_jaccard` remains a hard ceiling independent
+of the weight. `DISCOVERY_METHOD_VERSION` bumps `"discovery-engine-v0.2.0"` →
+`"discovery-engine-v0.3.0"`. Full mechanism: `docs/analytics/discovery-engine-v0.md`
+§"Diversity-aware selection".
+
+**Context:** `TASK-058` (`ADR-023`) fixed how well any single rule scores but left *which set* of
+already-scored rules fills the top-K untouched. Live-verified against
+`artifacts/evaluation/task-028-task-058-remediation-001.json`: of `task-058-remediation-20260817-001`'s
+15 persisted candidates, only 2 unique patterns (`P01`, `P06`) were represented — the other 13 were
+near-duplicate rescalings of `P01` at different numeric thresholds, individually under the 0.85
+Jaccard ceiling (e.g. ~80% pairwise overlap clears it) but collectively redundant. Economic-weighted
+recall (45.2%) had not moved since before `TASK-058` as a direct result — a tighter rule doesn't
+help recover a different pattern if the search never gives one a turn.
+
+**Alternatives:** (a) Sequential covering — after each round, down-weight or exclude the records an
+already-selected rule explains and re-run search on the residual population — considered (and named
+in `TASK-060`'s own text as the primary suggested mechanism); not chosen for v0.3.0 because it would
+require re-scoring rules against a mutating residual frame at every depth of the beam search itself,
+materially larger surface than a selection-stage change, and this task's own scope note says the
+per-rule scoring function is explicitly out of scope. (b) A stricter `max_candidate_jaccard` (e.g.
+lower than 0.85) — rejected: a single global threshold cannot distinguish "many rescalings of one
+mechanism, none individually over the line" from "one candidate that's genuinely 80% similar to a
+different real pattern"; it would need retuning per run without addressing the actual mechanism
+(nothing rewards a rule for adding *new* coverage, only for not exceeding a static ceiling). (c) The
+chosen greedy marginal-gain discount — continuous rather than a second hard cliff, generalizes the
+existing hard-ceiling machinery (kept, not replaced) rather than replacing it outright, and exposes
+an exact-reproduction escape hatch (`diversity_discount_weight = 0.0`) matching the precedent set by
+`population_score_exponent` in `ADR-023`.
+
+**Reason:** The discount is the simplest form of marginal-gain selection that directly targets the
+diagnosed mechanism (a near-duplicate's own overlap with what's already selected crushes its
+effective score, so distinct-but-lower-raw-score rules become competitive) while changing nothing
+about how any individual rule is evaluated, staying inside this task's own explicit scope boundary.
+Chosen from generic reasoning (discount proportional to the rule's own overlap fraction) without
+opening `hidden_ground_truth.json` or `synthetic_benchmark.py` at any point.
+
+**Consequences:** A new official blind run under the existing `ADR-008` protocol,
+`task-060-remediation-20260818-001` (`status=PERSISTED`, 15 candidates, committed via signed
+receipt before this entry or any evaluation opened ground truth), now uses 5 distinct categorical
+`(feature, value)` pairs across its candidates versus 3 on the prior run — `destination == Zanzibar`
+is new and matches the disclosed pattern name "P02 Zanzibar family summer" — with mean support and
+total reported exposure both down roughly a third further. One caution is flagged, not resolved,
+by this decision: `CAND-012` uses `acquisition_channel == paid_search`, a feature the validation
+contract's own trap taxonomy associates with a confounding-composition trap (T02); diversity
+surfacing a previously-unselected feature is the intended effect, but this specific candidate needs
+`TASK-019`'s G06/trap-rejection scrutiny before being read as a genuine pattern, not assumed to be
+one. `TASK-060` is not yet `DONE` — its done condition (recovering more than 2 unique matched
+patterns without degrading Top-K precision, direction accuracy, or trap rejection) requires
+`TASK-019`/`TASK-028` against this new run, handed to Statistics/Architect in `HANDOFF-052`; ML
+Discovery does not open ground truth itself. No Docker image rebuild was needed (Dockerfile
+unchanged), so this run again consumed zero provider requests/tokens/cost.

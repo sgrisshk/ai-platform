@@ -1642,6 +1642,148 @@ blocker"), not reopened or implied-done by this closure.
   *new*, separately-numbered run (`task-058-remediation-20260817-001`) without touching the frozen
   original. `TASK-059` closes on that evidence, alongside `TASK-058` — see `ADR-025`.
 
+### TASK-060 — Diversity-aware candidate selection
+
+- **Owner:** ML_DISCOVERY
+- **Reviewer:** STATISTICS
+- **Priority:** P1
+- **Status:** IN_PROGRESS
+- **Depends on:** TASK-058 (DONE)
+- **Goal:** Fix candidate-set redundancy, not per-candidate precision (`TASK-058` already did that).
+  Live-verified diagnosis (2026-08-18, against `artifacts/evaluation/task-028-task-058-remediation-001.json`):
+  of the 15 persisted `task-058-remediation-20260817-001` candidates, only **2 unique patterns**
+  (P01, P06) are represented — the other 13 are near-duplicate rescalings of P01 (different
+  thresholds on the same underlying features). Economic-weighted recall (45.2%) has not moved
+  since before `TASK-058`, because tightening a rule's population doesn't help if the beam search
+  never surfaces a *different* rule in the first place.
+- **Mechanism:** Sequential covering / weighted diverse selection — after a search round selects a
+  strong candidate, down-weight (or temporarily exclude) the records it already explains before the
+  next round, so subsequent search is incentivized toward unexplained signal rather than
+  re-discovering the same dominant effect. Alternative/complement: greedy top-K selection scored by
+  marginal gain (score minus an overlap penalty against already-selected candidates' exposed sets),
+  not raw per-candidate score alone.
+- **Explicitly not in scope:** `_development_score`'s per-rule quality function (`TASK-058`,
+  `ADR-023`) — this task is about which *set* of rules survives to the top-K, not how any single
+  rule is scored.
+- **Done when:** A new blind run under the existing `TASK-015`/`TASK-017` protocol recovers more
+  than 2 unique matched patterns on the travel benchmark (still `<=` the 7 scoreable ground-truth
+  patterns), without a hidden-ground-truth boundary violation during development, and without
+  degrading Top-K precision, direction accuracy, or trap rejection from their current levels.
+- **Risk to guard against:** diversity must not be purchased by admitting noise — a rerun that
+  finds more "unique" but low-quality/unmatched candidates does not satisfy this task; the
+  evaluation must show genuine additional true-pattern recovery, not just lower redundancy.
+- **Implementation evidence (2026-08-18, ML Discovery, `ADR-035`):** `discovery.engine._greedy_diverse_select`
+  replaces single-pass score-sorted top-K selection with a two-phase (interactions, then
+  singletons — preserves the pre-existing preference) greedy loop scored by marginal gain: each
+  round, a remaining rule's `_development_score` is discounted by its current maximum
+  development-split exposure overlap with everything already selected
+  (`DiscoveryConfig.diversity_discount_weight`, default `1.0`). `diversity_discount_weight = 0.0`
+  reproduces `v0.2.0`'s exact selection sequence (regression-tested); `max_candidate_jaccard`
+  remains a hard ceiling independent of the weight. Chose selection-stage marginal gain over the
+  sequential-covering alternative named above because it stays strictly out of
+  `_development_score`/beam-search-mechanics territory, per this task's own scope note — full
+  alternatives-considered reasoning in `ADR-035`. `_development_score` itself is untouched.
+  `DISCOVERY_METHOD_VERSION` bumped to `discovery-engine-v0.3.0`. Methodology:
+  `docs/analytics/discovery-engine-v0.md` ("Diversity-aware selection"). 6 new tests (3 direct
+  `_greedy_diverse_select` tests with hand-built pools proving the diversity preference, the
+  weight=0 reproduction, and the independent hard-cap ceiling; 1 config-validation test; 2
+  end-to-end `discover_candidates` tests); full suite, `ruff`, `pyright` pass.
+- **New official blind run (2026-08-18, ML Discovery):** Issued, verified, launched (deterministic,
+  network `none`, image unchanged, no rebuild needed), frozen, and **committed via signed receipt
+  before any evaluation opened `hidden_ground_truth.json`** — run ID
+  `task-060-remediation-20260818-001`, `status=PERSISTED`, 15 candidates,
+  `discovery_method_version=discovery-engine-v0.3.0`. Frozen artifacts archived at
+  `artifacts/blind/task-060-remediation-20260818-001.*` (gitignored, reproducible).
+  **Public, no-ground-truth-opened evidence the fix increased diversity**: distinct categorical
+  `(feature, value)` pairs used across the 15 candidates rose from 3 (on `task-058-remediation-
+  20260817-001`) to 5 — `destination == Zanzibar` is new, matching the disclosed pattern name "P02
+  Zanzibar family summer"; mean `support` fell a further ~33% and total reported
+  `economic_exposure` a further ~36%. **Caution flagged, not resolved:** `CAND-012` uses
+  `acquisition_channel == paid_search`, a feature the validation contract's trap taxonomy
+  associates with confounding trap `T02` — needs real `TASK-019` G06/trap-rejection scrutiny, not
+  an assumption that more diversity means more genuine signal.
+- **Not yet DONE:** the three-part done condition (unique-pattern recovery, no precision/direction
+  degradation, no trap-rejection degradation) needs `TASK-019`/`TASK-028` against this new run,
+  neither run yet. Handed to Statistics/Architect in `HANDOFF-052`; ML Discovery does not open
+  ground truth itself.
+
+### TASK-061 — Multi-domain generalization benchmark suite
+
+- **Owner:** DATA_ENGINEER
+- **Reviewer:** STATISTICS
+- **Priority:** P1
+- **Status:** IN_PROGRESS
+- **Started (2026-08-18, Data Engineer):** Architecture: a shared, domain-agnostic engine
+  (`packages/analytics/src/policy_analytics/domain_benchmarks/common.py`) factors out the
+  genuinely generic rigor machinery — paired factual-minus-counterfactual replay, checksums/
+  manifest writing, generic dirty-data corruption injection — proven once, reused by every domain,
+  rather than 6 independent copies of ~800 lines each. Each domain is its own self-contained module
+  (schema, feature timing, row generator, pattern/trap library) plugged into the shared engine.
+  Deliberately does not touch `synthetic_benchmark.py`/`PATTERN_CONFIGURED_EFFECTS` at all (per
+  explicit instruction) — zero coupling, zero risk to the frozen travel artifact. A single
+  parameterized test suite runs the same leakage/reproducibility/consistency checks against every
+  registered domain, so each additional domain after the first is schema+mechanism design, not
+  6x the testing burden. Progress tracked incrementally below as each domain lands.
+- **Depends on:** none (independent of `TASK-060`; validates generalization, not the fix itself)
+- **Goal:** The entire discovery/validation mechanism has only ever been evaluated against one
+  synthetic domain (travel-agency bookings, `synthetic_benchmark.py`'s hardcoded
+  `PATTERN_CONFIGURED_EFFECTS`). Every validation-contract/decision-gate result to date is
+  domain-specific evidence, not general evidence — this task builds the benchmark family needed to
+  tell the difference.
+- **Scope:** A family of synthetic-benchmark generators, same rigor as the existing one (fixed
+  seed, hidden ground truth kept separate from public artifacts, decision_time/post_decision/
+  outcome/identifier feature-timing metadata, leakage-safety tests, dirty-data variant, checksums/
+  manifest, `ADR-008` blind-protocol compatibility), across genuinely structurally different
+  domains — not travel data with renamed columns.
+- **Required domains:** e-commerce/retail, SaaS subscription/churn, insurance claims, manufacturing
+  QA, B2B sales pipeline, healthcare scheduling.
+- **Required pattern-count/diversity variants per domain** (this is the actual point of the task):
+  zero patterns + zero traps (false-discovery-rate control); zero real patterns + 2-3 confounding
+  traps (tests whether a trap gets mistaken for a pattern when nothing real exists); one dominant
+  pattern + 4-6 structurally distinct weaker ones (direct stress test for `TASK-060`); 8-10
+  comparable-strength patterns with no single dominant signal.
+- **Output:** `synthetic_data_domains/<domain>/...`, parallel to and independent of the existing
+  `synthetic_data/` — the current travel benchmark is not modified or replaced.
+- **Isolation from `TASK-060`:** if developed concurrently, neither task's development may open the
+  other's hidden ground truth.
+- **Done when:** at least the six required domains exist with their pattern-count/diversity
+  variants, pass the same leakage/reproducibility tests the travel benchmark has, and are usable by
+  `validate_candidates.py`/`evaluate_benchmark.py` (parameterized `--dataset-root`/outcome, not a
+  hardcoded path, if that isn't already the case).
+- **Progress — domain 1/6 done (2026-08-18, Data Engineer):** `docs/benchmark/multi-domain-benchmarks.md`
+  is the living status/architecture doc. **E-commerce/retail** complete: 9 structurally distinct
+  patterns (`E01`–`E09` — high-discount BNPL, seasonal apparel bulk-buying, new-customer paid-search
+  BNPL, winter heavy-electronics fulfillment, a single-agent price-override anomaly, mobile/
+  next-day/gift-card checkout errors, a late-period drift pattern, a luxury-tier mismatch, and a Q4
+  pattern heterogeneous by customer segment — same stable/seasonal/drift/heterogeneous shape
+  diversity as the travel benchmark's own P01–P09, different domain mechanisms, not renamed
+  columns), 5 confounding traps (`ET01`–`ET05`, `direct_effect: 0` by construction — the apparent
+  feature never appears in any outcome-affecting code path), all four required variants generated
+  at full 10,000-row scale (`synthetic_data_domains/ecommerce/`, ~14 MB). `validate_candidates.py`
+  confirmed to already accept `--dataset-root` generically — no change needed there. **Verified, not
+  assumed:** 17 tests, parameterized to run automatically against every future registered domain
+  (`tests/analytics/test_domain_benchmarks.py`) — reproducibility, no restricted-keyword leakage
+  into public artifacts, primary-id uniqueness, clustering-key cardinality, dirty-variant
+  duplicate-count correctness, `realized_economic_impact` arithmetic consistency, and exact checks
+  on all four variants (`noise`→0/0, `traps_only`→0 patterns/3 traps, `dominant_weak`→dominant
+  pattern's `configured_effect` provably untouched while the 5 followers are provably scaled to
+  exactly 0.35×, `comparable`→every pattern/trap active and unscaled). Full project suite verified
+  (352 passed, up from 335); `ruff`/`pyright` clean (project `pyright` scope excludes `tests/`,
+  confirmed via a bare `uv run pyright` run — 0 errors either way).
+  **5 domains remain** (SaaS, insurance, manufacturing QA, B2B sales, healthcare) — not started.
+  Given the shared engine is now proven end-to-end (including all four variant mechanics on real
+  data), each remaining domain is schema-and-9-pattern-mechanism design against the existing,
+  unchanged engine/test suite, not new infrastructure — but it is still real per-domain design work,
+  not a mechanical copy, so it is reported here honestly as in-progress rather than compressed into
+  a rushed, under-verified single pass. **Known gap, explicitly deferred, not silently assumed
+  solved:** no domain has an analytical-dataset bridge yet (the `features.csv`/`outcomes.csv`/
+  `manifest.json` shape `validate_candidates.py` actually reads) — `analytical_dataset.py`'s
+  `build_analytical_dataset` hardcodes travel-specific column names (`booking_id`, `currency`) and
+  is not yet domain-parameterized; that bridge was a dedicated task for travel too (`TASK-011`), not
+  an implied side effect of the raw generator existing. `evaluate_benchmark.py` parameterization is
+  deferred for the same reason — nothing to evaluate against a domain until a discovery run and
+  that bridge both exist.
+
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
 - **Support:** ARCHITECT

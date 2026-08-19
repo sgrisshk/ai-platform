@@ -2672,3 +2672,74 @@ either way; this is a one-line spec correction, not a new open question.
 **Blocking:** NO — explicitly deferred. `TASK-036` remains `BLOCKED` on `TASK-035`; real implementation additionally needs `TASK-053`, independently.
 
 **Resolution:** Pending.
+
+## HANDOFF-052
+
+**Created:** 2026-08-18
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** OPEN
+
+**Task:** Run `TASK-019` validation and `TASK-028` evaluation against the new `TASK-060` blind
+discovery run, to determine whether `TASK-060`'s done condition (more than 2 unique matched
+patterns, without degrading Top-K precision, direction accuracy, or trap rejection) is met.
+
+**Context:** `TASK-060` (diversity-aware candidate selection) is implemented:
+`discovery.engine._greedy_diverse_select` replaces single-pass score-sorted top-K selection with a
+two-phase greedy loop scored by marginal gain — each round, a remaining rule's score is discounted
+by its current max exposure overlap with already-selected candidates
+(`DiscoveryConfig.diversity_discount_weight`, default `1.0`; `0.0` reproduces the old exact
+sequence, regression-tested). `_development_score` itself is untouched — explicitly out of scope
+per the task. Full mechanism: `docs/analytics/discovery-engine-v0.md` §"Diversity-aware selection",
+`ADR-035`.
+
+A new official blind run was issued/verified/launched/frozen/committed under the existing `ADR-008`
+protocol: `task-060-remediation-20260818-001`, `status=PERSISTED`, 15 candidates, committed via
+signed receipt (`artifacts/blind/task-060-remediation-20260818-001.receipt.json`) **before** this
+handoff or any evaluation opened `hidden_ground_truth.json`. No image rebuild needed; rehearsed
+clean (`BLIND_REHEARSAL_VALID`) before issuance.
+
+**Public, no-ground-truth-opened evidence** (comparing this run's 15 candidates against
+`task-058-remediation-20260817-001`'s): distinct categorical `(feature, value)` pairs used rose
+from 3 to 5 — `destination == Zanzibar` is new, matching the disclosed pattern name "P02 Zanzibar
+family summer" (`task-029-benchmark-report-v1.md`); `supplier == BlueWing` and
+`destination == Tokyo` both recur, now each appearing in multiple candidates rather than one. Mean
+`support` fell a further ~33% (0.1787→0.1202) and total reported `economic_exposure` a further
+~36% (3.56M→2.28M) on top of `TASK-058`'s own reduction.
+
+**Caution, not resolved here:** `CAND-012` = `discount_rate >= 0.03 AND acquisition_channel ==
+paid_search`. The validation contract's own trap taxonomy associates `acquisition_channel` /
+paid-search composition with confounding trap `T02`. Diversity surfacing a previously-never-selected
+feature is the intended effect of `TASK-060` — but this specific candidate needs real G06/
+trap-rejection scrutiny under `TASK-019`, not an assumption that "more diverse" means "more
+genuine." If `TASK-028` finds this candidate is trap-shaped and gets promoted rather than
+downgraded, that is a hard disqualifier per `docs/benchmark/decision-gate.md` regardless of any
+recall improvement elsewhere, and `TASK-060`'s done condition ("without degrading... trap
+rejection") is not met.
+
+**Question:** Please run `TASK-019` and `TASK-028` against
+`artifacts/blind/task-060-remediation-20260818-001.candidates.json` (with its sibling
+`discovery_metrics.json`), then report: (1) how many unique matched patterns are recovered
+(compare against `TASK-058`'s 2); (2) whether `CAND-012` clears G06/trap-rejection or gets
+downgraded/rejected; (3) whether Top-K precision and direction accuracy held or degraded relative
+to `TASK-058`'s run. If all three are satisfied, `TASK-060` closes and the decision-gate can be
+re-checked for a further upgrade. If not, report which condition failed so `TASK-060` can iterate
+rather than being marked done on hopeful evidence.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`_greedy_diverse_select`,
+  `diversity_discount_weight`)
+- `docs/analytics/discovery-engine-v0.md` ("Diversity-aware selection")
+- `artifacts/blind/task-060-remediation-20260818-001.*` (gitignored, reproducible — candidates,
+  discovery_metrics, run_report, hashes, receipt)
+- `artifacts/blind/task-058-remediation-20260817-001.candidates.json` (comparison baseline)
+- `TASKS.md` (`TASK-060`, `TASK-019`, `TASK-028`)
+
+**Expected output:** A `TASK-019`/`TASK-028` run against `task-060-remediation-20260818-001`, and
+an explicit met-or-not verdict against `TASK-060`'s three-part done condition.
+
+**Blocking:** YES — blocks closing `TASK-060` and blocks any further decision-gate re-grade that
+relies on it.
+
+**Resolution:** Pending.

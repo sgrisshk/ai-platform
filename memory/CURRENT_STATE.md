@@ -471,6 +471,26 @@ P2→P1, `BLOCKED`→`READY`: no longer just "wait for real external users" — 
 feedback) is real and `READY` but cannot attribute *who* gave feedback without some identity
 concept. Not implemented, a genuinely separate security-sensitive design task.
 
+**`TASK-060` (diversity-aware candidate selection) implemented 2026-08-18 (ML Discovery, `ADR-035`):**
+live-verified against `artifacts/evaluation/task-028-task-058-remediation-001.json`, only 2 unique
+patterns (`P01`, `P06`) were represented across `task-058-remediation-20260817-001`'s 15
+candidates — 13 were near-duplicate rescalings of `P01`, individually under the 0.85
+`max_candidate_jaccard` ceiling but collectively redundant, so economic-weighted recall (45.2%) had
+not moved. `discovery.engine._greedy_diverse_select` replaces single-pass score-sorted top-K
+selection with a two-phase greedy loop scored by marginal gain (score discounted by overlap with
+already-selected candidates; `diversity_discount_weight=0.0` exactly reproduces the old sequence).
+`_development_score` itself untouched — out of scope per the task. `DISCOVERY_METHOD_VERSION` is
+now `discovery-engine-v0.3.0`. A new official blind run, `task-060-remediation-20260818-001`
+(`status=PERSISTED`, 15 candidates), was issued/verified/launched/frozen/**committed via signed
+receipt before any evaluation opened ground truth**. Public comparison: distinct categorical
+`(feature, value)` pairs used rose 3→5, `destination == Zanzibar` is new (matches disclosed "P02
+Zanzibar family summer"), mean support and total exposure both fell a further ~33-36%. **One
+caution flagged, not resolved:** `CAND-012` uses `acquisition_channel == paid_search`, associated
+with confounding trap `T02` in the validation contract's own taxonomy — needs real G06 scrutiny,
+not assumed genuine. `TASK-060` is `IN_PROGRESS`, not `DONE`: its three-part done condition
+(unique-pattern recovery, no precision/direction degradation, no trap-rejection degradation) needs
+`TASK-019`/`TASK-028` against this new run, handed to Statistics/Architect in `HANDOFF-052`.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
