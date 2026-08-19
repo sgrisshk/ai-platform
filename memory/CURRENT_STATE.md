@@ -253,6 +253,21 @@ real but script-mediated (§12's own design), not yet a UI button, so whether th
 milestone's literal success criterion is a Product call, not made here. `TASK-036` (customer review
 workflow) was deliberately not bundled into this pass.
 
+**`TASK-036` (customer review workflow) `DONE` 2026-08-19 (Architect, `ADR-034`).** A queue
+sequencing the already-real `FindingFeedback` API (`TASK-035`) — never a duplicate of it;
+`FeedbackForm.tsx` on the finding detail page is unchanged. `FindingCoreContent.tsx` extracted
+from `FindingDetailView.tsx` so both views render the literal same finding content, not two copies
+that can drift. New `ReviewQueueForm.tsx` (Save-and-next/Skip/Back over the same field set/
+`WRONG ⇒ comment` rule as `FeedbackForm`), session-scoped `localStorage` resume (no backend
+`review_session` object — explicitly out of scope), real `captured_by` attribution via `TASK-053`
+auth. **A real bug was caught and fixed before shipping**: the first draft re-filtered the visible
+queue reactively as progress updated, which shifted the array under the current index and silently
+skipped the next finding on every advance — fixed by freezing the filter against a session-start
+snapshot. Known, disclosed simplification: no mid-session supersede detection (no polling
+infrastructure exists anywhere in this codebase). Verified: 12 new frontend tests (63 total)
+including a full simulated session and a resume-with-prior-progress case; `next build` clean; a
+live `uvicorn`/`pnpm dev` pair confirming the real login → list findings → submit feedback path.
+
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote

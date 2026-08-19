@@ -1435,7 +1435,7 @@ blocker"), not reopened or implied-done by this closure.
 ### TASK-036 — Customer review workflow
 - **Owner:** PRODUCT
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Depends on:** TASK-035
 - **Goal:** Structured one-by-one finding review.
 - **Note (2026-08-14):** Session mechanics are already specified in `docs/customer/findings-review-protocol.md`; `docs/product/finding-feedback-contract.md` now fixes what each per-finding capture actually stores. Remains `BLOCKED` on `TASK-035`.
@@ -1455,6 +1455,29 @@ blocker"), not reopened or implied-done by this closure.
   dedicated one-at-a-time review *queue* (session start, skip/partial-save, completion view) — a
   materially different screen from the per-finding capture form `TASK-035` shipped, which the queue
   is meant to sequence through, not a duplicate of it.
+- **Implementation (2026-08-19, Architect) → `DONE`.** Full rationale in `ADR-034`. Implements
+  `docs/product/customer-review-workflow.md` §1–§7 over the already-real `FindingFeedback` API
+  (`TASK-035`) — sequences it, never duplicates it. `FindingCoreContent.tsx` extracted from
+  `FindingDetailView.tsx`'s §1–§6 JSX so the queue's "top half" and the finding detail page render
+  the literal same component (§2's "reusing the detail screen's core content, not a re-summarized
+  version," now true by construction, not just by intent). New `ReviewQueueForm.tsx` — same field
+  set and `WRONG ⇒ comment` rule as `FeedbackForm.tsx`, but Save-and-next/Skip/Back instead of
+  submit-and-show-history, since the queue's job is sequencing, not staying put. `captured_by`
+  attribution (§6's stated hard blocker) is resolved — real, via `TASK-053`'s auth, same as
+  `FeedbackForm`. Resume-after-interruption (§6) is `localStorage`-backed, keyed by the free-text
+  `review_session` name — no backend change, matching §8's explicit exclusion of a
+  `review_session` persistence object. **Known, disclosed simplification**: mid-session supersede
+  detection (§6) is out of scope — the queue is fetched once at session start; no polling
+  infrastructure exists anywhere in this codebase to detect a live change. New flat route
+  `/findings/review` (static-export-safe, `ADR-032`); "Start review session" link added to
+  `FindingsControls.tsx`. **Verified**: a real, independently-caught bug fixed before shipping —
+  the initial draft dynamically re-filtered the visible queue as progress updated, which shifted
+  the array under the current index and silently skipped the next finding on every advance; fixed
+  by freezing the filter against a session-start snapshot instead. 12 new frontend tests (55 → 63
+  passing) including a full simulated session (save one, skip one, reach the completion screen
+  with correct counts) and a resume-with-prior-progress case; `next build` producing the new
+  static route cleanly; a live `uvicorn`/`pnpm dev` pair confirming the real login → list findings
+  → submit feedback path an actual session would drive.
 
 ## Phase 14 — First real customer data
 

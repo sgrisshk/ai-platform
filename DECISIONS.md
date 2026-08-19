@@ -1130,3 +1130,71 @@ creates a new row, cost-per-review nets correctly, ineligible-candidate and unkn
 alongside the existing ones, and a live `uvicorn`/`pnpm dev` pair confirming both new pages' static
 shells render correctly against the real API. Full suite (391 backend, 55 frontend) green twice.
 `TASK-036` (customer review workflow) follows as a separate pass — not bundled into this one.
+
+## ADR-034 — Customer review workflow: shared finding content, localStorage-backed resume, no new persistence object (closes `TASK-036`)
+
+**Date:** 2026-08-19
+**Status:** Accepted
+
+**Decision:** Implements `docs/product/customer-review-workflow.md` §1–§7 as a queue sequencing
+the already-real `FindingFeedback` API (`TASK-035`) — it sequences that contract, it does not
+duplicate or replace it. `FeedbackForm.tsx` on the finding detail page is unchanged and remains the
+ad hoc, single-finding capture path.
+
+- **The "top half" (finding content) is a shared component, not a second copy.** §2 requires
+  "reusing the detail screen's core content, not a re-summarized version." `FindingCoreContent.tsx`
+  was extracted from `FindingDetailView.tsx`'s existing §1–§6 JSX (what we found / who it applies
+  to / money at stake / evidence strength / alternative explanations / warnings); both the finding
+  detail page and the review queue now render the literal same component, so the two views cannot
+  drift apart the way two independently-maintained copies eventually would.
+- **A new `ReviewQueueForm.tsx`, not `FeedbackForm.tsx` reused in place.** Same field set and
+  `WRONG ⇒ comment` rule (§2, identical to the feedback contract), but a different interaction
+  model — `FeedbackForm` submits and stays, showing accumulated history in place; the queue's whole
+  point is advancing through many findings (Save-and-next / Skip / Back), not remaining on one.
+  Forcing one component to serve both would have been a riskier refactor of an already-shipped,
+  tested component than a second, smaller form sharing the same field list.
+- **Session identity (`review_session`) is a one-time free-text prompt at session start** — same
+  convention `FeedbackForm` already uses. No new persistence object, per §8's explicit exclusion.
+- **Resume-after-interruption (§6) is `localStorage`-backed, keyed by `review_session` name** —
+  which finding IDs were already saved/skipped this session. The only way to survive a
+  browser-closed/reopened session without a backend `review_session` object, which §8 explicitly
+  excludes designing.
+- **`captured_by` attribution (§6's stated "hard implementation blocker") is real**, via
+  `TASK-053`'s auth — the queue requires login exactly like `FeedbackForm` already does, reusing
+  `getCurrentUser()`/the `/login?next=` pattern rather than inventing a second auth check.
+- **Mid-session supersede detection (§6) is explicitly out of scope.** The queue is fetched once at
+  session start; detecting another process superseding a finding mid-session would need polling
+  infrastructure that doesn't exist anywhere in this codebase. A disclosed simplification, not a
+  silently dropped requirement.
+- **Built against the current static-export architecture (`ADR-032`)**, same as `TASK-034`: a flat
+  route (`/findings/review`), Client Component, no dynamic segment — nothing here is keyed by a
+  single finding ID the way the candidate/backtest screens are.
+
+**A real bug was caught and fixed before shipping, not just before merging.** The first draft
+filtered the visible queue reactively against the live `progress` state (which IDs have been
+saved/skipped so far in this session). Every advance both removed the just-handled finding from
+that filtered array *and* incremented the index in the same render pass — the array shift and the
+index increment compounded, silently skipping the next finding on every single advance. Fixed by
+computing the queue once from a frozen snapshot of progress taken at session start (only relevant
+for *resuming* a session, i.e. `localStorage` state from *before* this page load) and never
+re-filtering it as the live session proceeds — `index` alone tracks position within a queue that
+doesn't move under it.
+
+**Alternatives considered:** Reusing `FeedbackForm.tsx` directly inside the queue with new props
+for the action set (rejected — see above; the interaction models are different enough that forcing
+one component to do both risked destabilizing an already-shipped one for a second use case with
+different requirements). A backend `review_session`/resume-token model (rejected — explicitly
+excluded by §8; `localStorage` is sufficient for what §6 actually asks for and needs no schema
+change). Detecting mid-session supersession via polling (rejected — no polling infrastructure
+exists anywhere in this codebase; adding one for this single, low-probability edge case would be
+disproportionate scope for what was asked).
+
+**Consequences:** A reviewer can now run a real session end to end: log in, name a session, walk
+findings one at a time in the same priority order the findings list uses, save or skip each, go
+back without silently overwriting a prior append-only record, and see session-scoped counts at the
+end — matching §4's explicit "counts only, no interpretation" framing. Verified: 12 new frontend
+tests (55 → 63 passing) including a full simulated session (save one, skip one, correct completion
+counts) and a resume-with-prior-progress case that would have caught the off-by-one bug above had
+it shipped; `next build` producing the new static route cleanly; a live `uvicorn`/`pnpm dev` pair
+confirming the real login → list findings → submit feedback path an actual session drives, with
+the submitted record independently confirmed via the API afterward.
