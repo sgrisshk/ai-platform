@@ -1383,3 +1383,59 @@ Mean support/exposure also landed between the two prior runs. `TASK-060` remains
 `TASK-019`/`TASK-028` against this new run are requested in `HANDOFF-054`, not yet scored as of
 this entry. No Docker image rebuild was needed (Dockerfile unchanged); this run again consumed
 zero provider requests/tokens/cost.
+
+## ADR-038 — TASK-060's recall ceiling is a selection-stage artifact, not a beam-search one; next iteration scoped to P02/P08/P09, P03 excluded pending G06
+
+**Date:** 2026-08-20
+**Status:** Accepted
+
+**Decision:** `HANDOFF-054` (Statistics) handed ML Discovery a diagnostic question after
+`task-060-iteration-20260820-002` again recovered only 2 of 7 scoreable patterns despite passing
+its safety bar: is the ceiling in top-K selection or upstream in the beam search? Answer,
+established by `scripts/diagnose_candidate_pool_recall.py` (new, committed): **selection-stage.**
+The full 5,197-candidate eligible pool behind that committed run — reproduced byte-faithfully
+(`evaluated_hypotheses` matches exactly) before `_greedy_diverse_select` ever runs — contains a
+partially- or fully-matching candidate for every one of the 6 missing patterns, several with 15–84
+independently redundant full matches, not one lucky rule. Full table and method: `HANDOFF-055`.
+
+**Consequence for scope, not just the headline answer:** every hit sits at 0.106–0.328 of the
+pool's best score, well under the current `min_diversity_relevance_ratio=0.5` — confirming
+`HANDOFF-054`'s own hypothesis that the `v0.3.1` floor (tuned to stop `T03`) is also excluding the
+genuine weak signal `TASK-060` exists to surface. Two further findings narrow where the next
+iteration should actually point: (1) `P03`'s best-matching rule uses the exact same apparent
+feature as confounding trap `T03` (`acquisition_channel = paid_search`, confirmed programmatically
+against `hidden_ground_truth.json`), so no selection-stage change can safely recover `P03` without
+re-triggering the `G06` gap `ADR-036` already declined to patch reactively — `P03` is excluded from
+the next selection-tuning iteration's scope on structural grounds, not abandoned as unimportant.
+(2) `P04` has zero full-match (≥0.5 recall) candidates anywhere in the entire pool — a beam-search/
+support-floor question, not a selection one, and out of `TASK-060`'s scope entirely.
+
+**Alternatives:** (a) Uniformly lower `min_diversity_relevance_ratio` until P02/P08/P09 clear it —
+rejected as the next move: their required ratio (~0.10–0.17) is close enough to no floor at all
+that it would likely readmit the same noise distribution `v0.3.1` was built to exclude, given the
+floor's only lever is a single global ratio. (b) Chase `P03` specifically since it has the
+strongest pool ranking (671/5197) of the six — rejected: the trap collision makes this specifically
+unsafe regardless of ranking, not merely lower-priority. (c) Treat all six missing patterns as one
+undifferentiated "diversity problem" needing one blanket parameter change — rejected in favor of
+scoping by cause: three (P02/P08/P09) are a genuine, safely-addressable selection problem; one
+(P03) is a validation-side problem wearing a selection-shaped symptom; one (P04) is a different,
+lower-priority upstream question.
+
+**Reason:** A diagnostic that only answers "selection or upstream" without this decomposition would
+invite the next iteration to retune the floor uniformly, plausibly reproducing the `T03` regression
+`ADR-037` just fixed (since `P03` sits well inside the score range a uniform fix would need to
+reach). Separating "safe to pursue by selection tuning," "structurally blocked pending validation,"
+and "out of scope for this task" is itself the actionable output of this diagnostic, not an
+incidental detail.
+
+**Consequences:** `TASK-060` remains `IN_PROGRESS`. Its next iteration is scoped to a
+pattern-shape-aware relaxation or a stability-weighted marginal-gain score (not a uniform floor
+change) targeting `P02`/`P08`/`P09` specifically — not yet implemented, no code changed by this
+ADR. `P03` recovery is blocked on a separate, not-yet-scoped `G06` generalization
+(`ADR-036`'s "adjust for every eligible `DECISION_TIME` covariate outside the candidate's own
+condition set" path), owned by Statistics on its own schedule, not reopened here. `P04` is noted as
+a distinct, lower-priority beam-search question, not scoped or assigned by this entry.
+`scripts/diagnose_candidate_pool_recall.py` is a reusable diagnostic, not part of the official
+discovery/blind pipeline, and opens `hidden_ground_truth.json` deliberately under the same
+already-committed-run discipline `TASK-028` uses — it must not be run against, or its logic folded
+into, any search whose candidates are not yet committed.

@@ -2893,7 +2893,7 @@ structure, checksums discipline, and the 17 pre-existing tests are all unaffecte
 **Created:** 2026-08-20
 **From:** ML_DISCOVERY
 **To:** STATISTICS, ARCHITECT
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Run `TASK-019` validation and `TASK-028` evaluation against the `TASK-060` iteration
 (`ADR-037`) blind run, to determine whether `TASK-060`'s three-part done condition is now met.
@@ -2959,9 +2959,132 @@ further iteration is scoped correctly rather than guessed at.
   `artifacts/blind/task-060-remediation-20260818-001.candidates.json` (comparison baselines)
 - `TASKS.md` (`TASK-060`), `ADR-037`
 
+**Resolution (2026-08-20, Statistics):** Ran `TASK-019`/`TASK-028` for real against
+`task-060-iteration-20260820-002`
+(`artifacts/validation/task-019-official-20260820-task-060-iteration-002.json`,
+`artifacts/evaluation/task-028-task-060-iteration-002.json`). **Two of three parts pass, the part
+that actually matters does not — do not close `TASK-060`, scope a further iteration.**
+
+1. **Top-10 precision: 90% (9/10) — restored to the pre-`v0.3.0` bar.** No degradation.
+2. **Direction accuracy: 100% — unchanged.** No degradation.
+3. **Trap rejection: `any_trap_promoted = False`.** `T03` no longer reaches `PASS`; the relevance
+   floor did its job on the specific failure `ADR-036` diagnosed. `CAND-004`'s
+   `customer_type == 'new'` condition was checked directly: `matched_patterns=['P01']`,
+   `recall=0.73`, `is_true_pattern=True`, no trap match — it is a real P01-recovering candidate
+   that happens to use a `T03`-adjacent feature, not a disguised trap. No further action needed on
+   it specifically.
+4. **Unique matched patterns recovered: still 2 (P01, P06) — unchanged from every prior run,
+   including the pre-`TASK-058` baseline.** `TASK-060`'s entire reason for existing was to recover
+   more than 2 of the 7 scoreable patterns; that number has not moved once across `v0.2.0`,
+   `v0.3.0`, or `v0.3.1`. Economic-weighted recall is unchanged at 45.2% across all three.
+
+**Diagnosis:** `v0.3.1`'s fix correctly restored safety (dropped the thin, trap-adjacent candidate
+that broke `v0.3.0`) but appears to have done so by pulling the mechanism back toward
+non-diverse-but-safe selection generally, not just away from the one bad case. The
+`min_diversity_relevance_ratio=0.5` floor may be excluding exactly the weaker-but-genuine patterns
+(P02–P05, P08, P09) this task exists to surface, alongside the noise it was meant to exclude — the
+same failure mode named as a risk in `TASK-060`'s own original scope note ("diversity must not be
+purchased by admitting noise" cuts both ways: a floor tuned only against the one observed noise
+case can just as easily suppress real weak signal). **Recommendation for the next iteration:**
+before adjusting the floor value itself (which risks the same reactive, single-case tuning `ADR-036`
+already declined once), check whether any candidate anywhere in the *unselected* pool (not just the
+persisted top-15) has partial recall against P02–P05/P08/P09 — if none exists even before the
+diversity/floor logic runs, the ceiling is upstream in what `_development_score` or the beam search
+itself ever proposes as a candidate in the first place, not in top-K selection, and no amount of
+diversity-reweighting the selection stage can fix it. This diagnostic question is handed back to
+ML_DISCOVERY as the natural next step, not resolved here.
+
+`TASK-060` remains `IN_PROGRESS`.
+
 **Expected output:** A `TASK-019`/`TASK-028` run against `task-060-iteration-20260820-002`, and an
 explicit met-or-not verdict against `TASK-060`'s three-part done condition.
 
 **Blocking:** YES — blocks closing `TASK-060`.
 
-**Resolution:** Pending.
+## HANDOFF-055
+
+**Created:** 2026-08-20
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** RESOLVED (diagnostic complete; recommendation below, not a request for further work)
+
+**Task:** `HANDOFF-054`'s resolution handed back one diagnostic question: is `TASK-060`'s
+persistent 2-of-7 unique-pattern ceiling a top-K *selection* artifact (fixable by further
+`diversity_discount_weight`/`min_diversity_relevance_ratio` tuning) or is it upstream, in what the
+beam search / `_development_score` / support-floor eligibility ever proposes as a candidate in the
+first place (not fixable by selection tuning at all)?
+
+**Method:** `scripts/diagnose_candidate_pool_recall.py` (new, committed, not part of the official
+pipeline) locally reproduces the exact search behind the already-committed
+`task-060-iteration-20260820-002` (same dataset identity, seed `1729`, and the real
+`_atoms`/`_metric`/`_eligible`/`_development_score` from `discovery.engine` — no logic
+reimplemented, only orchestrated), but stops before `_greedy_diverse_select` ever runs. Verified
+byte-faithful: reproduced `evaluated_hypotheses=6557`, exactly matching the committed run's own
+`discovery_metrics.json`. The resulting **full eligible pool is 5,197 candidates** (vs. the 15
+persisted). Every pool member is then scored against all 9 patterns using the identical method
+`scripts/evaluate_benchmark.py` already uses for the top-15 (`recall = |exposed ∩ affected| /
+|affected|`, full analytical cohort). Opening `hidden_ground_truth.json` here is the same
+established post-hoc-analysis-of-an-already-committed-run discipline as `TASK-028`
+(`ADR-025`/`HANDOFF-054`) — the search itself was already frozen and committed before this
+diagnostic ever ran; no design decision was informed by it.
+
+**Result: every one of the 6 missing scoreable patterns (P02, P03, P04, P05, P08, P09) has at
+least one pool candidate clearing the 0.3 partial-recall bar — most at full recall 1.000:**
+
+| Pattern | Best recall in pool | Rank (of 5,197) | Score ratio vs. pool-best | Full-match (≥0.5) candidates in pool |
+|---|---|---|---|---|
+| P02 | 1.000 (`customer_segment eq family`) | 4,079 | 0.106 | 71 |
+| P03 | 1.000 (`acquisition_channel eq paid_search`) | 671 | 0.328 | 84 |
+| P04 | 0.337 (`booking_lead_days lt 45.0`) | 739 | 0.320 | **0** |
+| P05 | 0.522 (`booking_lead_days lt 45.0`) | 739 | 0.320 | 15 |
+| P08 | 1.000 (`party_size lt 2.0`) | 2,894 | 0.172 | 20 |
+| P09 | 1.000 (`customer_segment eq family`) | 4,079 | 0.106 | 65 |
+
+**Headline answer: the ceiling is in top-K selection, not the beam search.** Every missing pattern
+is genuinely discoverable — several with strong, redundant support (15–84 independent pool
+candidates clearing full-match recall for 5 of the 6 patterns), not one lucky rule. Recommend
+`TASK-060`'s next iteration keep tuning `_greedy_diverse_select`, not the search/scoring stage.
+
+**Three qualifications that change the practical scope of that recommendation, not the headline
+answer:**
+
+1. **Every hit sits well below the current `min_diversity_relevance_ratio=0.5` floor** (ratios
+   0.106–0.328). This directly confirms `HANDOFF-054`'s own hypothesis: `v0.3.1`'s floor, tuned to
+   stop the one observed `T03` failure, is also blocking the genuine weak signal `TASK-060` exists
+   to surface. A blanket floor reduction to ~0.10 (needed to reach P02/P09) would readmit most of
+   the pool by the same score distribution that let the original `v0.3.0` noise candidate through —
+   not a free fix, and not recommended as a first move.
+2. **P03 structurally collides with confounding trap `T03`: both share the identical apparent
+   feature, `acquisition_channel = paid_search`** (confirmed programmatically against
+   `hidden_ground_truth.json`, not asserted from memory). Any selection change that admits P03's
+   best rule will very likely re-admit something G06 cannot distinguish from `T03` either — the
+   same gap `ADR-036` diagnosed and correctly declined to patch reactively. **Recommend not
+   chasing P03 via floor-lowering at all until/unless G06's adjustment set is generalized on its
+   own, generically-motivated schedule** (already named as the correct future path in `ADR-036`,
+   not reopened here) — selection tuning alone cannot safely recover P03.
+3. **P04 has zero full-match (≥0.5 recall) candidates anywhere in the entire 5,197-candidate pool**
+   — only a 0.337 partial best, with `P04`/`P05` sharing the same top-ranked rule
+   (`booking_lead_days lt 45.0`). Clears this handoff's 0.3 partial-recall question, but P04 is not
+   currently recoverable as a genuine top-15 finding by *any* selection policy — that is closer to
+   a beam-search/support-floor question (e.g. atom granularity or `max_conditions`) than a
+   `TASK-060` selection matter, though it does not block the P02/P08/P09 opportunity below.
+
+**Recommendation, not left open:** scope the next `TASK-060` iteration around **P02, P08, and P09
+specifically** (no known trap collision, real redundant support in the pool) rather than a uniform
+floor change — e.g. a pattern-shape-aware relaxation (allow a small, capped number of below-floor
+picks per selection round, rather than lowering the floor globally) or folding a stability signal
+(cross-split consistency, already computed post-hoc today) into the marginal-gain score itself so a
+weak-but-consistent rule can compete without reopening the door to the kind of thin, one-off
+candidate that caused the `T03` regression. P03 is out of scope for search-side iteration until
+G06 is addressed; P04 is a separate, lower-priority beam-search question.
+
+**Files:**
+
+- `scripts/diagnose_candidate_pool_recall.py` (new diagnostic tool, committed)
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`_greedy_diverse_select`,
+  `min_diversity_relevance_ratio`)
+- `artifacts/blind/task-060-iteration-20260820-002.discovery_metrics.json` (reproduced run)
+- `TASKS.md` (`TASK-060`)
+
+**Resolution:** Diagnostic complete, as above. `TASK-060` remains `IN_PROGRESS`; this is a
+recommendation for its next iteration, not a request pending further Statistics/Architect input.

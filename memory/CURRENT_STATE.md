@@ -443,6 +443,24 @@ distinct categorical pairs land at 4, between the redundant baseline (3) and the
 run (5). One new condition, `customer_type == 'new'`, is flagged for scrutiny (a known `T03`
 confounder) without prejudging it. `TASK-019`/`TASK-028` against this run requested in
 `HANDOFF-054`, not yet scored. `TASK-060` remains `IN_PROGRESS`.
+
+**`HANDOFF-054` resolved (Statistics): safety holds (90% precision, 100% direction, no trap
+promoted) but unique-pattern recall still stuck at 2/7, unchanged since before `TASK-058`.**
+Handed ML Discovery one diagnostic question: is the ceiling in top-K selection or upstream in the
+beam search? **Answered same day (`ADR-038`, `HANDOFF-055`): selection-stage.**
+`scripts/diagnose_candidate_pool_recall.py` (new, committed diagnostic tool, not part of the
+official pipeline) locally reproduced `task-060-iteration-20260820-002`'s exact search
+byte-faithfully and inspected the full 5,197-candidate eligible pool before selection ever runs —
+every one of the 6 missing patterns has a matching pool candidate, several with 15–84 redundant
+full matches. But every hit sits at 0.106–0.328 of the pool's best score, well under the current
+0.5 relevance floor — confirming the floor built to stop `T03` is also excluding genuine weak
+signal. Two findings narrow the fix: `P03`'s best rule shares `T03`'s exact apparent feature
+(`acquisition_channel = paid_search`) — structurally unsafe to chase via selection tuning at any
+ranking, blocked pending a separate `G06` generalization, not reopened here; `P04` has zero
+full-match candidates anywhere in the pool — a beam-search question, out of `TASK-060`'s scope.
+**Recommendation:** next iteration scoped to `P02`/`P08`/`P09` specifically (real, redundant,
+trap-free), not a uniform floor drop. `TASK-060` remains `IN_PROGRESS`; no code changed by the
+diagnostic itself.
 `TASK-061` (multi-domain benchmark suite) reviewed the same day: domain 1/6 (e-commerce)
 independently re-verified — RNG-draw-parity for counterfactual replay confirmed by direct grep (no
 `rng.*()` call gated by pattern-active status), leakage/checksum tests re-run and real; engine

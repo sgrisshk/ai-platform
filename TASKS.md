@@ -1743,7 +1743,40 @@ blocker"), not reopened or implied-done by this closure.
   between the two prior runs. One new categorical condition appears, `customer_type == 'new'`
   (`CAND-004`) — flagged for scrutiny since `customer_type` is one of `T03`'s real confounders per
   `ADR-036`, without assuming either way. `TASK-019`/`TASK-028` against this run requested in
-  `HANDOFF-054`; not yet scored. `TASK-060` remains `IN_PROGRESS`.
+  `HANDOFF-054`.
+- **`HANDOFF-054` resolved (2026-08-20, Statistics): two of three parts pass, the one that matters
+  does not.** Top-10 precision restored to 90%, direction accuracy 100%, `T03` no longer promoted
+  (`CAND-004`'s `customer_type == 'new'` checked directly: genuine `P01` recovery, not a disguised
+  trap). But **unique matched patterns is still 2 (P01, P06) — unchanged across every run to date**,
+  including before `TASK-058`. The `v0.3.1` floor fixed the safety regression by pulling selection
+  back toward non-diverse-but-safe generally, not just away from the one bad case — likely
+  suppressing exactly the weak genuine patterns this task exists to surface, alongside the noise.
+  **Next diagnostic step (handed to ML_DISCOVERY, not yet run):** check the full unselected
+  candidate pool (not just the persisted top-15) for any partial recall against P02–P05/P08/P09
+  *before* diversity selection runs — if none exists even pre-selection, the ceiling is upstream in
+  `_development_score`/beam search, not fixable by further top-K reweighting. `TASK-060` remains
+  `IN_PROGRESS`.
+- **Diagnostic run (2026-08-20, ML Discovery, `ADR-038`, `HANDOFF-055`): ceiling confirmed to be
+  selection-stage, with a scoped recommendation.** `scripts/diagnose_candidate_pool_recall.py`
+  (new, committed, not part of the official pipeline) locally reproduced
+  `task-060-iteration-20260820-002`'s exact search (byte-faithful — `evaluated_hypotheses` matched
+  exactly) using the real `discovery.engine` functions, stopping before `_greedy_diverse_select`
+  runs. The full **5,197-candidate eligible pool** (vs. 15 persisted) contains a partial-or-better
+  match for all 6 missing patterns — P02/P08/P09/P03 all reach recall `1.000` on some pool
+  candidate, several with 15–84 independently redundant full matches. **But every hit sits at
+  ratio 0.106–0.328 of the pool's best score — well under `min_diversity_relevance_ratio=0.5`** —
+  confirming a uniform floor is suppressing genuine signal alongside the noise it was built to
+  exclude. Two findings narrow the fix: `P03`'s best rule uses the exact same apparent feature as
+  confounding trap `T03` (`acquisition_channel = paid_search`) — structurally unsafe to chase via
+  selection tuning regardless of ranking, since it will very likely re-trigger the `G06` gap
+  `ADR-036` declined to patch; `P04` has **zero** full-match candidates anywhere in the whole
+  pool — a beam-search question, not a selection one, out of `TASK-060`'s scope. **Recommendation,
+  not left open:** next iteration scoped to `P02`/`P08`/`P09` specifically (real, redundant,
+  trap-free signal) via a pattern-shape-aware relaxation or a stability-weighted marginal-gain
+  score, not a uniform floor drop; `P03` blocked pending a separate `G06` generalization
+  (Statistics-owned, not reopened here); `P04` noted as a distinct, lower-priority question. Full
+  table and reasoning: `HANDOFF-055`, `ADR-038`. `TASK-060` remains `IN_PROGRESS`; no code changed
+  by this diagnostic.
 
 ### TASK-061 — Multi-domain generalization benchmark suite
 
