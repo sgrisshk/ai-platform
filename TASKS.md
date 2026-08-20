@@ -1964,6 +1964,87 @@ blocker"), not reopened or implied-done by this closure.
   not an implied side effect of the raw generator existing, and stays real, separate, explicitly
   out-of-scope follow-up work rather than something to file a new task for unprompted.
 
+### TASK-062 — Analytical-dataset bridge for the 6 `TASK-061` domains
+
+- **Owner:** DATA_ENGINEER
+- **Reviewer:** STATISTICS
+- **Priority:** P1
+- **Status:** DONE
+- **Depends on:** `TASK-061` (all six domains)
+- **Goal:** Close the exact gap `TASK-061`'s own "Known gap" section flagged: `analytical_dataset.
+  build_analytical_dataset` hardcoded travel-specific column names (`booking_id`, `currency`) and a
+  travel-specific STATISTICS outcome contract, so none of the six `TASK-061` domains could actually
+  reach `discovery.engine.discover_candidates` — same shape of gap `TASK-011` closed for travel
+  (`TASK-003` -> `TASK-011`), just for six domains via one generalization instead of six copies.
+- **Scope:** Generalize `build_analytical_dataset` to accept domain-specific configuration
+  (identifier column, currency column, outcome-contract inputs) instead of hardcoding it, per the
+  same domain-parameterization approach `TASK-010` already used for the canonical schema. One
+  common function + thin per-domain config — the "thin config" is derived entirely from each
+  domain's already-registered `DomainSpec`, not six hand-written config files.
+- **Explicitly not in scope, and not silently claimed done:** authoring a `TASK-013`-grade,
+  STATISTICS-reviewed outcome contract (empirically-pinned `valid_range`, product-reviewed
+  `harm_direction_phrase`, `aggregation_rule`/`missing_data_policy` per outcome) for any of the six
+  domains — real, separate authorship work. Nor does this touch `scripts/validate_candidates.py`'s
+  own hardcoded `primary_outcome()` call or `evaluate_benchmark.py`'s travel-only CLI — both are
+  STATISTICS-owned, full-validation-contract-grade paths (G01-G12 gates) distinct from the
+  discovery-engine input contract this task closes.
+- **Done when:** all six `TASK-061` domains have a working analytical dataset built by the
+  generalized `build_analytical_dataset`, passing the same leakage/reproducibility guarantees
+  `test_analytical_dataset.py` already asserts for travel; the travel path's own behavior
+  (`dataset_identity_sha256`, every partition's bytes) is unchanged, checked by regression test;
+  and at least one domain runs a real local `discover_candidates` call end-to-end as proof the
+  bridge actually works, not just compiles.
+- **Delivered (2026-08-20, Data Engineer):**
+  - `AnalyticalDatasetConfig` gained two new fields — `identifier_column` (was a hardcoded
+    `frame["booking_id"]` literal) and `currency_column` (was a hardcoded
+    `pl.col("currency").alias("source_currency")` literal) — both defaulted to their prior
+    hardcoded values, so the travel caller (`scripts/build_synthetic_analytical_dataset.py`, which
+    passes no `config`) is unaffected.
+  - The outcome-contract section (`OUTCOME_DEFINITIONS`/`PRIMARY_OUTCOME_ID`/
+    `ELIGIBLE_COHORT_RULE`/`DEFAULT_COMPARISON_RULE`/`OUTCOME_CONTRACT_VERSION`, all previously
+    imported and hardcoded directly inside `build_analytical_dataset`) is now a pluggable
+    `OutcomeContractInputs` parameter, defaulting to the real travel `TASK-013` contract when
+    omitted. This is the actual generalization: `build_analytical_dataset` no longer has any
+    travel-specific import inside its own body.
+  - New `policy_analytics.domain_benchmarks.analytical_bridge` module: `analytical_dataset_config`
+    and `provisional_outcome_contract` derive both of the above entirely from any registered
+    `DomainSpec` — zero per-domain code, matching the task's "one common function + thin config"
+    ask as tightly as possible (the "thin config" is data that already existed). The outcome
+    contract is explicitly `status="PROVISIONAL"` throughout (never `"ATTACHED"`), so a manifest
+    reader can never mistake it for a reviewed `TASK-013`-grade contract — the honesty boundary the
+    scope explicitly required.
+  - **A real regression found and fixed before it shipped, not after:** adding the two new
+    `AnalyticalDatasetConfig` fields, even with byte-reproducing defaults, still moved travel's
+    pinned `dataset_identity_sha256` (`dd7889f7...`, pinned in `policy_analytics/outcomes/
+    contract.py` and referenced by `blind_isolation.py`/`promote_findings.py`) purely because
+    `identity_payload["transformation_config"]` blindly hashed `asdict(config)`, which picked up
+    the two new keys — the exact "value-preserving edit moves a pinned hash" bug class `ADR-030`
+    already fixed once, just in a new location. Fixed the same way: `identity_payload`'s
+    `transformation_config`, and the informational `transformation`/`transformation_config` echoes
+    in `manifest.json`/`version_metadata.json`, now all use a new `_config_summary()` helper — an
+    explicit, frozen field list, not `asdict(config)` — so a future new config field never
+    automatically perturbs a pinned artifact again. Verified byte-for-byte: regenerated travel's
+    real committed analytical dataset via `scripts/build_synthetic_analytical_dataset.py` (which
+    diffs its own output against the committed tree and refuses to overwrite on any difference) —
+    it now runs clean, and `git status` shows zero diff on `synthetic_data/analytical/`.
+  - New `scripts/build_domain_analytical_dataset.py --domain <id> [--variant comparable]` — mirrors
+    `build_synthetic_analytical_dataset.py`'s shape, writes to `synthetic_data_domains/<domain>/
+    analytical/`, never touches `synthetic_data/`. Run for all six domains against their
+    `comparable` variant (every pattern/trap active — the richest single per-domain source, the
+    same role travel's one canonical benchmark run plays); all six built successfully.
+  - New `tests/analytics/test_domain_analytical_bridge.py`, parameterized over
+    `DOMAIN_REGISTRY` (same shape as `test_domain_benchmarks.py`): 14 tests — leakage-separation and
+    reproducibility for all six domains (12), one test asserting the travel default config is
+    untouched by this bridge, and one **local, real, end-to-end `discover_candidates` run**
+    (insurance, chosen arbitrarily) — the task's required proof-of-concept that generated
+    `features.csv`/`outcomes.csv`/`split_label` are actually valid discovery-engine input, not
+    merely file-shaped.
+  - **Verified, not assumed:** full `tests/analytics/` suite passes (391 total, including the 14
+    new ones — zero regressions elsewhere); full project suite verified against a live database
+    (533 passed, up from 519); `ruff format`/`ruff check`/`pyright` clean on every touched/new
+    file; travel's own analytical dataset regenerated and confirmed byte-identical to the
+    committed artifact (not just identity-hash-equal — every partition file).
+
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
 - **Support:** ARCHITECT
