@@ -1750,7 +1750,8 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** DATA_ENGINEER
 - **Reviewer:** STATISTICS
 - **Priority:** P1
-- **Status:** IN_PROGRESS
+- **Status:** DONE — all six required domains built and verified; one known, explicitly-scoped gap
+  remains (analytical-dataset bridge, see below), same shape of deferral `TASK-011` was for travel.
 - **Started (2026-08-18, Data Engineer):** Architecture: a shared, domain-agnostic engine
   (`packages/analytics/src/policy_analytics/domain_benchmarks/common.py`) factors out the
   genuinely generic rigor machinery — paired factual-minus-counterfactual replay, checksums/
@@ -1908,6 +1909,27 @@ blocker"), not reopened or implied-done by this closure.
   a specific-seed coincidental correlation — verified not to touch any trap's real mechanism.
   100/100 domain-benchmark tests pass (five domains); full suite verified against a live database
   (499 passed); `ruff`/`pyright` clean.
+- **Domain 6/6 done — Healthcare scheduling, all six domains complete (2026-08-20, Data
+  Engineer):** 9 patterns, 5 traps, 4 variants, full detail in
+  `docs/benchmark/multi-domain-benchmarks.md`. Built against the full accumulated lesson set from
+  all five prior domains at once (no `complexity`-composite score at all, no confounder/apparent-
+  feature collisions, every skew tuned hard from the first draft) — passed the live-trap check on
+  the first attempt, no bug found, no tuning iteration needed. 120/120 domain-benchmark tests pass
+  (six domains, the complete `TASK-061` set); full project suite verified against a live database
+  (519 passed); `ruff`/`pyright` clean.
+  **Honest assessment against the original "Done when" criteria:** the six domains × four
+  diversity variants each, same rigor as the travel benchmark (fixed seed, hidden ground truth
+  separated, feature-timing metadata, leakage-safety tests, dirty-data variant, checksums/manifest)
+  — done, and `validate_candidates.py` already accepted `--dataset-root` generically with no change
+  needed. **One criterion is not fully met, flagged rather than silently claimed done:**
+  `evaluate_benchmark.py` is still travel-specific (`--validation-report`/`--output`/`--force`
+  only, no `--dataset-root`), because there is nothing to evaluate against any of these six domains
+  yet — no discovery run exists against them, and the `features.csv`/`outcomes.csv`/`manifest.json`
+  analytical-dataset shape that both `validate_candidates.py` and `evaluate_benchmark.py` actually
+  consume is built by a separate step (`analytical_dataset.build_analytical_dataset`) that still
+  hardcodes travel-specific column names. This was a dedicated task for travel too (`TASK-011`),
+  not an implied side effect of the raw generator existing, and stays real, separate, explicitly
+  out-of-scope follow-up work rather than something to file a new task for unprompted.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
