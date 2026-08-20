@@ -1883,6 +1883,19 @@ blocker"), not reopened or implied-done by this closure.
   (`z=4.43` active, `z=-0.53` noise) — caught before being declared, not after, per the standard
   `HANDOFF-053` set. 60/60 domain-benchmark tests pass (three domains); full suite verified against
   a live database (459 passed); `ruff`/`pyright` clean on every touched file.
+- **Domain 4/6 done — Manufacturing QA (2026-08-20, Data Engineer):** 9 patterns, 5 traps, 4
+  variants, full detail in `docs/benchmark/multi-domain-benchmarks.md`. Found a fourth, previously
+  undocumented failure mode in the "design a live trap" playbook: the first draft's `MT02`
+  confounder (`material_grade`) collided with `MT05`'s own apparent feature — giving it a real
+  effect to satisfy one trap would have made the other trap a genuine pattern, not a confound.
+  Caught by the empirical check itself (`MT05` showed live signal with all traps off), not by
+  inspection. Also found `MT03`'s declared confounder (`rush_order`) was never actually wired to
+  any cost outcome — the same "declared confounder never wired" defect class `HANDOFF-053`
+  originally found in domain 1, now caught before being declared rather than after. Fixed by
+  rewiring `MT02` onto a previously-unwired variable, adding real always-on effects for both
+  confounders, and aligning `MT05`'s split threshold with the outcome formula's own pivot (domain
+  3's `IT03` magnitude lesson). 80/80 domain-benchmark tests pass (four domains); full suite
+  verified against a live database (479 passed); `ruff`/`pyright` clean.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
