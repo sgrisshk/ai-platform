@@ -1260,3 +1260,126 @@ patterns without degrading Top-K precision, direction accuracy, or trap rejectio
 `TASK-019`/`TASK-028` against this new run, handed to Statistics/Architect in `HANDOFF-052`; ML
 Discovery does not open ground truth itself. No Docker image rebuild was needed (Dockerfile
 unchanged), so this run again consumed zero provider requests/tokens/cost.
+
+## ADR-036 — Diversity-aware selection (TASK-060) does not meet its own done condition; G06's fixed adjustment set has a real, undialed-back blind spot
+
+**Date:** 2026-08-20
+**Status:** Accepted
+
+**Decision:** `TASK-019`/`TASK-028` run for real against `task-060-remediation-20260818-001`
+(`HANDOFF-052`) grades **TASK-060's three-part done condition NOT met, on all three parts** — the
+task stays `IN_PROGRESS` and iterates; it is not marked `DONE`. This does not reopen or downgrade
+the standing decision-gate PROMISING verdict (`ADR-025`), which is anchored to
+`task-058-remediation-20260817-001` and is untouched by this evaluation.
+
+**Findings:**
+
+1. Unique true-pattern recovery unchanged at 2 (P01, P06); economic-weighted recall unchanged at
+   45.2%. `CAND-012` additionally recall-matches P03, but is trap-tainted (below), so is correctly
+   not credited as genuine recovery under the evaluator's pre-existing `is_true_pattern` convention
+   (`bool(matched) and not matched_traps`) — this decision reuses that convention rather than
+   relaxing it to manufacture a better-looking count.
+2. Top-10 precision fell from 90% to 40%.
+3. **Confounding trap `T03` was promoted** — `CAND-012` (`acquisition_channel eq paid_search AND
+   discount_rate ge 0.03`) reached `PASS`/`adjusted_observational_association`/`shadow_policy`, a
+   hard decision-gate disqualifier. (`HANDOFF-052` and `TASK-060`'s own tracking bullet
+   misidentified this trap as `T02`; corrected here and in `TASKS.md` — `T02` is
+   `supplier == Atlas`, `T03` is `acquisition_channel == paid_search`,
+   `scripts/evaluate_benchmark.py:TRAP_APPARENT_CONDITIONS`.)
+
+**Root cause, diagnosed:** `CAND-012` clears gate G06 cleanly (attenuation 0.02, E-value 1.70)
+because G06's fixed adjustment set (`manager`, `supplier`, chosen generically before any candidate
+existed, `apply.py`) does not include `T03`'s actual confounders (`customer_type`, `discount_rate`,
+`installments`, per `hidden_ground_truth.json`). This gap has existed since G06 was designed — it
+was simply never exercised before, because no prior candidate set ever surfaced a rule sharing
+`acquisition_channel`'s trap-adjacent structure. `TASK-060`'s diversity mechanism is doing exactly
+its intended job (exploring previously-unused features); the cost of that job working is that it
+can now reach a part of the search space G06 was never actually tested against. **The system as a
+whole still functioned as intended**: `TASK-028`'s evaluator, using `hidden_ground_truth.json`
+directly, caught what G06 alone missed and correctly disqualified the run — but that backstop is a
+benchmark-only capability (no real customer dataset has a hidden ground truth to check against),
+which is a genuine residual risk worth carrying forward into any future real-data go/no-go
+judgment, not something this ADR resolves.
+
+**Alternatives considered and rejected:** Expanding G06's adjustment set to include
+`customer_type`/`discount_rate`/`installments` now that they are known to matter for `T03` —
+rejected outright. Doing so would tune validation methodology to a specific result seen only after
+opening `hidden_ground_truth.json` for this evaluation, which is exactly the after-the-fact
+goalpost-moving `ADR-007`'s discipline exists to prevent, regardless of how well-motivated the
+specific fix would look in isolation. If G06's fixed two-variable adjustment set is judged too
+narrow in general, the correct path is a separately-scoped, generically-motivated task (e.g.
+"adjust for every eligible `DECISION_TIME` covariate outside the candidate's own condition set,"
+decided from domain reasoning before seeing which variables happen to matter in any specific run)
+— not a patch keyed to this trap.
+
+**Consequences:** `TASK-060` remains `IN_PROGRESS`; `ADR-035`'s mechanism is not reverted (the
+diversity objective itself is not in question — it worked as designed) but is not sufficient alone
+without either a companion fix to trap-detection coverage or an accepted, disclosed residual risk.
+No frozen artifact from `task-058-remediation` or the standing decision-gate evaluation was
+modified. Two new frozen artifacts:
+`artifacts/validation/task-019-official-20260818-task-060-remediation-001.json`,
+`artifacts/evaluation/task-028-task-060-remediation-001.json`.
+
+## ADR-037 — Discovery engine v0.3.1: relevance floor and lowered default discount for diversity selection (`TASK-060` iteration, resolves the `ADR-036` search-side gap)
+
+**Date:** 2026-08-20
+**Status:** Accepted
+
+**Decision:** Iterate `_greedy_diverse_select` (`ADR-035`) in response to `ADR-036`'s verdict: lower
+`DiscoveryConfig.diversity_discount_weight`'s default `1.0` → `0.5`, and add
+`DiscoveryConfig.min_diversity_relevance_ratio` (new, default `0.5`) — a rule must reach this
+fraction of the strongest raw score in its own selection phase (interactions or singletons) before
+the greedy-diverse loop considers it at all, computed once per phase from the phase's own pool, not
+re-evaluated as selection proceeds. `DISCOVERY_METHOD_VERSION` bumps `"discovery-engine-v0.3.0"` →
+`"discovery-engine-v0.3.1"`. Full mechanism: `docs/analytics/discovery-engine-v0.md` §"Diversity
+iteration v0.3.1".
+
+**Context:** `ADR-036` found `task-060-remediation-20260818-001` (full-strength diversity, weight
+`1.0`, no floor) let a statistically thin, low-overlap-only candidate (`CAND-012`) into the top-K —
+Top-10 precision fell 90%→40% and confounding trap `T03` reached `PASS`. `ADR-036` diagnosed the
+proximate cause as a `G06` validation-gate gap and *explicitly declined* to patch it (would tune
+methodology to a result seen only after opening `hidden_ground_truth.json`, forbidden by `ADR-007`)
+— but that ADR's own text is clear the gap is validation-side, not a verdict on whether the
+diversity *search* mechanism itself has a fixable, generic defect. It does: nothing in pure
+overlap-based marginal gain requires a low-overlap pick to be any good on its own — a rule with
+near-zero overlap keeps ~all of its raw score in the marginal-gain formula regardless of how weak
+that score is, so once the strongest low-overlap candidates are exhausted, an obscure, thin corner
+of the search space can win purely by being untouched, not by being reasonable. This is a
+generic, textbook failure mode of maximal-marginal-relevance-style diversity selection, independent
+of any specific trap.
+
+**Alternatives:** (a) Do nothing and accept that diversity search sometimes surfaces trap-adjacent
+candidates, relying entirely on `TASK-028`'s ground-truth-based evaluator as the backstop —
+rejected: that backstop is a benchmark-only capability (no real customer dataset carries a hidden
+ground truth to check against), so shipping the mechanism as-is would carry the same risk into any
+future real-data run with no safety net at all. (b) Revert `TASK-060` to `v0.2.0`'s pure score-sorted
+selection entirely — rejected: this was tried before `TASK-058`/`TASK-060` existed and is the
+original redundancy problem (`ADR-035`'s own diagnosis: 13 of 15 candidates rescalings of one
+pattern); throwing away the diversity objective over one bad configuration discards real, working
+progress rather than fixing the specific defect. (c) Tune the fix toward `T03` specifically (e.g.
+exclude `acquisition_channel`, or detect "channel-like" categorical features and discount them) —
+rejected outright: this is exactly the after-the-fact, ground-truth-informed tuning `ADR-007` and
+`ADR-036` both forbid, dressed up as a search-side change instead of a validation-side one; the
+mechanism must not know what it is being protected against. (d) The chosen generic relevance floor
+plus lowered discount weight — chosen because it targets the actual generic property responsible
+(weak-but-disjoint rules winning), verifiable and regression-tested on fixtures that never
+reference `T03` or any of its features.
+
+**Reason:** A relevance floor is the standard, well-understood fix for pure-diversity selection
+admitting low-quality results (the maximal-marginal-relevance literature's own answer to this exact
+failure mode) — principled independent of this specific benchmark or trap. Chosen and implemented
+without opening `hidden_ground_truth.json` or `synthetic_benchmark.py` at any point; `T03`'s
+identity and confounders inform this ADR's narrative context only, never the algorithm.
+
+**Consequences:** A new official blind run under the existing `ADR-008` protocol,
+`task-060-iteration-20260820-002` (`status=PERSISTED`, 15 candidates, committed via signed receipt
+before this entry or any evaluation opened ground truth), no longer includes any
+`acquisition_channel` condition at all — an emergent effect of the generic fix, not a targeted
+exclusion. Public comparison against both prior runs: distinct categorical `(feature, value)` pairs
+used = 4 (between `task-058-remediation`'s 3 and the failed `task-060-remediation`'s 5), including a
+previously-unseen `customer_type == new` — flagged for Statistics' attention since `customer_type`
+is one of `T03`'s known real confounders, out of caution, without asserting it is trap-shaped.
+Mean support/exposure also landed between the two prior runs. `TASK-060` remains `IN_PROGRESS`:
+`TASK-019`/`TASK-028` against this new run are requested in `HANDOFF-054`, not yet scored as of
+this entry. No Docker image rebuild was needed (Dockerfile unchanged); this run again consumed
+zero provider requests/tokens/cost.

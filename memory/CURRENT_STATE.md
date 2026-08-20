@@ -418,6 +418,43 @@ before a narrowed condition set reaches it — flagged explicitly, not assumed).
 correctly blocked:** wiring `backtest_result` into a real persisted `PolicyCandidate` row is
 `TASK-031`'s job, not done here.
 
+**`TASK-060` (diversity-aware selection) reviewed 2026-08-20 (Statistics, `ADR-036`,
+`HANDOFF-052`): done condition NOT met, on all three parts — stays `IN_PROGRESS`, iterates.**
+Unique true-pattern recovery unchanged (2); Top-10 precision fell 90%→40%; confounding trap **T03**
+was promoted (`CAND-012` reached `PASS`/`shadow_policy` despite clearing G06, whose fixed
+`manager`/`supplier` adjustment set doesn't cover T03's actual confounders — a real, previously-
+latent gap, first triggered now that diversity search explores more of the feature space).
+Corrected a `T02`/`T03` mislabeling in `TASK-060`'s own tracking bullet and `HANDOFF-052`.
+Explicitly declined to recommend expanding G06's adjustment set to the now-known confounders — would
+be exactly the post-hoc, ground-truth-informed tuning `ADR-007` forbids. **Does not affect the
+standing PROMISING decision-gate verdict** (`ADR-025`, anchored to `task-058-remediation`, untouched).
+
+**`TASK-060` iterated same day (ML Discovery, `ADR-037`):** `ADR-036` left open whether the
+diversity *search* mechanism itself (as opposed to the G06 gap it declined to patch) had a fixable,
+generic defect — it does: pure overlap-based marginal gain lets a weak, merely-disjoint rule win a
+round purely by being untouched, the standard failure mode of diversity selection without a
+relevance floor. Fixed with no reference to `T03`/`acquisition_channel`/any specific feature:
+`diversity_discount_weight` default `1.0`→`0.5`; new `min_diversity_relevance_ratio` (default `0.5`)
+requires a rule to reach half its own phase's strongest raw score before being considered at all.
+`DISCOVERY_METHOD_VERSION` → `v0.3.1`. New official blind run `task-060-iteration-20260820-002`
+(`status=PERSISTED`, 15 candidates, committed via signed receipt before any evaluation opened
+ground truth) contains **no `acquisition_channel` condition at all** (emergent, not targeted);
+distinct categorical pairs land at 4, between the redundant baseline (3) and the trap-contaminated
+run (5). One new condition, `customer_type == 'new'`, is flagged for scrutiny (a known `T03`
+confounder) without prejudging it. `TASK-019`/`TASK-028` against this run requested in
+`HANDOFF-054`, not yet scored. `TASK-060` remains `IN_PROGRESS`.
+`TASK-061` (multi-domain benchmark suite) reviewed the same day: domain 1/6 (e-commerce)
+independently re-verified — RNG-draw-parity for counterfactual replay confirmed by direct grep (no
+`rng.*()` call gated by pattern-active status), leakage/checksum tests re-run and real; engine
+mechanics have no defect. **A deeper empirical pass on the 5 traps' actual behavior (not just the
+engine) found a real content gap** (`HANDOFF-053`): 4 of 5 traps' declared `confounded_by`
+metadata doesn't match their real generative mechanism (raw group-mean check on real 10k-row
+output) — two traps' genuine spurious signal actually comes from an undeclared shared pathway
+(`discount_pct`), one looks like contamination from an adjacent real pattern rather than
+independent confounding, two carry unwired/misattributed variables. Recommended fixing domain 1's
+declarations plus an automated live-trap empirical test before domain 2/6 starts, so the gap isn't
+silently templated five more times — not blocking, `DATA_ENGINEER`'s call.
+
 ## Current hypothesis
 
 Historical decision/outcome data may contain actionable interaction patterns the business does not currently recognize. This remains a hypothesis, not a validated finding.

@@ -2742,4 +2742,201 @@ an explicit met-or-not verdict against `TASK-060`'s three-part done condition.
 **Blocking:** YES — blocks closing `TASK-060` and blocks any further decision-gate re-grade that
 relies on it.
 
+**Resolution (2026-08-19/20, Statistics):** Ran, per this handoff's exact request:
+`validate_candidates.py` → `artifacts/validation/task-019-official-20260818-task-060-remediation-001.json`,
+then `evaluate_benchmark.py` → `artifacts/evaluation/task-028-task-060-remediation-001.json`.
+Neither the standing `task-058-remediation` frozen artifacts nor the decision-gate's own PROMISING
+verdict (`ADR-025`) were touched — this is a separate, additional evaluation, not a rerun of the
+core gate.
+
+**Verdict: `TASK-060`'s done condition is NOT met — on all three parts.** Do not close; iterate.
+
+1. **"More than 2 unique matched patterns"** — **not met.** Still 2 (P01, P06). `CAND-012`
+   recall-matches `P03` as well, but `CAND-012` is also trap-tainted (below) — the evaluator's own
+   established `is_true_pattern = bool(matched) and not matched_traps` convention correctly does
+   not credit a trap-contaminated candidate as genuine recovery, and I am not overriding that
+   convention here. Economic-weighted recall is unchanged at 45.2%.
+2. **"Without degrading Top-K precision"** — **not met.** 90% → 40% (4/10 true-pattern candidates
+   in the top 10 by reported `economic_exposure`, down from 9/10).
+3. **"Without degrading trap rejection"** — **not met, and this is the more serious finding.**
+   `metrics.confounder_trap_rejection.trap_promoted.T03 = true`. `CAND-012`
+   (`acquisition_channel eq paid_search AND discount_rate ge 0.03`) reached `PASS`/
+   `adjusted_observational_association`/`shadow_policy` — a **hard disqualifier** per
+   `docs/benchmark/decision-gate.md`, independent of any recall gain elsewhere.
+   - **Correction to this handoff's own text and `TASK-060`'s TASKS.md entry:** both identify this
+     trap as **T02**. It is **T03** — `TRAP_APPARENT_CONDITIONS["T02"] = ("supplier", "eq",
+     "Atlas")`; `TRAP_APPARENT_CONDITIONS["T03"] = ("acquisition_channel", "eq", "paid_search")`
+     (`scripts/evaluate_benchmark.py`), confirmed against `hidden_ground_truth.json` directly:
+     `T03.apparent_feature = "acquisition_channel=paid_search"`. Fixed below and in `TASKS.md`.
+   - **Root cause, diagnosed, not just observed:** `CAND-012` clears gate `G06` cleanly (attenuation
+     0.02 adjusting for `manager`/`supplier`, E-value 1.70 > floor 1.5) — G06 does not catch this
+     trap because `T03`'s actual confounders (`customer_type`, `discount_rate`, `installments`,
+     confirmed in `hidden_ground_truth.json`) are not in G06's fixed adjustment set (`manager`,
+     `supplier`). This is a previously-latent limitation of that fixed, generically-chosen
+     adjustment set (`apply.py`'s own docstring already discloses it is fixed "not from any
+     knowledge of which mechanisms the benchmark generator injected," i.e. it was never claimed to
+     be exhaustive) — `TASK-060`'s diversity mechanism is the first thing to actually surface a
+     candidate where the gap matters. **The overall system still worked as a safety net**: the
+     evaluator's independent `hidden_ground_truth.json`-based trap check (a benchmark-only
+     capability, not available for real customer data) caught what G06 alone missed, and correctly
+     flags `trap_promoted = true` as disqualifying.
+   - **Explicit recommendation against a reactive fix:** I am *not* recommending G06's adjustment
+     set be expanded to include `customer_type`/`discount_rate`/`installments` specifically — that
+     would be tuning validation methodology to a result seen after opening
+     `hidden_ground_truth.json`, exactly the goalpost-moving `ADR-007`'s discipline exists to
+     prevent, regardless of how well-motivated it would look in isolation. If G06's fixed
+     two-variable adjustment set is judged too narrow in general, that is a separate, generically-
+     motivated methodology task (e.g. "adjust for every eligible `DECISION_TIME` covariate outside
+     the candidate's own condition set," decided before seeing which ones happen to matter here) —
+     not a patch keyed to this specific trap.
+4. **Direction accuracy**: held at 100% (unaffected — not part of `TASK-060`'s own done condition,
+   reported for completeness). Leakage: 0 (unaffected).
+
+**Consequence for the decision gate:** none. This does not reopen or downgrade the standing
+PROMISING verdict (`ADR-025`), which is anchored to `task-058-remediation-20260817-001` and remains
+unchanged and untouched. `TASK-060` is a separate, additional improvement attempt that did not
+clear its own bar this iteration — reported honestly as such, per this handoff's own instruction
+("report which condition failed so `TASK-060` can iterate rather than being marked done on hopeful
+evidence"), not treated as a benchmark-wide regression.
+
+## HANDOFF-053
+
+**Created:** 2026-08-20
+**From:** STATISTICS
+**To:** DATA_ENGINEER
+
+**Task:** `TASK-061`'s e-commerce domain (1/6) is mechanically correct — reproducible, leakage-safe,
+RNG-parity-preserving (all independently re-verified, not just re-read) — but a deeper, empirical
+review of the 5 confounding traps' actual behavior found a real content gap worth fixing **before**
+templating the remaining 5 domains on it.
+
+**Context:** Ran a direct empirical check — raw (unadjusted) mean `net_contribution_usd` for each
+trap's `apparent_feature=true` group vs its complement, on a real 10,000-row `comparable`-variant
+generation — rather than trusting the declared `confounded_by` metadata:
+
+| Trap | Declared `confounded_by` | Raw diff (USD, stdev≈58) | Actually explained by |
+|---|---|---|---|
+| ET01 | `product_category`, `items_in_cart`, `shipping_method` | +3.22 | `product_category`/`items_in_cart` confirmed wired (agent-assignment weighting); `shipping_method` is never wired to `fulfillment_agent` anywhere in `generate_row` — an inert, inaccurate list entry. |
+| ET02 | `product_category`, `order_month` | +3.06 | `product_category` confirmed wired; `order_month`'s only warehouse-weight effect in code boosts **WH4**, not **WH1** — misattributed to the wrong warehouse. |
+| ET03 | `customer_segment`, `discount_pct`, `payment_method` | **-5.71** | Real signal, but the actual pathway is `discount_pct` alone (`acquisition_channel==paid_search` boosts `discount_pct`, which directly reduces `gross_revenue`/margin in the pricing formula) — `customer_segment` and `payment_method` are drawn independently of `acquisition_channel` and don't mediate anything here. |
+| ET04 | `device_type`, `shipping_method` | -2.09 (weakest) | Neither declared variable independently affects any outcome. The signal looks like **contamination from pattern `E06`** (`device_type=mobile AND shipping_method=next_day AND payment_method=gift_card`) partially overlapping the `gift_card=true` slice, not independent confounding — a different phenomenon (dilution from an adjacent real pattern) mislabeled as a trap. |
+| ET05 | `product_category`, `product_price_usd`, `fulfillment_agent` | **-5.49** | None of the three declared variables affect `coupon_used`'s draw at all (`coupon_used` depends only on `discount_pct > 0`). Same actual mechanism as ET03: `discount_pct` mediation, entirely undeclared. |
+
+**Why this matters now rather than later:** none of this breaks the generator's *mechanics*
+(leakage safety, reproducibility, checksum discipline are all real and independently confirmed) —
+it's the domain *content* that doesn't match its own metadata. A `confounded_by` list that doesn't
+match the actual generative mechanism is exactly the kind of thing that misleads a future diagnosis
+— this session just spent real effort correcting a **T02/T03 trap mislabeling** in the *travel*
+benchmark's own tracking (`HANDOFF-052`/`ADR-036`) caused by exactly this kind of unverified
+attribution. Better to catch the pattern once, in domain 1, than rediscover it independently in
+each of the next 5.
+
+**Question:** Two independent fixes, either sufficient on its own, both cheap at 1/6 domains but
+increasingly expensive per domain added after:
+
+1. **Correct `ecommerce.py`'s trap declarations** to match the actual wired mechanism (drop unused
+   variables, fix ET02's warehouse attribution, add `discount_pct` to ET03/ET05, and either rewire
+   ET04 to a real independent confound or accept/relabel it as an intentional dilution case rather
+   than a confounding trap).
+2. **Add an automated empirical check to the shared test suite**
+   (`tests/analytics/test_domain_benchmarks.py`), parameterized across every registered domain like
+   the existing 17: generate a `comparable`-variant sample, compute each trap's raw marginal
+   difference, and assert it's genuinely nonzero (the trap is "live," not inert) — this would have
+   caught ET04/ET05's issues mechanically, for every future domain, without requiring a manual
+   empirical pass like this one each time.
+
+Recommend (2) regardless of how (1) is resolved — it turns this from a one-time manual catch into a
+structural guarantee the other 5 domains inherit for free.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/domain_benchmarks/ecommerce.py` (`TRAPS`, `generate_row`)
+- `tests/analytics/test_domain_benchmarks.py`
+- `docs/benchmark/multi-domain-benchmarks.md`
+
+**Expected output:** Either domain 1's trap declarations corrected to match their real mechanism, or
+an explicit, documented decision that the current mismatch is acceptable and why — plus a decision
+on the empirical live-trap test before domain 2 starts.
+
+**Blocking:** NO — does not block `TASK-060` or the standing decision-gate verdict. Recommended,
+not required, before starting domain 2/6, so the same gap isn't quietly copied five more times.
+
+**Resolution:** Pending.
+
+## HANDOFF-054
+
+**Created:** 2026-08-20
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** OPEN
+
+**Task:** Run `TASK-019` validation and `TASK-028` evaluation against the `TASK-060` iteration
+(`ADR-037`) blind run, to determine whether `TASK-060`'s three-part done condition is now met.
+
+**Context:** `ADR-036`/`HANDOFF-052` found `task-060-remediation-20260818-001` (diversity at full
+strength, `diversity_discount_weight=1.0`, no relevance floor) let a statistically thin candidate
+into the top-K: Top-10 precision fell 90%→40% and confounding trap `T03` reached `PASS` via a
+validation-gate gap (G06's fixed adjustment set) that Statistics correctly declined to patch
+reactively. Separately from that validation-side gap, `ADR-037` fixes a real, generic defect on the
+search side: `_greedy_diverse_select`'s pure overlap-based marginal gain let a weak, merely-disjoint
+rule outrank a reasonable near-duplicate once strong low-overlap candidates were exhausted — the
+standard failure mode of diversity selection without a relevance floor. Fix: `diversity_discount_weight`
+default lowered `1.0`→`0.5`, plus a new `min_diversity_relevance_ratio` (default `0.5`) requiring a
+rule to reach half the strongest score in its own selection phase before being considered at all.
+Neither change references `T03`, `acquisition_channel`, or any other specific feature — both are
+generic, regression-tested on fixtures that never touch this benchmark's actual trap structure
+(`docs/analytics/discovery-engine-v0.md` §"Diversity iteration v0.3.1").
+
+A new official blind run was issued/verified/launched/frozen/committed under the existing `ADR-008`
+protocol: `task-060-iteration-20260820-002`, `status=PERSISTED`, 15 candidates, committed via signed
+receipt (`artifacts/blind/task-060-iteration-20260820-002.receipt.json`) **before** this handoff or
+any evaluation opened `hidden_ground_truth.json`. No image rebuild needed; rehearsed clean
+(`BLIND_REHEARSAL_VALID`) before issuance.
+
+**Public, no-ground-truth-opened comparison** across all three runs (`task-058-remediation` v0.2.0
+baseline, the failed `task-060-remediation` v0.3.0, and this `task-060-iteration` v0.3.1):
+
+| | v0.2.0 | v0.3.0 (failed) | v0.3.1 (this run) |
+|---|---|---|---|
+| mean support | 0.1787 | 0.1202 | 0.1546 |
+| mean sample_size | 893.1 | 600.9 | 772.9 |
+| sum \|economic_exposure\| | 3,563,917 | 2,279,276 | 3,155,566 |
+| distinct categorical (feature, value) pairs | 3 | 5 | 4 |
+| `acquisition_channel` condition present | no | **yes** (`CAND-012`, trap `T03`) | **no** |
+
+`task-060-iteration-20260820-002` contains **no `acquisition_channel` condition at all** — an
+emergent effect of the generic floor/weight fix, not a targeted exclusion (the fix never references
+that feature). It does introduce one previously-unseen categorical condition,
+`customer_type == 'new'` (`CAND-004`). **Flagged for scrutiny, not pre-judged:** `customer_type` is
+one of `T03`'s real confounders per `ADR-036`'s own diagnosis — its appearance as a candidate's own
+condition is a different thing from matching a trap's `apparent_feature` (which remains
+`acquisition_channel` for `T03`), so this is not obviously trap-shaped under the evaluator's
+existing matching convention, but deserves the same real scrutiny `CAND-012` got last time rather
+than an assumption either way.
+
+**Question:** Please run `TASK-019`/`TASK-028` against
+`artifacts/blind/task-060-iteration-20260820-002.candidates.json` (with its sibling
+`discovery_metrics.json`) and report: (1) unique matched patterns recovered (compare against the
+standing 2); (2) Top-10 precision and direction accuracy (compare against `task-058-remediation`'s
+90%/100%, the bar `TASK-060` must not degrade); (3) whether `CAND-004` (`customer_type == 'new'`)
+or any other candidate is trap-shaped, and whether any trap reaches `PASS`/`shadow_policy`. If all
+three parts of `TASK-060`'s done condition are met, close it. If not, report which part failed so a
+further iteration is scoped correctly rather than guessed at.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`_greedy_diverse_select`,
+  `diversity_discount_weight`, `min_diversity_relevance_ratio`)
+- `docs/analytics/discovery-engine-v0.md` ("Diversity iteration v0.3.1")
+- `artifacts/blind/task-060-iteration-20260820-002.*` (gitignored, reproducible — candidates,
+  discovery_metrics, run_report, hashes, receipt)
+- `artifacts/blind/task-058-remediation-20260817-001.candidates.json`,
+  `artifacts/blind/task-060-remediation-20260818-001.candidates.json` (comparison baselines)
+- `TASKS.md` (`TASK-060`), `ADR-037`
+
+**Expected output:** A `TASK-019`/`TASK-028` run against `task-060-iteration-20260820-002`, and an
+explicit met-or-not verdict against `TASK-060`'s three-part done condition.
+
+**Blocking:** YES — blocks closing `TASK-060`.
+
 **Resolution:** Pending.

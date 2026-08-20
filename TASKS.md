@@ -1700,12 +1700,50 @@ blocker"), not reopened or implied-done by this closure.
   Zanzibar family summer"; mean `support` fell a further ~33% and total reported
   `economic_exposure` a further ~36%. **Caution flagged, not resolved:** `CAND-012` uses
   `acquisition_channel == paid_search`, a feature the validation contract's trap taxonomy
-  associates with confounding trap `T02` — needs real `TASK-019` G06/trap-rejection scrutiny, not
-  an assumption that more diversity means more genuine signal.
-- **Not yet DONE:** the three-part done condition (unique-pattern recovery, no precision/direction
-  degradation, no trap-rejection degradation) needs `TASK-019`/`TASK-028` against this new run,
-  neither run yet. Handed to Statistics/Architect in `HANDOFF-052`; ML Discovery does not open
-  ground truth itself.
+  associates with confounding trap `T03` (this bullet originally said `T02` in error — corrected
+  by Statistics' review below; `T02` is `supplier == Atlas`) — needs real `TASK-019` G06/
+  trap-rejection scrutiny, not an assumption that more diversity means more genuine signal.
+- **Verdict (2026-08-19/20, Statistics, `HANDOFF-052`): done condition NOT met, on all three
+  parts — iterate, do not close.** Ran `TASK-019`/`TASK-028` for real against
+  `task-060-remediation-20260818-001`
+  (`artifacts/validation/task-019-official-20260818-task-060-remediation-001.json`,
+  `artifacts/evaluation/task-028-task-060-remediation-001.json`). (1) Unique true patterns
+  recovered: still 2 (P01, P06) — `CAND-012` also recall-matches P03 but is trap-tainted, so does
+  not count as genuine recovery under the evaluator's own `is_true_pattern` convention; economic-
+  weighted recall unchanged at 45.2%. (2) Top-10 precision: **90% → 40%**, a real degradation.
+  (3) Trap rejection: **`T03` promoted** — `CAND-012` reached `PASS`/`shadow_policy`, a hard
+  decision-gate disqualifier. Root cause: `CAND-012` clears gate G06 cleanly (attenuation 0.02
+  adjusting for `manager`/`supplier`) because `T03`'s actual confounders are not in G06's fixed
+  two-variable adjustment set — a previously-latent, now-actually-triggered limitation, not a new
+  defect. Full diagnosis, and an explicit recommendation *against* reactively expanding G06's
+  adjustment set based on this specific trap (would be exactly the post-hoc tuning `ADR-007`
+  forbids): `HANDOFF-052`'s resolution, `ADR-036`. **Does not affect the standing PROMISING
+  decision-gate verdict** (`ADR-025`, anchored to `task-058-remediation`) — this is a separate,
+  additional attempt that did not clear its own bar this iteration, not a benchmark-wide
+  regression.
+- **Iteration v0.3.1 (2026-08-20, ML Discovery, `ADR-037`):** `ADR-036` diagnosed a validation-side
+  gap (G06) and correctly declined to patch it, but did not rule out a separate, generic
+  search-side defect in `_greedy_diverse_select` itself — and there is one: pure overlap-based
+  marginal gain lets a rule keep ~all of its raw score once its overlap with everything selected is
+  near zero, however weak that raw score is, so a statistically thin, merely-disjoint rule can win
+  a round purely by being untouched. Fixed generically, with no reference to `T03`,
+  `acquisition_channel`, or any other specific feature: `diversity_discount_weight` default lowered
+  `1.0`→`0.5`; new `min_diversity_relevance_ratio` (default `0.5`) requires a rule to reach half the
+  strongest raw score in its own selection phase before being considered at all.
+  `DISCOVERY_METHOD_VERSION` → `discovery-engine-v0.3.1`. 4 new tests (a fixture proving the default
+  still prefers a strong distinct pattern over a near-duplicate; a fixture proving the floor
+  excludes weak disjoint noise the original `v0.3.0` config would have admitted, contrasted directly
+  against that original config in the same test; a bounds-validation test); full suite, `ruff`,
+  `pyright` pass. New official blind run: `task-060-iteration-20260820-002` (`status=PERSISTED`, 15
+  candidates), issued/verified/launched/frozen/**committed via signed receipt before any evaluation
+  opened ground truth**; archived at `artifacts/blind/task-060-iteration-20260820-002.*`.
+  **Public, no-ground-truth comparison** across all three runs — distinct categorical pairs 3
+  (v0.2.0) → 5 (v0.3.0, trap-contaminated) → 4 (v0.3.1): this run contains **no
+  `acquisition_channel` condition at all** (emergent, not targeted), mean support/exposure land
+  between the two prior runs. One new categorical condition appears, `customer_type == 'new'`
+  (`CAND-004`) — flagged for scrutiny since `customer_type` is one of `T03`'s real confounders per
+  `ADR-036`, without assuming either way. `TASK-019`/`TASK-028` against this run requested in
+  `HANDOFF-054`; not yet scored. `TASK-060` remains `IN_PROGRESS`.
 
 ### TASK-061 — Multi-domain generalization benchmark suite
 
@@ -1783,6 +1821,29 @@ blocker"), not reopened or implied-done by this closure.
   an implied side effect of the raw generator existing. `evaluate_benchmark.py` parameterization is
   deferred for the same reason — nothing to evaluate against a domain until a discovery run and
   that bridge both exist.
+- **Reviewer sign-off, domain 1/6 (2026-08-20, Statistics):** Independently re-verified, not just
+  read — reran the 17-test suite (17 passed), `ruff`/`pyright` clean on the new package. Checked the
+  two properties most likely to hide a subtle defect rather than trusting the narrative: (1)
+  RNG-draw-parity discipline for the counterfactual replay (`generate_row`'s `active(pattern_id)`
+  gates only the additive numeric effect, never a `rng.*()` call itself — confirmed by grep, no
+  `rng.` call sits inside an `if active(...)` block anywhere in `ecommerce.py`, so factual and
+  counterfactual passes draw an identical random sequence, the exact property `HANDOFF-030`
+  verified for the travel benchmark); (2) restricted-keyword/evaluation-directory leakage
+  (`test_no_restricted_keyword_leaks_into_public_artifacts`,
+  `test_checksums_never_reference_the_evaluation_directory` — both real assertions against
+  generated output, not just a directory-naming convention). Engine mechanics: no defect found.
+- **Deeper design-content review (2026-08-20, Statistics, `HANDOFF-053`) — a real gap found, before
+  proceeding to domain 2/6.** The mechanics pass above didn't check whether the 5 traps'
+  declared `confounded_by` metadata actually matches their generative mechanism. An empirical
+  check (raw mean `net_contribution_usd`, trap-exposed vs. complement, real 10k-row generation)
+  found it doesn't, for 4 of 5: `ET01`/`ET02` each carry one unwired/misattributed variable;
+  `ET03`/`ET05` do produce a real, meaningful spurious signal (-5.71, -5.49 USD) but through an
+  entirely undeclared shared pathway (`discount_pct`), not their declared variables; `ET04`'s
+  weak signal (-2.09) looks like contamination from real pattern `E06` partially overlapping its
+  slice, not independent confounding at all. Full table and recommendation:
+  `HANDOFF-053`. **Recommend fixing domain 1's trap declarations and adding an automated
+  live-trap empirical check to the shared test suite before starting domain 2** — cheap now,
+  increasingly expensive to have silently copied 5 more times. Not blocking; owner's call.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
