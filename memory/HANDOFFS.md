@@ -2861,7 +2861,32 @@ on the empirical live-trap test before domain 2 starts.
 **Blocking:** NO — does not block `TASK-060` or the standing decision-gate verdict. Recommended,
 not required, before starting domain 2/6, so the same gap isn't quietly copied five more times.
 
-**Resolution:** Pending.
+**Resolution (2026-08-20, Data Engineer):** Both asks done, not just one. Independently re-derived
+every claim in the table first (raw marginal on a real 10,000-row `comparable` generation) before
+touching anything — confirmed all five exactly: ET01's `shipping_method` was never wired, ET02's
+`order_month` boosted WH4 not WH1, ET03/ET05's real pathway was undeclared `discount_pct`, ET04's
+signal was contaminated by pattern `E06` overlap. Then found something the table's own methodology
+couldn't surface (it measured on `comparable`, i.e. patterns-on): **no trap was gated by
+`active_traps` at all** — confirmed by generating `noise` and `traps_only` and finding byte-for-byte
+identical raw marginals, meaning the "0 traps" variant was never actually trap-free, only
+undocumented. Fixed the root cause, not the symptom: every confounding mechanism in
+`ecommerce.py`'s `generate_row` is now gated behind `config.trap_active(trap_id)`. Rewired each
+trap onto a real, `|z| > 2`-verified mechanism disjoint from any active pattern's trigger (ET04
+moved from `device_type` to `product_tier`, clear of `E06`; ET05 moved twice — first to
+`customer_segment` real but too faint through the same weak complexity-mediated path ET01 uses,
+then to `quantity<=1`, which hits `gross_revenue`/`base_cost` directly and clears `|z|=12.5`; ET01
+needed a much larger assignment-weight boost than expected to clear the bar through that same weak
+path, `|z|=4.6` at final tuning); ET03/ET05 were previously two labels on one shared `discount_pct`
+code path and are now independently gated. Built the recommended (2) as two new parameterized
+tests in `test_domain_benchmarks.py` — `test_declared_traps_produce_a_live_raw_marginal_effect`
+(|z| > 2.0, all traps on, patterns off) and `test_noise_variant_produces_no_trap_signal` (|z| < 2.0,
+everything off) — plus a shape-validation test, all three inherited automatically by every future
+domain via `raw_marginal_effect` (new, `common.py`), not something requiring a repeated manual
+pass. Regenerated and recommitted all four ecommerce variants under the corrected generator (old
+artifacts are stale — trap wiring changed, so their exact row content changed too; ground-truth
+structure, checksums discipline, and the 17 pre-existing tests are all unaffected and still pass).
+20/20 domain-benchmark tests pass; full suite verified against a live database (419 passed);
+`ruff`/`pyright` clean. Held domain 2 exactly as asked — nothing past this fix started.
 
 ## HANDOFF-054
 

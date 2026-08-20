@@ -1844,6 +1844,45 @@ blocker"), not reopened or implied-done by this closure.
   `HANDOFF-053`. **Recommend fixing domain 1's trap declarations and adding an automated
   live-trap empirical check to the shared test suite before starting domain 2** — cheap now,
   increasingly expensive to have silently copied 5 more times. Not blocking; owner's call.
+- **`HANDOFF-053` resolved (2026-08-20, Data Engineer):** Both fixes landed, not one. Re-derived
+  every claimed number independently first, then found something the table's own
+  `comparable`-variant methodology couldn't see: **no trap was actually gated by `active_traps` at
+  all** — the `noise` and `traps_only` variants produced byte-identical raw marginals, so "0 traps"
+  was undocumented, not actually trap-free. Fixed at the root: every confounding mechanism in
+  `ecommerce.py` is now gated behind `config.trap_active(trap_id)`, each rewired onto a real
+  `|z| > 2`-verified mechanism disjoint from any active pattern's trigger (full account, including
+  two abandoned intermediate designs for `ET05` that were real but too statistically faint, in
+  `HANDOFF-053`'s resolution). Added the recommended automated check as two new generic tests
+  (`raw_marginal_effect` in `common.py` + `test_declared_traps_produce_a_live_raw_marginal_effect`/
+  `test_noise_variant_produces_no_trap_signal` in `test_domain_benchmarks.py`) — every future
+  domain inherits this guarantee automatically. Regenerated and recommitted all four ecommerce
+  variants (trap wiring changed, so their row content changed too; ground-truth structure and the
+  17 pre-existing tests are unaffected). 20/20 domain-benchmark tests pass; full suite verified
+  against a live database (419 passed); `ruff`/`pyright` clean. Domain 2 was held until this
+  landed, exactly as asked.
+- **Domain 2/6 done — SaaS subscription/churn (2026-08-20, Data Engineer):** 9 patterns, 5 traps,
+  4 variants, full detail in `docs/benchmark/multi-domain-benchmarks.md`. Designed against
+  `HANDOFF-053`'s lessons from the start (every trap gated + direct-pathway, not
+  complexity-mediated) — passed the live-trap check on the first attempt, no tuning iteration
+  needed this time. Found and fixed one more real bug while building it: the generic
+  `dominant_weak` test's leaf-comparison helper could silently compare two different dict leaves
+  across a key-reordering (Python insertion order vs. JSON's `sort_keys=True`) — fixed with a
+  proper recursive per-key walk, benefiting every domain retroactively. 40/40 domain-benchmark
+  tests pass (both domains); full suite verified against a live database (439 passed);
+  `ruff`/`pyright` clean.
+- **Domain 3/6 done — Insurance claims (2026-08-20, Data Engineer):** 9 patterns, 5 traps, 4
+  variants, full detail in `docs/benchmark/multi-domain-benchmarks.md`. First domain with an
+  inverted harm direction (`harm_direction="increase_is_harm"` — higher claim cost is the harm),
+  exercising the sign-flip path in `_ground_truth` for the first time. Found a third, previously
+  undocumented failure mode in the "design a live trap" playbook: `IT03` had a mathematically
+  direct pathway (`deductible_usd` subtracts straight out of `payout_amount_usd`) and was still
+  empirically dead (`z=-0.01`) — not a mediated-pathway problem like domain 1's originals, but a
+  *magnitude* problem: `deductible_usd`'s $250–$2,500 range is small relative to
+  `claimed_amount_usd`'s variance, so a mild conditional weight nudge was invisible against the
+  outcome's noise floor. Fixed by making the conditional skew much harder, re-verified empirically
+  (`z=4.43` active, `z=-0.53` noise) — caught before being declared, not after, per the standard
+  `HANDOFF-053` set. 60/60 domain-benchmark tests pass (three domains); full suite verified against
+  a live database (459 passed); `ruff`/`pyright` clean on every touched file.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
