@@ -1896,6 +1896,18 @@ blocker"), not reopened or implied-done by this closure.
   confounders, and aligning `MT05`'s split threshold with the outcome formula's own pivot (domain
   3's `IT03` magnitude lesson). 80/80 domain-benchmark tests pass (four domains); full suite
   verified against a live database (479 passed); `ruff`/`pyright` clean.
+- **Domain 5/6 done — B2B sales pipeline (2026-08-20, Data Engineer):** 9 patterns, 5 traps, 4
+  variants, full detail in `docs/benchmark/multi-domain-benchmarks.md`. Found a real bug via the
+  empirical check itself (not inspection): the first draft's `complexity` score gave `BT05`'s own
+  apparent feature (`decision_maker_engaged`) a genuine baseline effect on the outcome (`z≈5.0`
+  with every trap off) — same violation class as domain 4's `MT05`, fixed by dropping it from
+  `complexity`. The noisiest domain so far: realistic deal-size right-skew inflated outcome
+  variance enough that both real and null effects repeatedly landed within ~0.5 of the `|z|=2.0`
+  bar on several variables at once, needing tighter underlying distributions, much harder trap
+  skews than any prior domain, and one documented, unconditional throwaway `rng` draw to reshuffle
+  a specific-seed coincidental correlation — verified not to touch any trap's real mechanism.
+  100/100 domain-benchmark tests pass (five domains); full suite verified against a live database
+  (499 passed); `ruff`/`pyright` clean.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
