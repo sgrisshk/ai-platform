@@ -1802,6 +1802,25 @@ blocker"), not reopened or implied-done by this closure.
   a new mechanism, not a retry of either — `ADR-039` names one unauthorized candidate direction
   (change the relevance floor's reference point from the pool's single best score to a more robust
   central-tendency statistic) for whoever scopes it next.
+- **Iteration attempt (2026-08-20, ML Discovery, `ADR-040`, `HANDOFF-057`): percentile-referenced
+  floor implemented and run — result pending Statistics scrutiny, one candidate flagged high-risk.**
+  `_greedy_diverse_select`'s relevance floor now measures `min_diversity_relevance_ratio` (value
+  unchanged) against `relevance_floor_percentile`-th percentile (new, default `0.75`) of the
+  phase's own `effective_score` distribution, not the phase's single maximum — `1.0` reproduces
+  the old maximum-referenced behavior exactly, and combined with `stability_credit_weight=0.0`
+  reproduces `v0.3.1` exactly (regression-tested, 5 new tests). Chose the 75th percentile from a
+  general shape argument (upper-quartile bar, far less outlier-sensitive than the maximum, not as
+  permissive as the median) fixed before this run existed — not solved for against
+  `ADR-038`'s ground-truth-derived numbers. `DISCOVERY_METHOD_VERSION` →
+  `discovery-engine-v0.4.1`. New official run `task-060-iteration-20260820-004`
+  (`status=PERSISTED`, committed via signed receipt before any evaluation opened ground truth).
+  **⚠️ `CAND-015` = `acquisition_channel == paid_search AND discount_rate >= 0.03` reappears** —
+  the exact apparent feature of confounding trap `T03` (`ADR-036`'s regression), now materially
+  larger (`n=1085`) than the earlier instance (`n=486`) that got promoted. Flagged for priority
+  scrutiny in `HANDOFF-057`, not pre-judged safe or unsafe. `TASK-060` remains `IN_PROGRESS`
+  pending that result; `HANDOFF-057` also raises, without resolving, whether a further-failed
+  attempt here should trigger a larger question — has this architecture's current support/beam-
+  search configuration reached a recall ceiling selection-stage tuning alone cannot safely exceed.
 
 ### TASK-061 — Multi-domain generalization benchmark suite
 

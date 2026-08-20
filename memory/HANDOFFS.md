@@ -3148,3 +3148,79 @@ here. Not scoped or authorized by this handoff — a decision for whoever picks 
 - `TASKS.md` (`TASK-060`), `ADR-039`
 
 **Resolution:** Null result, fully diagnosed, as above. `TASK-060` remains `IN_PROGRESS`.
+
+## HANDOFF-057
+
+**Created:** 2026-08-20
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** OPEN
+
+**Task:** Run `TASK-019` validation and `TASK-028` evaluation against the `TASK-060` percentile-floor
+iteration (`ADR-040`), to determine whether `TASK-060`'s done condition (≥2 additional unique
+patterns from `{P02, P08, P09}`, no precision/direction degradation, no trap promoted) is met — and
+**scrutinize one specific high-risk candidate before anything else.**
+
+**Context:** `ADR-038` diagnosed the recall ceiling as selection-stage; `ADR-039` (stability credit)
+was implemented per that scoping and was empirically null (byte-identical run). The only remaining
+option `ADR-038` named — changing the relevance floor's reference point from the phase's single
+maximum `effective_score` to a percentile of the pool's own distribution — is now implemented
+(`relevance_floor_percentile`, default `0.75`; `1.0` reproduces the prior maximum-based behavior
+exactly, regression-tested). `min_diversity_relevance_ratio` itself is unchanged, per `ADR-038`'s
+own constraint.
+
+A new official blind run was issued/verified/launched/frozen/committed under the existing `ADR-008`
+protocol: `task-060-iteration-20260820-004`, `status=PERSISTED`, 15 candidates, committed via signed
+receipt (`artifacts/blind/task-060-iteration-20260820-004.receipt.json`) **before** this handoff or
+any evaluation opened `hidden_ground_truth.json`. No image rebuild needed; rehearsed clean before
+issuance.
+
+**⚠️ Risk flagged, not resolved — please check this first:** `CAND-015` =
+`acquisition_channel == paid_search AND discount_rate >= 0.03` (`support=0.217`, `n=1085`). This is
+the exact apparent feature of confounding trap `T03`, the same one that reached `PASS`/
+`shadow_policy` on `task-060-remediation-20260818-001` (`ADR-036`) before `v0.3.1`'s floor excluded
+it. It is now back, and materially larger than that earlier instance (`n=1085` vs. `n=486`) — the
+looser percentile-based floor plausibly readmitted it. Please check `CAND-015` against gate `G06`
+directly and report whether it reaches `PASS`/`shadow_policy` again, before doing anything else with
+this run. Separately, `CAND-012` = `discount_rate >= 0.08 AND party_size >= 4.0` — `party_size` is
+listed as a confounder (not an apparent feature) for traps `T01`/`T05`; noted for completeness, not
+flagged as high-risk the way `CAND-015` is (it doesn't match any trap's literal apparent feature).
+
+**Public, no-ground-truth-opened comparison:** distinct categorical `(feature, value)` pairs used
+rose from 4 (`task-060-iteration-20260820-002`) to 5, driven by `CAND-015`'s reappearance; mean
+support/exposure held roughly flat (0.1546→0.1519, 3.16M→3.02M).
+
+**Question:** Please run `TASK-019`/`TASK-028` against
+`artifacts/blind/task-060-iteration-20260820-004.candidates.json` (with its sibling
+`discovery_metrics.json`) and report, in this order: (1) does `CAND-015` reach `PASS`/
+`shadow_policy`, i.e. is `T03` promoted again? (2) if not, how many unique matched patterns are
+recovered, and specifically is `≥2` of `{P02, P08, P09}` met? (3) Top-10 precision and direction
+accuracy vs. the `90%`/`100%` bar. If `T03` is promoted, this run fails its own safety bar
+regardless of any recall gain elsewhere — report that plainly rather than weighing it against
+recall. If this attempt also fails (either on safety or on recall), please also weigh in on the
+question `ADR-040` left open and did not resolve: **continue tuning `_greedy_diverse_select`'s
+selection stage further (e.g. a higher `relevance_floor_percentile`), or is this evidence the
+current support/beam-search configuration has reached a recall ceiling this architecture cannot
+safely exceed without a validation-side change (`G06` generalization)?** That second question is
+larger than this task and not something ML Discovery should decide unilaterally — flagging for
+Statistics/Architect/Founder judgment, not asking for it to be resolved in this handoff's reply
+alone.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`_percentile`,
+  `relevance_floor_percentile`)
+- `docs/analytics/discovery-engine-v0.md` ("Floor reference point")
+- `artifacts/blind/task-060-iteration-20260820-004.*` (gitignored, reproducible)
+- `artifacts/blind/task-060-iteration-20260820-002.candidates.json` (comparison baseline)
+- `TASKS.md` (`TASK-060`), `ADR-040`
+
+**Expected output:** A `TASK-019`/`TASK-028` run against `task-060-iteration-20260820-004`, an
+explicit `T03`-promotion check reported first, and a met-or-not verdict against `TASK-060`'s
+three-part done condition. If not met, a view on the escalation question above is welcome but not
+required in the same reply.
+
+**Blocking:** YES — blocks closing `TASK-060` and blocks any further `TASK-060` iteration that
+would otherwise be scoped blind to whether this one was safe.
+
+**Resolution:** Pending.

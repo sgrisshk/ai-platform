@@ -1502,3 +1502,58 @@ population × effect) to a more robust central-tendency statistic of the pool's 
 distribution (e.g. a percentile), which would set a less outlier-driven, more attainable bar for
 every non-dominant candidate — still feature-identity-agnostic, but a different axis than either
 option this ADR was scoped to choose between, and therefore a new task, not this one's to decide.
+
+## ADR-040 — Relevance floor reference point: pool's own percentile, not the phase maximum (`TASK-060` iteration)
+
+**Date:** 2026-08-20
+**Status:** Accepted
+
+**Decision:** `_greedy_diverse_select`'s relevance floor now measures `min_diversity_relevance_ratio`
+against `relevance_floor_percentile`-th percentile (`_percentile`, linear interpolation, new
+default `0.75`) of the phase's own `effective_score` distribution, computed once before selection
+runs — not the phase's single maximum, as `v0.3.1`/`v0.4.0` did. `relevance_floor_percentile=1.0`
+reproduces the maximum exactly, and combined with `stability_credit_weight=0.0` reproduces `v0.3.1`
+exactly (regression-tested). `min_diversity_relevance_ratio` itself is unchanged, per `ADR-038`'s
+own constraint — only what it multiplies changed. `DISCOVERY_METHOD_VERSION` bumps
+`"discovery-engine-v0.4.0"` → `"discovery-engine-v0.4.1"`. Full mechanism:
+`docs/analytics/discovery-engine-v0.md` §"Floor reference point".
+
+**Context:** the only remaining option `ADR-038` named after rejecting a uniform floor change and
+after `ADR-039`'s stability credit turned out empirically null. `ADR-038`'s diagnostic already
+established the mechanism this fixes: the phase's maximum `effective_score` is always the dominant
+rescaling family (largest population × effect, by construction of `_development_score`), so the
+floor was measured against one outlier rather than the pool's typical quality —
+`P02`/`P08`/`P09`'s best candidates sat at 0.11–0.33 of that maximum, excluded regardless of
+whether they were noise or signal.
+
+**Why the 75th percentile, not the median or another value:** the median (`50`th percentile) would
+put the floor near the pool's typical rule, which — combined with `min_diversity_relevance_ratio`'s
+own `0.5` multiplier — would admit roughly half the eligible pool into selection regardless of
+whether the diversity/overlap mechanism was doing any filtering at all, close to disabling the
+floor as a meaningful control (the exact over-permissiveness `v0.3.1` was built to fix). The 75th
+percentile keeps the floor requiring a rule to be in its phase's upper quartile — a real bar, not a
+coin flip — while remaining far less sensitive to one extreme outlier than the maximum. No specific
+value was solved for by checking which percentile would admit `P02`/`P08`/`P09` specifically —
+doing so would use `ADR-038`'s ground-truth-derived diagnostic numbers to reverse-engineer a
+parameter, exactly the tuning discipline this whole `TASK-060` sequence has held to; `0.75` was
+chosen from the general shape argument above only, before this run existed.
+
+**New official blind run:** `task-060-iteration-20260820-004` (`status=PERSISTED`, 15 candidates,
+committed via signed receipt before any evaluation opened ground truth). Public, no-ground-truth
+comparison against `task-060-iteration-20260820-002`: distinct categorical `(feature, value)`
+pairs used rose from 4 to 5. **Risk flagged, not resolved:** `acquisition_channel == paid_search`
+(`CAND-015`, combined with `discount_rate >= 0.03`) reappears for the first time since the `v0.3.0`
+run that caused the `T03` regression `ADR-036` diagnosed — this is the exact apparent feature of
+that trap, now materially larger (`support=0.217`, `n=1085`) than `v0.3.0`'s `CAND-012`
+(`n=486`). Whether this candidate reaches `PASS`/`shadow_policy` again is exactly what `TASK-019`/
+`TASK-028` must determine (`HANDOFF-057`) — not assumed safe or unsafe here.
+
+**Consequences:** `TASK-060` remains `IN_PROGRESS` pending `HANDOFF-057`'s result. If `T03` is
+promoted again, this specific `relevance_floor_percentile` value is too permissive and the next
+iteration should consider a higher percentile (e.g. `0.85`–`0.9`) before touching any other axis;
+if it is not promoted and `≥2` of `{P02, P08, P09}` are genuinely recovered, `TASK-060` closes. If
+this run's own trap-safety bar fails, per this task's own instruction that governs both possible
+outcomes: the open question becomes whether to keep tuning `_greedy_diverse_select`'s selection
+stage further, or whether the current support/beam-search configuration has reached a recall
+ceiling this architecture cannot safely exceed without validation-side change (`G06` generalization)
+— a larger, separate question this ADR does not resolve, left explicit in `HANDOFF-057`.

@@ -476,6 +476,21 @@ dataset directly): the dominant pattern and `P02`/`P09`'s best candidate are bot
 options `ADR-038` scoped between are now addressed; `TASK-060` remains `IN_PROGRESS`, needs a new
 mechanism for its next iteration.
 
+**Iteration attempt, same day (ML Discovery, `ADR-040`, `HANDOFF-057`): percentile-referenced
+floor — implemented, run, result pending, one candidate flagged high-risk.** The relevance floor
+now measures `min_diversity_relevance_ratio` (value unchanged) against a `relevance_floor_percentile`
+(new, default `0.75`) of the phase's own score distribution instead of its single maximum — `1.0`
+reproduces the old behavior exactly (regression-tested). `0.75` chosen from a general
+robust-statistics shape argument, fixed before this run existed, not solved for against
+`ADR-038`'s ground-truth-derived numbers. New official run `task-060-iteration-20260820-004`
+(committed via signed receipt before ground truth opened). **⚠️ `CAND-015` =
+`acquisition_channel == paid_search AND discount_rate >= 0.03` reappears** — `T03`'s exact
+apparent feature, the same regression `ADR-036` diagnosed, now larger (`n=1085` vs. the earlier
+`n=486`). Flagged for priority scrutiny in `HANDOFF-057`, not pre-judged. `TASK-060` remains
+`IN_PROGRESS` pending that result; `HANDOFF-057` also raises, without resolving, whether continued
+selection-stage tuning is still the right response if this attempt also fails, or whether this
+architecture has reached a recall ceiling at its current support/beam-search configuration.
+
 `TASK-061` (multi-domain benchmark suite) reviewed the same day: domain 1/6 (e-commerce)
 independently re-verified — RNG-draw-parity for counterfactual replay confirmed by direct grep (no
 `rng.*()` call gated by pattern-active status), leakage/checksum tests re-run and real; engine
