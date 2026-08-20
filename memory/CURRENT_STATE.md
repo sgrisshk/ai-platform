@@ -461,6 +461,21 @@ full-match candidates anywhere in the pool — a beam-search question, out of `T
 **Recommendation:** next iteration scoped to `P02`/`P08`/`P09` specifically (real, redundant,
 trap-free), not a uniform floor drop. `TASK-060` remains `IN_PROGRESS`; no code changed by the
 diagnostic itself.
+
+**Iteration attempt, same day (ML Discovery, `ADR-039`, `HANDOFF-056`): stability-weighted
+marginal gain — implemented, tested, empirically null.** `_greedy_diverse_select` now compares an
+`effective_score` (raw score × stability credit, via new `_temporal_consistency`) against the
+*unmoved* floor/discount, not the raw score — `stability_credit_weight=0.5` default, `0.0`
+reproduces `v0.3.1` exactly (regression-tested). New official run
+`task-060-iteration-20260820-003` (committed via signed receipt before ground truth opened) is
+**byte-identical to `task-060-iteration-20260820-002`** (verified by diff) — `TASK-019`/`TASK-028`
+not re-requested, outcome already known by identity. Root cause (checked against the analytical
+dataset directly): the dominant pattern and `P02`/`P09`'s best candidate are both fully stable
+(`consistency=1.0`, indistinguishable); `P08`'s best candidate is only partially stable (`0.5`,
+*less* than the dominant pattern) — uniform credit can't help and would if anything hurt it. Both
+options `ADR-038` scoped between are now addressed; `TASK-060` remains `IN_PROGRESS`, needs a new
+mechanism for its next iteration.
+
 `TASK-061` (multi-domain benchmark suite) reviewed the same day: domain 1/6 (e-commerce)
 independently re-verified — RNG-draw-parity for counterfactual replay confirmed by direct grep (no
 `rng.*()` call gated by pattern-active status), leakage/checksum tests re-run and real; engine

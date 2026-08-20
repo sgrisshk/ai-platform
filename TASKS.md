@@ -1777,6 +1777,31 @@ blocker"), not reopened or implied-done by this closure.
   (Statistics-owned, not reopened here); `P04` noted as a distinct, lower-priority question. Full
   table and reasoning: `HANDOFF-055`, `ADR-038`. `TASK-060` remains `IN_PROGRESS`; no code changed
   by this diagnostic.
+- **Iteration attempt (2026-08-20, ML Discovery, `ADR-039`, `HANDOFF-056`): stability-weighted
+  marginal gain implemented and tested — empirically a null result.** Chose stability-weighted
+  marginal gain over pattern-shape-aware relaxation (the latter rejected without implementation:
+  any workable version either tracks past trap findings, exactly the reactive tuning `ADR-007`/
+  `ADR-036` forbid, or invents an unvalidated feature taxonomy this session already has enough
+  information to retrofit toward the known answer). `_greedy_diverse_select` now compares an
+  `effective_score = development_score × (1 + stability_credit_weight × temporal_consistency)`
+  against the *unmoved* `min_diversity_relevance_ratio` floor and marginal-gain formula — neither
+  changed in value, only what gets compared against them. `stability_credit_weight` defaults `0.5`;
+  `0.0` exactly reproduces `v0.3.1` (regression-tested, 8 new tests). `DISCOVERY_METHOD_VERSION` →
+  `discovery-engine-v0.4.0`. New official run `task-060-iteration-20260820-003`
+  (`status=PERSISTED`, committed via signed receipt before any evaluation opened ground truth) is
+  **byte-identical, condition-for-condition, to `task-060-iteration-20260820-002`** (verified by
+  direct diff) — `TASK-019`/`TASK-028` not re-requested, since identical candidates imply the
+  already-known outcome. **Root cause (checked against the analytical dataset directly, not
+  `hidden_ground_truth.json`):** the dominant pattern and `P02`/`P09`'s best pool candidate
+  (`customer_segment == family`) are both fully stable (`consistency=1.0`) — a uniform credit
+  cannot differentiate two equally-stable candidates; `P08`'s best candidate (`party_size < 2.0`)
+  is only partially stable (`0.5`), *less* than the dominant pattern, so credit would if anything
+  worsen its position. The mechanism's premise (weak true patterns are differentially more stable
+  than the dominant rescaling family) does not hold on this data. `TASK-060` remains
+  `IN_PROGRESS`: both options `ADR-038` scoped between are now addressed; the next iteration needs
+  a new mechanism, not a retry of either — `ADR-039` names one unauthorized candidate direction
+  (change the relevance floor's reference point from the pool's single best score to a more robust
+  central-tendency statistic) for whoever scopes it next.
 
 ### TASK-061 — Multi-domain generalization benchmark suite
 

@@ -3088,3 +3088,63 @@ G06 is addressed; P04 is a separate, lower-priority beam-search question.
 
 **Resolution:** Diagnostic complete, as above. `TASK-060` remains `IN_PROGRESS`; this is a
 recommendation for its next iteration, not a request pending further Statistics/Architect input.
+
+## HANDOFF-056
+
+**Created:** 2026-08-20
+**From:** ML_DISCOVERY
+**To:** STATISTICS, ARCHITECT
+**Status:** RESOLVED (honest negative result; no action requested from Statistics)
+
+**Task:** Report the outcome of `TASK-060`'s stability-weighted-marginal-gain iteration
+(`ADR-039`), scoped per `HANDOFF-055`/`ADR-038`'s recommendation.
+
+**What was tried:** `_greedy_diverse_select` now compares an `effective_score` — raw
+`_development_score` credited by cross-split stability (`_temporal_consistency`, new) — against
+the unmoved `min_diversity_relevance_ratio` floor and in the marginal-gain formula, instead of the
+raw score alone. `stability_credit_weight` defaults `0.5`; `0.0` reproduces `v0.3.1` exactly
+(regression-tested, 8 new tests). Chosen over pattern-shape-aware relaxation per `ADR-038`'s own
+instruction to pick one, with alternatives-considered reasoning in `ADR-039`. Implemented and
+tested without opening `hidden_ground_truth.json` at any point.
+
+**Result: null.** A new official blind run, `task-060-iteration-20260820-003`
+(`status=PERSISTED`, 15 candidates, committed via signed receipt before any evaluation opened
+ground truth — `artifacts/blind/task-060-iteration-20260820-003.*`), is **byte-identical,
+condition-for-condition, to `task-060-iteration-20260820-002`** (verified by direct diff, not
+assumed). `TASK-019`/`TASK-028` are not being requested against it — the candidates are identical
+to the already-scored `task-060-iteration-20260820-002`, so the outcome (2 unique patterns, safe
+on all three bars) is already known by identity, not by inference. This iteration's own done
+condition is **not met.**
+
+**Root cause (diagnosed directly from the analytical dataset — outcome/split data discovery
+always has, not `hidden_ground_truth.json`):** checked `_temporal_consistency` on both the
+dominant pattern's rescalings and the specific conditions the `ADR-038` diagnostic found for
+`P02`/`P08`/`P09`. The dominant pattern and `P02`/`P09`'s best rule (`customer_segment == family`)
+are **both** fully stable (`consistency = 1.0`) — a uniform credit cannot differentiate two equally
+stable candidates, so relative ranking is unchanged. `P08`'s best rule (`party_size < 2.0`) is only
+*partially* stable (`0.5`) — less stable than the dominant pattern — so uniform stability credit
+would if anything worsen its position, not help it. The mechanism's premise (weak true patterns are
+differentially more stable than the dominant rescaling family) does not hold here: the dominant
+pattern is a genuine, highly stable effect, not a fragile artifact credit could discount away.
+
+**Not requesting further Statistics/Architect input on this specific attempt** — the result is
+conclusive on its own terms. Flagging for whoever scopes `TASK-060`'s next iteration: both options
+`HANDOFF-055` offered are now addressed (pattern-shape-aware rejected on principled grounds without
+implementation; stability-weighted implemented and empirically null) — the next attempt needs a
+genuinely new mechanism. One unauthorized, unscoped candidate direction for consideration: the
+relevance floor's reference point is currently the phase's single best raw score, which one
+outlier-strong pattern can set unreasonably high for everyone else; a more robust central-tendency
+reference (e.g. a percentile of the pool's own score distribution) would remain feature-identity-
+agnostic while not depending on differential stability, which this attempt showed doesn't exist
+here. Not scoped or authorized by this handoff — a decision for whoever picks up the next iteration.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py` (`_temporal_consistency`,
+  `_apply_stability_credit`, `stability_credit_weight`)
+- `docs/analytics/discovery-engine-v0.md` ("Stability-credited effective score")
+- `artifacts/blind/task-060-iteration-20260820-003.*` (gitignored, reproducible)
+- `artifacts/blind/task-060-iteration-20260820-002.candidates.json` (byte-identical comparison)
+- `TASKS.md` (`TASK-060`), `ADR-039`
+
+**Resolution:** Null result, fully diagnosed, as above. `TASK-060` remains `IN_PROGRESS`.

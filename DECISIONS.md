@@ -1439,3 +1439,66 @@ a distinct, lower-priority beam-search question, not scoped or assigned by this 
 discovery/blind pipeline, and opens `hidden_ground_truth.json` deliberately under the same
 already-committed-run discipline `TASK-028` uses — it must not be run against, or its logic folded
 into, any search whose candidates are not yet committed.
+
+## ADR-039 — Stability-credited effective score (`TASK-060` iteration): implemented as scoped, empirically a null result on this run
+
+**Date:** 2026-08-20
+**Status:** Accepted (decision and honest result both recorded; mechanism not reverted)
+
+**Decision:** Per `ADR-038`'s scoping (do not move `min_diversity_relevance_ratio` globally; pick
+one of pattern-shape-aware relaxation or stability-weighted marginal gain), implemented
+**stability-weighted marginal gain**: `_greedy_diverse_select` now compares an `effective_score`,
+not the raw `_development_score`, against both the unmoved relevance floor and the marginal-gain
+formula — `effective_score = development_score × (1 + stability_credit_weight × temporal_consistency)`,
+where `temporal_consistency` is the same later-split direction-agreement fraction already reported
+on every final candidate, computed earlier (`_temporal_consistency`, new) so selection can use it
+too. `stability_credit_weight` defaults to `0.5`; `0.0` reproduces `v0.3.1` exactly
+(regression-tested). `DISCOVERY_METHOD_VERSION` bumps `"discovery-engine-v0.3.1"` →
+`"discovery-engine-v0.4.0"`. Full mechanism: `docs/analytics/discovery-engine-v0.md` §"Stability-
+credited effective score".
+
+**Alternatives considered (chose one, not both, per `ADR-038`'s own instruction):** pattern-shape-
+aware relaxation (a lower floor for candidates whose features don't overlap features previously
+flagged in trap-suspicious candidates) was rejected without implementation. Any workable version
+either tracks specific past trap findings — exactly the reactive, ground-truth-informed tuning
+`ADR-007`/`ADR-036` forbid, dressed as "feature shape" rather than a named feature — or requires
+inventing a new, unvalidated "assignment-type vs. commercial-term" feature taxonomy whose boundary
+this session already has enough information (from the `ADR-038` diagnostic) to retrofit toward the
+answer, even unintentionally. Stability-weighted marginal gain was chosen as feature-identity-
+agnostic and built on an already-established, already-computed statistic.
+
+**Empirical result: a new official blind run (`task-060-iteration-20260820-003`,
+`status=PERSISTED`, 15 candidates, committed via signed receipt before any evaluation opened
+ground truth) is byte-identical, condition-for-condition, to `task-060-iteration-20260820-002`
+(`v0.3.1`, before this change).** Verified by direct diff of both frozen candidate documents, not
+assumed. `TASK-019`/`TASK-028` are therefore not re-run against it — the candidates are identical,
+so the recall/precision/trap outcome is identical to `task-060-iteration-20260820-002`'s
+already-frozen result (`HANDOFF-054`): still 2 unique patterns, still safe. This iteration's own
+done condition (≥2 additional unique patterns from `{P02, P08, P09}`) is **not met.**
+
+**Root cause, diagnosed directly from the analytical dataset (not from
+`hidden_ground_truth.json` — this uses only outcome/split data discovery always has):**
+`_temporal_consistency` was checked on both the dominant pattern's rescalings and on the specific
+conditions that surfaced `P02`/`P08`/`P09` in the `ADR-038` diagnostic. The dominant pattern
+(`discount_rate >= 0.12 AND manual_exception == False`) and `customer_segment == family`
+(`P02`/`P09`'s best rule) are **both** fully stable (`consistency = 1.0`) — a uniform credit cannot
+differentiate two candidates that are equally stable, so relative ranking, and therefore selection,
+is unchanged. `party_size < 2.0` (`P08`'s best rule) is only partially stable
+(`consistency = 0.5`) — *less* stable than the dominant pattern — so a uniform stability credit
+would if anything worsen its relative position, not help it. The mechanism's core assumption (weak
+true patterns are differentially more stable than the dominant rescaling family competing with
+them) does not hold on this run: the dominant pattern is itself a genuine, highly stable effect,
+not a fragile artifact stability credit could discount away.
+
+**Consequences:** `TASK-060` remains `IN_PROGRESS`. The stability-credit mechanism is not reverted
+(it is a real, correctly-implemented, regression-tested feature-identity-agnostic capability,
+`stability_credit_weight` defaults to `0.5`) but is now known, empirically, not to be sufficient on
+its own for this task's specific goal. Both options `ADR-038` offered have now been addressed —
+(a) rejected on principled grounds without implementation, (b) implemented and empirically
+null — so the next iteration needs a genuinely new mechanism, not a retry of either. One candidate
+direction, not authorized or scoped here: change the relevance floor's *reference point* from the
+phase's single best raw score (dominated by whichever pattern happens to have the largest
+population × effect) to a more robust central-tendency statistic of the pool's own score
+distribution (e.g. a percentile), which would set a less outlier-driven, more attainable bar for
+every non-dominant candidate — still feature-identity-agnostic, but a different axis than either
+option this ADR was scoped to choose between, and therefore a new task, not this one's to decide.
