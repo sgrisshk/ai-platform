@@ -1647,7 +1647,7 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** ML_DISCOVERY
 - **Reviewer:** STATISTICS
 - **Priority:** P1
-- **Status:** IN_PROGRESS
+- **Status:** CLOSED — accepted at its last safe result, not fully done; see closing note below
 - **Depends on:** TASK-058 (DONE)
 - **Goal:** Fix candidate-set redundancy, not per-candidate precision (`TASK-058` already did that).
   Live-verified diagnosis (2026-08-18, against `artifacts/evaluation/task-028-task-058-remediation-001.json`):
@@ -1821,6 +1821,28 @@ blocker"), not reopened or implied-done by this closure.
   pending that result; `HANDOFF-057` also raises, without resolving, whether a further-failed
   attempt here should trigger a larger question — has this architecture's current support/beam-
   search configuration reached a recall ceiling selection-stage tuning alone cannot safely exceed.
+- **`HANDOFF-057` resolved (2026-08-20, Statistics): fails on every axis — worse than the prior
+  iteration, not a partial gain.** `T03` promoted again (`CAND-015`, `PASS`/`shadow_policy`,
+  confirmed). Top-10 precision fell to 70% (from 90%). Of the three scoped targets
+  (`{P02, P08, P09}`), **zero were recovered** — the only "new" pattern touched (`P03`) is
+  trap-tainted and does not count as genuine recovery, exactly as `ADR-038` predicted specifically
+  for `P03`. **Structural finding, not just another failed run:** at this run's floor (`0.75`
+  percentile, the most permissive tried besides no floor), selection reached the `T03`-adjacent
+  candidate *before* it reached any of the three genuine targets — meaning the trap-adjacent zone
+  sits closer to the current safe floor than the genuine weak-pattern zone does in this pool's
+  score distribution. Four attempts on the same knob (`v0.3.0`, `v0.3.1`, `v0.4.0`, this percentile
+  variant) have now failed to separate the two even once.
+- **Closed (2026-08-20, Founder decision).** Accepted at its last safe, honest result —
+  `task-060-iteration-20260820-002` (2 genuine unique patterns, P01/P06, of 7 scoreable; 90%
+  Top-10 precision; 100% direction accuracy; 0 traps promoted) — **not** the failed `…-004` run.
+  `TASK-060` does not close on a claim its own done condition was met; it closes on an explicit
+  decision that a fifth blind iteration tuning `_greedy_diverse_select`'s selection-stage knobs is
+  not worth pursuing further, per the structural finding above. Further recall on this benchmark,
+  if pursued, requires a different mechanism — tracked as `TASK-063` (`G06` adjustment-set
+  generalization), not a continuation of this task. `discovery.engine`'s `v0.4.1` code
+  (`diversity_discount_weight`, `min_diversity_relevance_ratio`, `stability_credit_weight`,
+  `relevance_floor_percentile`) is not reverted — it is real, tested, safe-by-default
+  infrastructure; only the *tuning campaign* against it stops here.
 
 ### TASK-061 — Multi-domain generalization benchmark suite
 
@@ -2007,6 +2029,37 @@ blocker"), not reopened or implied-done by this closure.
   hardcodes travel-specific column names. This was a dedicated task for travel too (`TASK-011`),
   not an implied side effect of the raw generator existing, and stays real, separate, explicitly
   out-of-scope follow-up work rather than something to file a new task for unprompted.
+- **Reviewer sign-off, domains 2-6 + final state (2026-08-21, Statistics):** Independently
+  re-verified, not just read — full non-integration suite reran clean (495 passed), `ruff`/
+  `pyright` clean project-wide. Spot-checked domain 3 (insurance, chosen for its inverted harm
+  direction as the more novel case) against `HANDOFF-053`'s original finding class: read
+  `generate_row` directly and confirmed all 5 traps' declared `confounded_by` variables are
+  genuinely wired (e.g. `IT01`'s `adjuster_weights[1] += 5.0` fires only `if
+  config.trap_active("IT01") and claimed_amount >= 12000`, matching its declared
+  `claimed_amount_usd` confounder exactly) and every mechanism is gated behind
+  `config.trap_active(...)`, not just documented as such. More importantly, confirmed the
+  structural fix generalizes: `common.raw_marginal_effect` plus
+  `test_declared_traps_produce_a_live_raw_marginal_effect`/`test_noise_variant_produces_no_trap_signal`
+  now run automatically for every registered domain (134 tests across `test_domain_benchmarks.py`/
+  `test_domain_analytical_bridge.py`), so `HANDOFF-053`'s class of defect (a trap that looks
+  documented but produces no real signal) is now caught by the test suite itself for domains 2-6
+  and any future domain, not by a repeat of my manual empirical pass. This is the right fix —
+  structural, not a one-off patch.
+- **Reviewer sign-off, `TASK-062` analytical bridge (2026-08-21, Statistics):** Read
+  `analytical_bridge.py` directly: `provisional_outcome_contract`'s `status="PROVISIONAL"` and
+  `missing_data_policy="not_yet_classified"` are genuinely present in the returned object (not just
+  claimed in prose), and `ProvisionalPrimaryOutcome.harm_multiplier` matches the project's real
+  sign convention (`1 if higher_is_worse else -1`) exactly. Independently verified the most
+  safety-critical claim byte-for-byte rather than trusting "regenerated clean": travel's pinned
+  `DATASET_IDENTITY_SHA256` (`packages/analytics/src/policy_analytics/outcomes/contract.py`) and
+  the actual `dataset_identity_sha256` in the committed
+  `synthetic_data/analytical/travel-bookings-analytical-v1.0.0/manifest.json` are exactly equal
+  (`dd7889f7...`), and `git status --porcelain synthetic_data/analytical/` is empty — the
+  `_config_summary()` fix (explicit frozen field list, not `asdict(config)`) genuinely prevents the
+  two new config fields from perturbing travel's identity, confirmed directly rather than assumed
+  from the changelog prose. The one remaining honestly-flagged gap (`evaluate_benchmark.py` still
+  hardcodes travel's `DATASET_ROOT`) is real and unchanged, not quietly fixed and left undocumented
+  either way — checked directly. No defect found in either task.
 
 ### TASK-062 — Analytical-dataset bridge for the 6 `TASK-061` domains
 
@@ -2088,6 +2141,74 @@ blocker"), not reopened or implied-done by this closure.
     (533 passed, up from 519); `ruff format`/`ruff check`/`pyright` clean on every touched/new
     file; travel's own analytical dataset regenerated and confirmed byte-identical to the
     committed artifact (not just identity-hash-equal — every partition file).
+
+### TASK-063 — G06 adjustment-set generalization (`TASK-060` follow-on, `ADR-041`)
+
+- **Owner:** STATISTICS
+- **Reviewer:** ARCHITECT
+- **Priority:** P2
+- **Status:** DONE
+- **Depends on:** none (independent of `TASK-060`, which is closed; this is a new mechanism, not a
+  continuation)
+- **Goal:** `ADR-036` diagnosed that gate `G06`'s confounding adjustment uses a fixed, generic
+  two-variable set (`manager`, `supplier`) chosen once from ordinary booking-domain reasoning
+  (`TASK-019`) — it cannot see a candidate's actual confounders when they fall outside that fixed
+  set, which is exactly how `T03` (`acquisition_channel`-driven) has twice reached
+  `PASS`/`shadow_policy` when a candidate happened to use or sit near that feature. Four `TASK-060`
+  iterations confirmed this is not fixable from the search/selection side alone — `P03`'s best
+  candidate is structurally trap-adjacent, and the genuine-weak-pattern score zone (`P02`/`P08`/
+  `P09`) is entangled with it in this pool's score distribution (`ADR-040`/`HANDOFF-057`).
+- **Scope:** Generalize G06 to adjust for every eligible `DECISION_TIME` covariate outside a
+  candidate's own condition set (the path `ADR-036` already named but explicitly declined to do
+  reactively at the time), not just the fixed `manager`/`supplier` pair — a deliberate,
+  pre-specified methodological change, not a patch keyed to `T03`/`acquisition_channel` by name.
+- **Explicitly not in scope:** re-running or reopening `TASK-060`'s selection-stage mechanism
+  (`_greedy_diverse_select`) — that tuning campaign is closed (`ADR-041`). This task is
+  validation-side only.
+- **Done when:** G06's generalized adjustment set is implemented, versioned (new validation
+  contract version, per `docs/analytics/validation-contract.md`'s own versioning discipline — this
+  is a methodology change, not a bugfix), regression-tested on synthetic fixtures without opening
+  `hidden_ground_truth.json` to design it, and then run for real against at least one existing
+  frozen candidate set (e.g. `task-060-iteration-20260820-004`, already public) to confirm `T03`
+  is now rejected on general grounds rather than by the selection stage never proposing it.
+- **Risk to guard against:** the same one every prior iteration was held to — no version of this
+  gate may reference `T03`, `acquisition_channel`, or any other specific trap/feature by name in
+  its logic. It must be a general adjustment-set rule that happens to catch `T03`, not a rule built
+  to catch `T03`.
+- **Implementation evidence (2026-08-21, Statistics, `ADR-042`):** Validation contract **v1.2.0**.
+  `apply.py`'s `_adjustment_pool`/`_binned_adjustment_frame`/`_select_adjustment_columns` replace
+  the fixed `CONFOUNDER_COLUMNS` pair with a per-candidate greedy, coverage-gated joint
+  stratification over every eligible `DECISION_TIME` covariate (ascending-cardinality order,
+  `min_confounder_stratum_coverage = 0.50`, now a named threshold). No gate logic references `T03`/
+  `acquisition_channel`/any specific feature — grep-verified, and proven by 10 new regression tests
+  built entirely on neutrally-named synthetic fixtures. Full design:
+  `docs/analytics/validation-contract.md` §4b/§11. 495 tests pass project-wide (10 new), `ruff`/
+  `pyright` clean.
+- **Real-data run against `task-060-iteration-20260820-004` — honest, mixed result, reported as
+  such, not rounded up (`HANDOFF-058`):** `CAND-015` (the `T03`-matching candidate) now adjusts
+  against 7 covariates instead of 2, with roughly **3x the attenuation** the old fixed pair found
+  (0.06 vs 0.018) — real, measured progress. **It still does not flip the verdict**: attenuation
+  stays under the 0.50 ceiling, E-value stays above the 1.50 floor, `CAND-015` still reaches
+  `PASS`/`shadow_policy`, `T03` is still promoted per `evaluate_benchmark.py`'s independent
+  ground-truth check. Diagnosed why, not patched around: `discount_rate` (a real confounder) is
+  correctly excluded from adjustment because it's part of this candidate's own condition;
+  `installments` (another real confounder) doesn't survive this candidate's coverage floor. **No
+  further design iteration was made to force a different outcome** — would be exactly the reactive,
+  result-informed tuning `ADR-041` closed `TASK-060` to prevent. This task's literal "confirm `T03`
+  is now rejected on general grounds" done-when clause is **not** satisfied by this specific run;
+  the method itself is done, tested, versioned, and demonstrably general. `HANDOFF-058` asks
+  Founder/Architect/ML Discovery whether this residual gap is an acceptable, disclosed limitation
+  or worth a future, larger methodological step (multivariate regression adjustment) — not decided
+  here.
+- **Multivariate regression evaluated and explicitly not built (2026-08-21, Statistics, `ADR-043`,
+  closes `HANDOFF-058`'s open question):** checked empirically before proposing to build it — a
+  validated Frisch–Waugh–Lovell diagnostic shows an additive regression over the same 8-covariate
+  pool would give essentially zero attenuation (158.9 EUR vs. raw 157.2), *worse* than the 0.06
+  already shipped, because this specific confound is interaction-driven (a separate diagnostic:
+  full joint stratification of the same 8 covariates collapses harm to ≈47.7 EUR once interactions
+  are captured — a capability additive regression structurally lacks). Building it would not have
+  answered the motivating question and would ship a weaker tool for this candidate shape. Residual
+  gap accepted as closed, documented (`docs/analytics/validation-contract.md` §11), not deferred.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
@@ -2190,13 +2311,28 @@ Fundraising must not block product validation.
 ### TASK-048 — Company one-liner
 - **Owner:** FOUNDER_STRATEGY
 - **Priority:** P1
-- **Status:** READY
+- **Status:** DONE
 - **Goal:** Maintain one simple, evidence-aligned sentence without broad positioning.
+- **Evidence (2026-08-18):** `docs/strategy/founder-narrative.md` — "We test whether a business's
+  own historical records already contain a costly pattern it hasn't noticed." No "AI"/platform
+  language, no named vertical (current travel-agency wedge is `ADR-016`'s GTM choice, not the
+  thesis), no claim of a delivered outcome — mirrors `docs/product/finding-product-contract.md`'s
+  evidence-language discipline applied to company-level text, not just per-finding text. `DONE`
+  reflects "maintain," not "final forever" — revisit on the next material status change,
+  especially `TASK-057`/`TASK-038`.
 
 ### TASK-049 — Founder story
 - **Owner:** FOUNDER_STRATEGY
 - **Priority:** P2
-- **Status:** TODO
+- **Status:** DONE
+- **Evidence (2026-08-18):** `docs/strategy/founder-narrative.md` — draft covering why this problem,
+  why now, what's proven (synthetic 10k-booking travel benchmark, blind protocol, decision-gate
+  verdict PROMISING after one diagnosed-and-fixed FAILED run: 90% Top-10 precision, 100% direction
+  accuracy, 0 leakage, 0/5 traps promoted, 37.5% median impact error; unevaluated 6-domain generator
+  infrastructure noted as exactly that, not as proof of generality), and what's explicitly not
+  proven (zero real datasets, zero real customer conversations, `TASK-057` reopened at zero). Does
+  not claim or imply any real-customer engagement ahead of `TASK-057`. Explicitly a draft: expected
+  to be rewritten, not just amended, the day `TASK-057` or `TASK-038` produces a real result.
 
 ### TASK-050 — Application metrics snapshot
 - **Owner:** FUNDRAISING

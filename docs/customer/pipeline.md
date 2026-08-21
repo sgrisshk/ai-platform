@@ -29,17 +29,23 @@ ADR. This matches the constraint already fixed in `docs/customer/data-acquisitio
 
 Seven of the 21 candidates in `docs/customer/prospect-target-list.md` were researched further
 (real contact path confirmed via each company's own site, not the earlier LinkedIn-only entries)
-and turned into ready-to-send drafts, weighted per this iteration's instruction: travel primary,
-recruitment and distribution as secondary generality tracks. **None of these have been sent.**
-Sending requires either (a) the founder pasting/sending them from the email address just set up, or
-(b) the Gmail connector being authorized so this session can send directly — see the Founder
-handoff (`HANDOFF-033`). Two entries (T2, T5) have no public email and are call/form-first, not
-email-first — noted per row.
+and turned into ready-to-send drafts. **None of these have been sent.** Sending requires either (a)
+the founder pasting/sending them from the email address just set up, or (b) the Gmail connector
+being authorized so this session can send directly — see the Founder handoff (`HANDOFF-033`). Two
+entries (T2, T5) have no public email and are call/form-first, not email-first — noted per row.
+
+**Scope correction (2026-08-14, `ADR-016`, resolving `HANDOFF-022`): recruitment and distribution
+are paused, not active, for this sprint.** `ADR-016` restricts all outreach effort to travel
+agencies only until `MILESTONE-M3` or a demonstrated travel-only dead-end. **R2, R3, D1, and D3
+below are drafted and kept for later reactivation but must NOT be sent right now** — sending them
+would contradict the current Founder decision. Only **T1, T2, T5** (travel) are live this sprint;
+`docs/customer/acquisition-sprint-7day.md` is the current execution plan and scope for the active
+window (2026-08-14 → 2026-08-21).
 
 Two placeholders need the founder's input before anything goes out: `[YOUR NAME]` and
 `[YOUR EMAIL/PHONE]`. Nothing here should be sent with those still unfilled.
 
-### Track 1 — Travel agency (primary)
+### Track 1 — Travel agency (ACTIVE — the only live track this sprint, per ADR-016)
 
 **T1 — Craft Travel (Miami, FL / Cape Town) — sales@crafttravel.com**
 
@@ -86,7 +92,9 @@ not business inquiries.
 > share anonymized historical data for a free, confidential analysis in return — no product, no
 > promise of proven savings. Would that be worth a short call?"
 
-### Track 2 — Recruitment agency (secondary generality test)
+### Track 2 — Recruitment agency (⏸ PAUSED per ADR-016 — kept as backlog, not active)
+
+**⏸ PAUSED per ADR-016 — do not send this sprint.**
 
 **R2 — The Staffing Agency (UK) — info@thestaffingagency.co.uk**
 
@@ -107,6 +115,8 @@ not business inquiries.
 > [YOUR NAME]
 > [YOUR EMAIL/PHONE]
 
+**⏸ PAUSED per ADR-016 — do not send this sprint.**
+
 **R3 — Independent Resourcing Consultancy / IRC (London, UK) — contact form at ircfs.com/contact**
 (the page's email is protected by a script this session's tools cannot decode into a real address —
 noted so no one treats the garbled placeholder as real; the form is the working path).
@@ -116,7 +126,9 @@ noted so no one treats the garbled placeholder as real; the form is the working 
 > willing to share anonymized historical data for a free, confidential findings report — no product,
 > no promised savings. Could we have a short call? [YOUR EMAIL/PHONE]"
 
-### Track 3 — B2B distributor (secondary generality test)
+### Track 3 — B2B distributor (⏸ PAUSED per ADR-016 — kept as backlog, not active)
+
+**⏸ PAUSED per ADR-016 — do not send this sprint.**
 
 **D1 — SP Muthiah & Sons (Singapore) — sales@spmuthiah.com**
 
@@ -136,6 +148,8 @@ noted so no one treats the garbled placeholder as real; the form is the working 
 >
 > [YOUR NAME]
 > [YOUR EMAIL/PHONE]
+
+**⏸ PAUSED per ADR-016 — do not send this sprint.**
 
 **D3 — Cleveland Wholesale Cash & Carry (Cleveland, OH) — sales@clevelandwholesale.com**
 
@@ -176,9 +190,28 @@ Copy this block per prospect once a real conversation happens; do not pre-fill.
 - **Notes:** <anything that doesn't fit above; do not editorialize interest level — record what was said, not what it seemed to mean>
 ```
 
+**Status disambiguation (for the two call-first tracks, T2/T5, most likely to log first):**
+`CALL SCHEDULED` = a future call time was agreed but hasn't happened yet (used when a cold email/
+form reply asks to schedule). `CALL DONE` = a real conversation actually took place — this is the
+status a cold call (T2/T5) logs directly the moment someone answers and talks, with no
+`CALL SCHEDULED` step in between. If a cold call gets voicemail or no pickup, log it as `CONTACTED,
+no reply yet`, not `GHOSTED` — `GHOSTED` is for someone who engaged first (replied, took the call)
+and then went silent on a promised next step.
+
+## First 2 minutes of a call (T2/T5) — assembled from already-approved material, nothing new
+
+Opener: use the exact call-opening script already written per prospect above (§"Ready-to-send
+outreach"). Once they're actually talking, the first two questions to ask — before anything else in
+`docs/customer/data-acquisition-plan.md` §4 — are that section's own opening pair, asked in this
+order: (1) "What's your role, and are you the person who'd approve sharing a historical data
+export?" (2) "What's the last time something like this went wrong in a way that cost real money?
+What happened, and what did it cost, roughly?" These two alone are enough to know whether to keep
+going into the rest of §4 or to close politely — everything else in §4 only matters once those two
+answers suggest a real fit.
+
 ## Log
 
-_No entries yet. Zero real prospects have been contacted as of 2026-08-13._
+_No entries yet. Zero real prospects have been contacted as of 2026-08-14._
 
 ## Funnel status against `docs/customer/data-acquisition-plan.md` §10 target
 

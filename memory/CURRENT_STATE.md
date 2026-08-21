@@ -503,6 +503,56 @@ independent confounding, two carry unwired/misattributed variables. Recommended 
 declarations plus an automated live-trap empirical test before domain 2/6 starts, so the gap isn't
 silently templated five more times — not blocking, `DATA_ENGINEER`'s call.
 
+**`TASK-063` (G06 adjustment-set generalization) `DONE` 2026-08-21 (Statistics, `ADR-042`,
+validation contract **v1.2.0**), following `TASK-060`'s closure (`ADR-041`) at its last safe
+result.** G06's confounding adjustment is no longer a fixed `manager`/`supplier` pair — it's
+computed per candidate: every eligible `DECISION_TIME` covariate outside the candidate's own
+condition, greedily added in ascending-cardinality order up to whatever
+`confounder_stratum_coverage` (now named, `min_confounder_stratum_coverage = 0.50`) the
+development split supports. No gate logic references `T03`/`acquisition_channel`/any specific
+feature — verified by grep and by 10 new regression tests on neutrally-named synthetic fixtures
+proving the *rule*, not a patch, catches a confound outside a narrow fixed pair. **Real-data run
+against `task-060-iteration-20260820-004`: honest, mixed result** — the `T03`-matching candidate's
+attenuation roughly tripled (0.018→0.06, real progress) but it still reaches `PASS`/`shadow_policy`
+(attenuation stays under the 0.50 ceiling), because `discount_rate` is correctly excluded as the
+candidate's own condition and `installments` doesn't survive this candidate's coverage floor — two
+disclosed, principled reasons, not a bug. **No further design iteration was attempted to force a
+different outcome** — would repeat exactly the reactive tuning `ADR-041` closed `TASK-060` to
+prevent. `HANDOFF-058` asked Founder/Architect/ML Discovery whether this residual gap is an
+acceptable documented limitation or worth a future multivariate-regression step.
+Does not affect the standing `PROMISING` decision-gate verdict (`ADR-025`), anchored to a different,
+earlier run. 495 tests pass project-wide, `ruff`/`pyright` clean; no frozen artifact touched.
+
+**`HANDOFF-058`'s open question answered the same day (`ADR-043`): multivariate regression
+evaluated empirically, explicitly not built.** Before proposing to implement it, ran a validated
+Frisch–Waugh–Lovell diagnostic (cross-checked against the trusted single-covariate result first) on
+the real 8-covariate pool: an additive regression would give harm 158.9 EUR vs. raw 157.2 —
+essentially zero attenuation, *worse* than the 0.06 `ADR-042` already ships. Root cause: a second
+diagnostic (full joint stratification of the same 8 covariates, coverage floor ignored) shows the
+real attenuation once interactions are captured — harm collapses to ≈47.7 EUR — meaning this
+confound is interaction-driven, a shape additive regression cannot capture regardless of covariate
+count. Building it would not have answered the motivating question and would have shipped a weaker
+tool for this candidate shape than what's already live. Residual gap now closed as a documented
+limitation (`docs/analytics/validation-contract.md` §11), not deferred to future work.
+
+**`TASK-061` (all 6 domains) and `TASK-062` (analytical bridge) reviewed and confirmed 2026-08-21
+(Statistics) — no defect found, independently re-verified not just read.** Domains 2-6 landed
+(Data Engineer) since my domain-1-only `HANDOFF-053` review: SaaS, insurance, manufacturing QA,
+B2B sales, healthcare, each 9 patterns/5 traps/4 variants, and — critically — `HANDOFF-053`'s
+finding got a *structural* fix, not a one-off patch: `common.raw_marginal_effect` plus two new
+generic tests now automatically verify every domain's traps produce a real raw signal when active
+and none when inactive (134 tests, all domains). Spot-checked domain 3 (insurance) by reading
+`generate_row` directly — every declared confounder is genuinely wired, gated behind
+`config.trap_active(...)`. `TASK-062` closed the analytical-dataset bridge gap
+(`build_analytical_dataset` generalized via `AnalyticalDatasetConfig.identifier_column`/
+`currency_column` plus a new `domain_benchmarks.analytical_bridge` module); its own real regression
+(adding those fields perturbed travel's pinned identity hash purely from `asdict(config)` picking
+up new keys) was caught and fixed with a `_config_summary()` explicit field list before shipping —
+verified byte-exact: travel's `DATASET_IDENTITY_SHA256` and its committed manifest's actual hash
+are identical, `git status` on `synthetic_data/analytical/` is empty. 495 tests pass (non-
+integration), `ruff`/`pyright` clean. The one disclosed gap (`evaluate_benchmark.py` still
+hardcodes travel's dataset root) is real and correctly not claimed fixed.
+
 ## Current hypothesis
 
 Historical decision/outcome data may contain actionable interaction patterns the business does not currently recognize. This remains a hypothesis, not a validated finding.

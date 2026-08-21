@@ -1557,3 +1557,205 @@ outcomes: the open question becomes whether to keep tuning `_greedy_diverse_sele
 stage further, or whether the current support/beam-search configuration has reached a recall
 ceiling this architecture cannot safely exceed without validation-side change (`G06` generalization)
 — a larger, separate question this ADR does not resolve, left explicit in `HANDOFF-057`.
+
+## ADR-041 — TASK-060 closed at its last safe result; further recall moved to a new task (`TASK-063`, `G06` generalization)
+
+**Date:** 2026-08-20
+**Status:** Accepted
+
+**Decision:** `TASK-060` is closed, not completed against its original three-part done condition.
+The standing, authoritative result is `task-060-iteration-20260820-002` (2 genuine unique patterns
+of 7 scoreable — P01/P06 — 90% Top-10 precision, 100% direction accuracy, 0 traps promoted) —
+**not** the later `task-060-iteration-20260820-004` run, which regressed (`T03` promoted again,
+precision fell to 70%, zero of the three scoped targets recovered; `HANDOFF-057`). No further
+blind iteration tuning `_greedy_diverse_select`'s selection-stage knobs
+(`diversity_discount_weight`, `min_diversity_relevance_ratio`, `stability_credit_weight`,
+`relevance_floor_percentile`) is authorized under `TASK-060`. Further recall work, if pursued, is
+tracked as a new task, `TASK-063` (validation-side `G06` adjustment-set generalization), not a
+fifth iteration of this one.
+
+**Context:** Four attempts on the same selection-stage knob (`v0.3.0` uncapped, `v0.3.1` floored,
+`v0.4.0` stability-credited, this ADR's percentile-referenced variant) produced exactly two
+outcomes, each reproduced twice: promote `T03` and gain nothing on `{P02, P08, P09}` (`v0.3.0`,
+`…-004`), or stay safe and gain nothing (`v0.3.1`, `v0.4.0`). `…-004`'s own result additionally
+showed the trap-adjacent candidate ranks *between* the current safe floor and the genuine
+weak-pattern zone in this pool's score distribution — direct evidence a single global scalar on
+this axis cannot cleanly separate the two, not merely that the specific values tried were wrong.
+
+**Alternatives:** (a) A fifth iteration at a higher percentile (`0.85`–`0.9`, `ADR-040`'s own
+suggested next step) — rejected; the structural finding above predicts this reproduces `v0.3.1`'s
+safe-but-null outcome a second way, not a new result. (b) Keep `TASK-060` open indefinitely pending
+further ideas — rejected; an open task with no scoped next action is not meaningfully different
+from closed, and leaving it open invites an under-scoped sixth attempt later without this
+diagnosis being re-read first. (c) Declare the done condition met on the `…-002` result via a
+retroactive re-reading of "≥2 unique patterns" as satisfied by 2 (P01/P06 alone, ignoring that the
+task's entire premise was recovering *additional* patterns beyond those two) — rejected outright;
+this is exactly the goalpost-moving `ADR-007`'s discipline exists to prevent, and `TASK-060`'s own
+done condition explicitly required patterns from `{P02, P08, P09}` specifically.
+
+**Reason:** `docs/benchmark/decision-gate.md`'s own two-strikes discipline exists for exactly this
+situation — repeated attempts on one mechanism converging on the same non-result is itself
+evidence, not a reason to keep trying the same lever a fifth time. The `G06` gap `ADR-036`
+diagnosed (a fixed two-variable adjustment set that cannot see `T03`'s real confounders) is the
+one path any of the four attempts pointed at without ever crossing — `P03`'s recovery is blocked by
+it structurally, and `P02`/`P08`/`P09` sit in a score region this diagnosis suggests is entangled
+with it. Fixing it is real, separately-scoped work (Statistics-owned, deliberate, not reactive
+single-trap patching), not a variant of what `TASK-060` was scoped to do.
+
+**Consequences:** `TASK-060` status: `CLOSED` (accepted at last safe result, not `DONE` against its
+original condition — the distinction is preserved in `TASKS.md`, not smoothed over). The decision
+gate's standing `PROMISING` verdict (`ADR-025`) is unaffected — it was never anchored to any
+`TASK-060` iteration. `discovery-engine-v0.4.1`'s code is not reverted; it remains the shipped
+engine version, safe by construction at its tested defaults. `TASK-063` is created for the `G06`
+generalization path, owned by `STATISTICS`, explicitly not authorized to reactively special-case
+`T03`/`acquisition_channel` — the same generality discipline every `TASK-060` iteration held to.
+
+## ADR-042 — G06 adjustment set generalized to every eligible covariate the sample supports (`TASK-063`); real improvement, does not by itself flip `T03`'s verdict on `task-060-iteration-20260820-004`
+
+**Date:** 2026-08-21
+**Status:** Accepted
+
+**Decision:** Validation contract **v1.2.0**. Gate G06's adjustment set is no longer the fixed pair
+`("manager", "supplier")` — it is computed per candidate: every eligible `DECISION_TIME` covariate
+outside the candidate's own condition set (excluding the two date columns, a disclosed scope
+limit), greedily added in ascending-cardinality order, stopping just before the next covariate
+would drop the joint stratification's `confounder_stratum_coverage` below
+`min_confounder_stratum_coverage` (0.50 — the same value the old `0.5` literal already used, now
+named). `_stratified_adjustment` (renamed from `_stratified_two_way_adjustment` — it was never
+actually limited to two columns) is unchanged; only how many and which columns G06 passes to it is
+new. Implementation: `packages/analytics/src/policy_analytics/validation/apply.py`
+(`_adjustment_pool`, `_binned_adjustment_frame`, `_select_adjustment_columns`). Full design:
+`docs/analytics/validation-contract.md` §4b.
+
+**Discipline maintained, verified not just claimed:** no gate logic references `T03`,
+`acquisition_channel`, or any other specific feature/trap by name — grepped and confirmed absent
+from `apply.py`/`contract.py`. The 10 new regression tests
+(`tests/analytics/test_validation_apply.py`) use deliberately neutral synthetic column names
+(`real_confound`, `irrelevant_a`, `irrelevant_b`, `low_card`/`high_card`, `sparse`) precisely so the
+tests prove the *rule* generalizes, not that it was fitted to one known trap. The core regression
+test constructs a confound the old fixed-pair design could not see by construction, and confirms
+`_select_adjustment_columns` finds it (from a pool that does not name it specially) and the
+resulting adjustment removes the spurious effect exactly, not approximately.
+
+**Real-data confirmation, run against `task-060-iteration-20260820-004` (`HANDOFF-058`) — an
+honest, mixed result, reported as such:**
+
+- The candidate matching `acquisition_channel == paid_search AND discount_rate >= 0.03`
+  (`CAND-015` in this run) now gets adjusted against 7 covariates
+  (`customer_type`, `manual_exception`, `customer_segment`, `party_size`, `payment_method`,
+  `product_category`, `booking_lead_days`) instead of 2, with **3x the attenuation the old method
+  found** (0.06 vs 0.018) and materially lower coverage (0.51 vs 1.00, i.e. it is genuinely working
+  harder and finding less clean strata, not returning the same number through a wider funnel).
+  This is real, measurable, reproducible progress from the generalization, not a null result.
+- **It does not flip the verdict.** Attenuation 0.06 stays far under the `max_adjusted_attenuation
+  = 0.50` ceiling and the E-value (1.68) stays above the `min_e_value = 1.50` floor — G06 still
+  passes this candidate, which still reaches `PASS`/`shadow_policy`, confirmed independently by
+  `evaluate_benchmark.py`'s ground-truth trap check (`trap_promoted.T03 = true`, unchanged from
+  before this fix, `artifacts/evaluation/task-028-task-060-iteration-004-g06v2.json`).
+- **Diagnosed why, without patching around it:** two disclosed, principled reasons, not a bug.
+  (1) `discount_rate` is one of the candidate's own two defining conditions, so it is correctly
+  excluded from the adjustment pool — adjusting for a variable used to define the exposure is
+  circular, a bedrock rule this ADR does not relax for this candidate. (2) The remaining pool
+  covariate most relevant here, `installments`, does not survive the greedy coverage floor on this
+  candidate's actual (comparatively small) exposed population — the sample genuinely cannot
+  jointly support adjusting for everything a fuller picture would want.
+
+**This ADR does not iterate the design further to force a different outcome on this one
+candidate.** Doing so — loosening `min_confounder_stratum_coverage`, changing the greedy ordering
+criterion, or finding some way to admit `discount_rate` back into the pool — after seeing that the
+current design doesn't flip this specific verdict, would be exactly the reactive, result-informed
+tuning `TASK-060`'s four-iteration closure (`ADR-041`) and this task's own explicit instructions
+both forbid. The generalization is accepted as designed, tested, and real, with this specific
+residual case reported honestly rather than chased.
+
+**Alternatives considered and rejected:** (a) A full multivariate regression (OLS with dummy
+encoding) or propensity-score adjustment, which would not face the same combinatorial coverage
+collapse and might have adjusted for `installments` alongside the others — rejected for v1.2.0 as
+a larger, riskier methodological leap (a new numerical method with no precedent elsewhere in this
+codebase, no `numpy`/`scipy` dependency currently exists to lean on, and materially harder to test
+exhaustively for the same delivery window) rather than because it wouldn't work; left as a
+candidate direction for a future version if the coverage-collapse limitation proves costly enough
+to justify the added complexity. (b) Loosening the coverage floor specifically to let
+`installments` in on this run — rejected outright per the discipline above.
+
+**Consequences:** `TASK-063`'s three sub-goals are met: implemented, versioned (not a silent
+patch), regression-tested on synthetic fixtures without opening `hidden_ground_truth.json` to
+design it, and run for real against `task-060-iteration-20260820-004`. Its own literal "confirm
+`T03` is now rejected on general grounds" phrasing is **not** satisfied by this run — reported as
+such, not smoothed over. `docs/benchmark/decision-gate.md`'s standing `PROMISING` verdict (`ADR-025`,
+anchored to `task-058-remediation-20260817-001`) is unaffected; this ADR concerns a different,
+later, already-closed (`ADR-041`) `TASK-060` iteration, not the gate's own anchor run. Every prior
+frozen validation/evaluation artifact is untouched; two new ones were written under new,
+non-colliding filenames
+(`artifacts/validation/task-019-official-20260820-task-060-iteration-004-g06v2.json`,
+`artifacts/evaluation/task-028-task-060-iteration-004-g06v2.json`). 495 tests pass project-wide (10
+new), `ruff`/`pyright` clean.
+
+## ADR-043 — Multivariate regression adjustment (`HANDOFF-058`'s open question): evaluated, not built — the diagnosed gap is interaction-driven, which additive OLS cannot close either
+
+**Date:** 2026-08-21
+**Status:** Accepted
+
+**Decision:** Do **not** implement multivariate (OLS-style, additive/main-effects) regression
+adjustment as a v1.3.0 successor to `ADR-042`'s greedy joint stratification. The proportionality
+check `HANDOFF-058` asked for was run *before* committing engineering effort, per its own explicit
+instruction to say so and stop rather than build for its own sake — this ADR is that assessment,
+not a partial implementation.
+
+**The check, run against the same real candidate (`CAND-015`,
+`task-060-iteration-20260820-004`) `ADR-042` used, before writing any production code:** a
+from-scratch, pure-Python Frisch–Waugh–Lovell partialling-out (iterative alternating group-
+demeaning of both the outcome and the exposure indicator across all 8 pool covariates — the 7
+`ADR-042` already selects plus `installments`, converged after 22 iterations, cross-checked against
+the already-trusted single-covariate joint-stratification result to confirm the diagnostic itself
+is correct before trusting its 8-covariate output) computes exactly what a standard additive
+multivariate regression's treatment coefficient would be: **harm 157.2 → 158.9 EUR — essentially
+zero attenuation, marginally *larger* than the raw effect, not smaller.** A regression adjustment
+would not merely fail to flip this candidate's verdict; on this specific case it would show *less*
+attenuation than `ADR-042`'s already-shipped greedy stratification (0.06), not more.
+
+**Why, diagnosed rather than left as a surprising negative result:** a separate diagnostic —
+jointly (fully-saturated) stratifying by all 8 covariates together, ignoring the coverage floor
+(coverage collapses to 0.21, well under the 0.50 floor, which is exactly why `ADR-042`'s
+coverage-gated greedy process correctly declines to use this combination) — shows attenuation
+**collapsing to harm ≈ 47.7 EUR**, a large, real effect. Full joint stratification captures
+interactions between covariates (one cell per unique combination); additive regression, by
+construction, only captures each covariate's own main effect, summed. The gap between 158.9
+(additive) and 47.7 (joint/interacted) is the signature of a confound that requires a *specific
+combination* of covariates to see, not any one or their independent sum. Standard multivariate OLS
+cannot close this gap — it is not a wider-coverage version of what joint stratification already
+does, it is a *different, narrower* capability (main effects, not interactions) that happens to
+scale to more covariates. Closing this specific gap would require something both `ADR-042` and
+this ADR consider clearly out of proportion: either a fully-interacted/saturated model (which is
+mathematically joint stratification again, hitting the same sample-size wall) or a materially
+heavier method (regularized/tree-based propensity or outcome modeling) inconsistent with this
+project's simple, closed-form, auditable methodology throughout (`ADR-004` and every prior gate).
+
+**Discipline maintained:** this check was run, and this ADR written, entirely from the general
+mechanism already in place (the same 8-covariate pool `ADR-042` computed generically) — no gate
+logic, and no line of this decision's reasoning, references `T03` or `acquisition_channel`'s
+identity as a reason for anything; the finding is about interaction-vs-main-effect structure, which
+would be diagnosed identically for any candidate exhibiting the same statistical shape.
+
+**Alternatives considered:** (a) Build the additive regression anyway, since it is real,
+general-purpose infrastructure independent of this one candidate — rejected: `ADR-042` already
+covers its stated purpose (scaling past a fixed pair) via joint stratification, which strictly
+dominates additive regression for this codebase's candidate sizes (few enough covariates that
+coverage-gated joint stratification is affordable, and it captures interactions additive
+regression cannot); building a second, weaker adjustment method alongside a stronger one already
+shipped has no clear customer, and `HANDOFF-058` was explicit that a fifth/sixth iteration chasing
+this one candidate is exactly what should not happen. (b) A fully-interacted/saturated regression
+(equivalent to unrestricted joint stratification) — not rejected on principle, but explicitly not
+proportionate: it is `ADR-042`'s own mechanism with no coverage floor, i.e. reproducing the exact
+0.21-coverage, thin-strata result already computed and already known to be statistically unreliable
+at that sample size, not a new capability.
+
+**Consequences:** `HANDOFF-058`'s open question is answered: the residual `T03`/`CAND-015` gap on
+`task-060-iteration-20260820-004` is accepted as a disclosed, now empirically-characterized
+limitation (`docs/analytics/validation-contract.md` §11), not scoped as future work. No code
+changed; `CONTRACT_VERSION` stays `1.2.0`. If a future candidate or dataset surfaces the same
+interaction-driven shape at a larger sample size (where a fully-interacted model would clear the
+coverage floor on its own), `ADR-042`'s existing greedy process already handles it — nothing new is
+required for that case. This diagnostic script was exploratory only and is not part of the
+codebase; the empirical numbers above are the durable record of the check, not the throwaway code
+that produced them.
