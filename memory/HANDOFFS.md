@@ -3360,3 +3360,38 @@ characterized limitation (`docs/analytics/validation-contract.md` §11) — clos
 future work, unless a materially different signal (e.g. a larger sample where a fully-interacted
 model would clear the coverage floor on its own) shows up later, in which case `ADR-042`'s existing
 mechanism already handles it without new code.
+
+## HANDOFF-059
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** DATA_ENGINEER, ARCHITECT
+**Status:** OPEN
+
+**Task:** Decide whether the analytical input contract should expose a generic decision-time
+calendar feature for reusable seasonal discovery rules.
+
+**Context:** `TASK-064`'s required pre-code diagnosis (`ADR-045`) used only the public analytical
+frame and previously disclosed benchmark descriptions. P04 is structurally seasonal, but current
+discovery excludes raw `booking_date`/`travel_date` and the analytical dataset supplies no
+month/quarter/season feature. The atom vocabulary therefore contains zero temporal atoms. The
+current `max_conditions=3`, support floor, and beam width cannot recover a condition that cannot be
+represented. This is separate from `TASK-064`'s feature-identity-agnostic beam-survival change for
+already-eligible rules and must not be patched with P04-specific production logic.
+
+**Question:** Should TASK-011's analytical contract generically derive a decision-time calendar
+feature (for example a documented month or quarter from the decision-known travel date), including
+timing classification, lineage, schema/version changes, blind allowlist propagation, and tests? If
+yes, choose the representation from reusable business semantics rather than this benchmark's P04
+identity. If no, record seasonal conjunctions as an explicit discovery limitation.
+
+**Files:** `synthetic_data/analytical/`, analytical dataset builder and manifest code,
+`scripts/run_discovery.py`, `tools/blind_agent/models.py`, `blind/allowlist.yaml`,
+`docs/analytics/discovery-design.md`, `docs/analytics/discovery-engine-v0.md`, `ADR-045`.
+
+**Expected output:** A versioned, leakage-reviewed input-contract decision and implementation if
+approved, or an explicit durable rejection/limitation. Do not run or inspect hidden benchmark
+truth to make the choice.
+
+**Blocking:** NO — does not block the independently justified TASK-064 beam-survival experiment;
+does block claiming that current search can represent P04.
