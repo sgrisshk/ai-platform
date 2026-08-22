@@ -2675,6 +2675,49 @@ Do not overbuild before demand.
   unchanged. A neutral truth-free synthetic fixture must first falsifiably demonstrate increased
   feature-identity coverage, deterministic ordering, exact disabled-mode reproduction, and
   rejection of non-DECISION_TIME inputs. No benchmark domain or official run is authorized here.
+- **Deep per-candidate diagnostic, run for real (2026-08-22, Statistics, fresh session, no prior
+  `b2b_sales` exposure): `docs/benchmark/task-067-g06-diagnostic.md` /
+  `docs/benchmark/task-067-g06-diagnostic-raw.json`.** `scripts/diagnose_g06_task065_b2b.py` existed
+  but had never actually been executed; it crashed on first real run on a real bug (both used
+  `polars.Series.to_numpy()`, and this codebase deliberately carries no numpy dependency per
+  `ADR-042`'s own text — fixed in the script only, by doing the identical arithmetic over plain
+  Python lists instead; no production module touched). Once fixed, it ran cleanly and reproduced
+  the frozen `TASK-019` artifact's `coverage`/`adjusted_harm`/`adjustment_columns_used` fields
+  byte-for-byte for all 15 candidates, then traced several intermediate quantities the frozen report
+  discards (per-covariate greedy trial coverage, cell-level strata counts, an unrestricted/
+  interaction-preserving joint stratification, and an `ADR-043`-style additive-FWL comparison).
+  **Result: this deeper evidence refines, and on one specific mechanism-level claim contradicts,
+  this task's own recorded attribution above — stated plainly, not silently overwritten.** It
+  confirms the broader, higher-level conclusion (general rather than tied to one `b2b_sales`
+  pattern/trap identity, not a validation-code bug, coverage never the binding constraint for any of
+  the 15). It contradicts the specific "at least partly interaction-driven, same qualitative shape
+  `ADR-043` already characterized" claim: reproducing `ADR-043`'s own additive-vs-joint-stratification
+  technique on the real per-candidate data shows the opposite signature from travel's residual case —
+  a simple additive (main-effects-only) adjustment already captures nearly all of the attenuation the
+  actual joint stratification finds (mean 0.914 vs. 0.957), not the near-zero-vs.-large gap that made
+  travel's case interaction-only. The real mechanism, traced and directly measured: every one of the
+  15 candidates' adjustment sets contains a near-duplicate of its own exposure variable
+  (`deal_size_usd`/`company_size_band`, `eta² = 0.96` on the public development split), because
+  `_adjustment_pool`'s circularity exclusion operates on literal condition feature names, not on
+  near-duplicate/highly-collinear feature families — removing just that one covariate collapses
+  attenuation from a mean of 0.957 to a mean of 0.075. **Independent classification: A
+  (GENERAL_FIXABLE_METHOD_DEFECT), but a materially different specific defect than the one
+  `ADR-055`/`ADR-056` recorded** (a correlation-blind circularity-exclusion rule, not the
+  adjustment-richness/interaction-effect gap `ADR-042`/`ADR-043` disclosed), **compounded by a
+  domain-contract-flavored observation** (b2b's manifest offers `deal_size_usd` and its own banded
+  proxy as separate, undifferentiated adjustment-eligible covariates with no collinearity
+  annotation, unlike travel's `TASK-013`-reviewed contract) — explicitly not C
+  (CORRECT_CONSERVATIVE_REJECTION), since the gap is nameable and in-principle-fixable
+  (a correlation-aware extension to `_adjustment_pool`'s circularity rule), not an irreducible
+  property of genuine confounding. **This task's status stays `DONE`** — the diagnosis-with-
+  concurrence done condition was genuinely met and is not being overwritten — but the record above
+  should now be read together with this addendum, not in isolation. **Flagged prominently for
+  `TASK-068`'s next reviewer (Code Reviewer, per `HANDOFF-070`), not acted on here:** `TASK-068`'s
+  anchor-feature diversity cap constrains what a candidate *conditions on*, not what it gets
+  *adjusted against* — the near-duplicate mechanism traced here operates through the adjustment pool
+  and would likely still bind on a future, similarly-structured domain even if anchor-feature
+  diversity in the committed Top-K improves. `TASK-068`'s implementation, status, and `ADR-057` are
+  unchanged by this entry.
 
 ### TASK-068 — Feature-identity diversity floor at selection, tested on a new `TASK-061` domain
 
