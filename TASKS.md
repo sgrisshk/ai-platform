@@ -2774,6 +2774,21 @@ Do not overbuild before demand.
   run issued — that remains a separate, later preregistration per `ADR-055`/`ADR-056`. **Handed to
   Code Reviewer for the implementation-contract approval `ADR-056` requires before this task may
   advance past `BLOCKED`.**
+- **Correction (2026-08-22, ML Discovery, pre-review verification pass):** the evidence above's
+  "`b2b_sales`/... identity referenced anywhere in code, comments, or tests" claim was inaccurate
+  as first committed — the module docstring, one `DiscoveryConfig` field docstring, and one test
+  comment in `packages/analytics/src/policy_analytics/discovery/engine.py` /
+  `tests/analytics/test_discovery_engine.py` each named `b2b_sales/comparable` as the motivating
+  postmortem's domain. Reworded to a domain-neutral "a portability postmortem (`ADR-055`)" in all
+  three call sites (mechanism/test logic itself was never affected — this was a comment-only
+  defect). `docs/analytics/discovery-engine-v0.md`'s methodology section had the same wording and
+  was reworded identically for internal consistency (it already stated in the same paragraph that
+  "the run's domain ... [is] irrelevant to the mechanism and ... not repeated here", which the
+  domain name directly contradicted). Re-verified after the fix: `ruff check`, project-scoped
+  `pyright` (only the same pre-existing, unrelated `scripts/diagnose_g06_task065_b2b.py` findings
+  remain, untouched, out of scope), all 40 `test_discovery_engine.py` tests, and the full
+  non-`blind_agent` suite (521 passed, 62 skipped for `TEST_DATABASE_URL`, 1 deselected) all pass.
+  No other hard constraint violated; still handed to Code Reviewer, still `BLOCKED`.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 
