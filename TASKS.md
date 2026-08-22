@@ -2390,6 +2390,33 @@ Do not overbuild before demand.
   repo suite (349 passed) twice against a live database, and a real end-to-end run — `uvicorn` +
   `pnpm dev`, a user created via the CLI, logged in through the real `/login` page, confirmed
   `/api/v1/auth/me` 401s again after logout.
+- **Bug fix (2026-08-22, Architect):** A live cross-origin browser run (Playwright/Chromium, not
+  curl) found that `SameSite=Lax` — hardcoded for every non-staging/production env, including
+  `production`'s own frontend/backend split whenever they don't share a registrable domain (GitHub
+  Pages vs. Render's `*.onrender.com`, absent the custom-domain setup in
+  `docs/operations/deployment.md`) — never actually applies there: login itself succeeds (200,
+  `Set-Cookie` sent, confirmed via direct `curl`), but a real browser silently drops a `Lax` cookie
+  on the cross-site navigation that follows, so `/findings/review` (or any subsequent page) shows
+  "Log in..." again as if nothing had happened. Fixed in `apps/api/app/auth/routes.py`
+  (`_cookie_security()`): staging/production now set `SameSite=None; Secure` (the two must travel
+  together — browsers reject `SameSite=None` without `Secure`); development (and CI's `test` env,
+  same-origin today) keep `SameSite=Lax` without `Secure`, since `Secure` cookies aren't stored at
+  all over plain `http://localhost`. `logout`'s `delete_cookie` now passes the same attributes, to
+  avoid browsers' "don't let a non-Secure Set-Cookie clear a Secure cookie" rule silently no-oping
+  logout in prod. Re-verified CORS (`apps/api/app/main.py`): `allow_credentials=True` was already
+  paired with an explicit origin allowlist, never `"*"`, and `Settings.production_safety` already
+  rejects any non-HTTPS/wildcard origin outside development/test — confirmed this can't regress via
+  two new tests (`test_rejects_wildcard_cors_origin_in_production`,
+  `test_rejects_non_https_cors_origin_in_production`), since pairing `SameSite=None` with a
+  wildcard origin would turn a spec violation into a real CSRF hole. New cookie-attribute regression
+  tests assert the literal `Set-Cookie` attributes (not just "a cookie exists") for both branches
+  (`tests/api/test_auth.py`). Verified live: same repro methodology that found the bug (Playwright
+  driving real Chromium against a 127.0.0.1-backend/localhost-frontend split, forcing the
+  staging/production cookie branch since real HTTPS certs aren't available locally) — login now
+  survives the cross-site navigation, confirmed against a genuine before/after: reverting to the
+  old always-`Lax` branch reproduces the original bug (`context.cookies()` empty after login,
+  `/findings/review` back to the login prompt) on the same setup, the fixed branch does not. Full
+  suite (562 tests) passed twice against a live ephemeral Postgres container.
 
 ### TASK-054 — Tenant-isolation design
 - **Owner:** ARCHITECT

@@ -1759,3 +1759,72 @@ coverage floor on its own), `ADR-042`'s existing greedy process already handles 
 required for that case. This diagnostic script was exploratory only and is not part of the
 codebase; the empirical numbers above are the durable record of the check, not the throwaway code
 that produced them.
+
+## ADR-044 — Session cookie must be `SameSite=None; Secure` outside development, or login silently fails to persist cross-site (`TASK-053` bug fix)
+
+**Context:** A live browser run (Playwright/Chromium, not `curl`) surfaced a real bug in the
+`TASK-053` auth flow: `POST /api/v1/auth/login` returns 200, returns the user, and does send a
+`Set-Cookie` header (confirmed with direct `curl`), but the browser never actually stores it —
+`context.cookies()` right after a real form submission is empty — so the next navigation (e.g.
+`/findings/review`) shows "Log in..." again as though login had never happened. The cause:
+`apps/api/app/auth/routes.py`'s cookie always used `SameSite=Lax`, varying only `Secure` by
+`app_env`. `Lax` cookies are dropped by the browser on cross-site requests, and the frontend/API
+split is cross-site whenever they don't share a registrable domain — true locally
+(`localhost:3822` vs. `127.0.0.1:8822`, reproduced directly) and true in the deployed topology too:
+GitHub Pages and Render's `*.onrender.com` are different registrable domains unless the
+custom-domain setup in `docs/operations/deployment.md` (`api.grisshk.work`) is actually stood up.
+The bug was silent by construction: nothing in the request/response cycle itself fails, so nothing
+short of a real browser check would have caught it — every prior verification of `TASK-053`
+(`ADR-027`) used `curl`/`TestClient`, neither of which enforces `SameSite`.
+
+**Decision:** Split the cookie's `SameSite`/`Secure` pair by environment instead of varying
+`Secure` alone (`_cookie_security()`, `apps/api/app/auth/routes.py`):
+- **staging/production:** `SameSite=None; Secure`. The two are not independent choices — browsers
+  reject `SameSite=None` cookies that aren't also `Secure`, so this is the only viable pairing once
+  `None` is needed. This makes the cookie survive the cross-site case without depending on the
+  custom-domain setup ever being stood up (belt-and-suspenders: the cookie works whether or not
+  `api.grisshk.work` exists).
+- **development (and CI's `test` env):** `SameSite=Lax`, no `Secure` — unchanged from before.
+  `SameSite=None` is not an option here: browsers require `Secure` to accompany it, and `Secure`
+  cookies are not stored at all over plain `http://localhost`, so `None` would silently break the
+  cookie in dev instead of fixing anything. Both of these envs' real topology is same-origin today
+  (docker-compose serves frontend+backend from one host in dev; the test client is in-process), so
+  plain `Lax` is the correct, working choice — documented in the function's own docstring as a
+  known, narrow limitation, not silently assumed forever: if dev ever needs a genuinely cross-site
+  setup, this branch must move to a real HTTPS dev proxy, not attempt `None` without `Secure`.
+- `logout`'s `delete_cookie` now passes the same `secure`/`samesite` pair as `login` set, rather
+  than the framework defaults. Reasoning: RFC 6265bis's "Leave Secure Cookies Alone" guidance means
+  some browsers refuse to let a non-`Secure` `Set-Cookie` clear a `Secure` one — without this,
+  logout in staging/production risked silently no-op'ing instead of actually clearing the session.
+
+**CORS re-verified, not just assumed:** `SameSite=None` removes the browser's own cross-site
+guard, so anything that made `allow_origins` a wildcard would turn a spec violation into a genuine
+CSRF hole. Checked `apps/api/app/main.py`: `allow_credentials=True` is already paired with
+`cors_origins` as an explicit list (never `"*"`), and `Settings.production_safety`
+(`apps/api/app/core/config.py`) already raises if any `cors_origins` entry isn't `https://` outside
+development/test — which also already forecloses `"*"` (it doesn't start with `https://`). Added
+two tests asserting this explicitly (`test_rejects_wildcard_cors_origin_in_production`,
+`test_rejects_non_https_cors_origin_in_production`) so this can't regress silently now that a
+wildcard origin would be a materially bigger problem than before.
+
+**Verification:** Two new regression tests assert the literal `Set-Cookie` attributes for both
+branches (`tests/api/test_auth.py`), not just "a cookie was set" — a return to `SameSite=Lax`
+outside development would now fail loudly. Full suite (562 tests) passed twice against a live
+ephemeral Postgres container. Live, real-browser confirmation using the same methodology that
+found the bug: Playwright driving actual Chromium through the real `/login` form across a
+`127.0.0.1`-backend/`localhost`-frontend split (real HTTPS certs aren't available locally, so the
+staging/production cookie branch was forced via a one-line monkeypatch of `_cookie_security()` in
+a throwaway launcher script — `app_env` itself stayed `development` so CORS/other production-only
+validation didn't need real certificates to exercise just the cookie behavior). Ran a genuine
+before/after on the same setup: the old always-`Lax` behavior reproduces the bug exactly
+(`context.cookies()` empty after a real login, `/findings/review` still shows the login prompt);
+the fixed `None; Secure` branch does not (cookie present with `secure: true, sameSite: "None"`,
+`/findings/review` shows the logged-in queue view). Not in scope, per the reporting instruction:
+the session/token validation mechanism itself (DB-backed opaque token) — only the cookie's
+transport attributes changed.
+
+**Consequences:** `TASK-053` remains `DONE`; this is a disclosed bug fix on top of it, not a status
+change. No migration, no session-mechanism change. Anyone deploying to a environment where frontend
+and backend share a registrable domain (the `api.grisshk.work` setup `docs/operations/deployment.md`
+already recommends) gets no behavior change — `SameSite=None` cookies work same-site too, so this
+fix does not depend on that setup being abandoned, only stops depending on it being remembered.

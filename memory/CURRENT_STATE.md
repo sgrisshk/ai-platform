@@ -268,6 +268,25 @@ infrastructure exists anywhere in this codebase). Verified: 12 new frontend test
 including a full simulated session and a resume-with-prior-progress case; `next build` clean; a
 live `uvicorn`/`pnpm dev` pair confirming the real login → list findings → submit feedback path.
 
+**`TASK-053` cookie bug fixed 2026-08-22 (Architect, `ADR-044`) — found via a live browser run,
+not curl/`TestClient`.** Login always set `SameSite=Lax`; a real Playwright/Chromium session showed
+the browser silently drops that cookie whenever frontend and backend are cross-site (reproduced
+locally with `localhost:3822`/`127.0.0.1:8822`; true in the deployed topology too whenever GitHub
+Pages and Render's `*.onrender.com` don't share a registrable domain, i.e. whenever
+`docs/operations/deployment.md`'s `api.grisshk.work` custom-domain setup isn't actually stood up) —
+login looks like it succeeds (200, `Set-Cookie` sent) but the next navigation shows the login
+prompt again. Fixed: staging/production now set `SameSite=None; Secure` (the pairing is mandatory,
+not a style choice — browsers reject `None` without `Secure`); development/`test` keep
+`SameSite=Lax` without `Secure` (documented as correct only because that topology is genuinely
+same-origin today, not a stopgap). `logout` now clears the cookie with matching attributes too, to
+avoid a non-Secure clear silently failing against a Secure cookie. CORS re-verified, not assumed:
+`allow_origins` was already an explicit allowlist (never `"*"`) and `Settings.production_safety`
+already rejects non-HTTPS origins outside dev/test — two new tests pin this down explicitly, since
+pairing `SameSite=None` with a wildcard origin would be a real CSRF hole. Verified: two new
+cookie-attribute regression tests (literal `Set-Cookie` attributes, not just presence), full suite
+(562 tests) twice against live Postgres, and a genuine before/after in real Chromium — the old
+always-`Lax` code reproducibly drops the cookie on the same cross-site setup, the fix does not.
+
 **`TASK-007` (schema profiler) `DONE` 2026-08-17 (Architect).** New `dataset_column_profiles`
 table (migration `20260817_0004`), deliberately separate from `DatasetColumn`/`DatasetModel.columns`
 (that stays `TASK-008`'s eventual feature-timing output). Pure, deterministic, no-ML majority-vote
