@@ -1828,3 +1828,45 @@ change. No migration, no session-mechanism change. Anyone deploying to a environ
 and backend share a registrable domain (the `api.grisshk.work` setup `docs/operations/deployment.md`
 already recommends) gets no behavior change — `SameSite=None` cookies work same-site too, so this
 fix does not depend on that setup being abandoned, only stops depending on it being remembered.
+
+## ADR-045 — TASK-064 pre-code diagnosis: P04 is vocabulary-blocked; the other scoped signals are depth-2 beam-survival blocked
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Decision:** Do not tune `min_support`, `max_conditions`, or `beam_width` by guesswork. The
+required pre-code reachability trace was run using only the public analytical frame, the committed
+discovery configuration, and condition identities already disclosed in `ADR-038`/the benchmark
+report. It did not open `hidden_ground_truth.json`, generator source, or a new evaluation artifact.
+
+The two requested directions have different causes and remain separate:
+
+1. **P04 is not representable in the current atom vocabulary.** Its disclosed structure is
+   seasonal, while discovery removes both date columns from `feature_columns` and `_atoms`
+   derives no calendar bucket. The trace confirms zero date/season atoms. `max_conditions=3` is
+   numerically sufficient for a three-condition rule, but irrelevant when one condition cannot be
+   expressed. The supplier singleton is also descriptively non-harmful on development and is
+   correctly ineligible as a beam parent; other eligible anchors could still introduce it at
+   depth 2, so this alone is not the structural blocker. Lowering support cannot manufacture the
+   missing seasonal condition. No P04-specific production change is authorized by this diagnosis;
+   adding a generic, decision-time temporal feature belongs in the analytical input contract and
+   requires a separate Data Engineering/architecture decision.
+
+2. **The scoped P02/P08/P09 proxies reach depth 1 but relevant pairs die before depth 3.** There
+   are 88 atoms, only 25 eligible depth-1 rules, and `beam_width=80`, so every eligible singleton
+   survives. At depth 2 there are 1,201 eligible pairs; the disclosed relevant feature pairs rank
+   319, 606, and 908–1047 while the 80th-rule cutoff score is 4,150.9. They are not support-floor
+   failures: the traced pairs are eligible, with development support from 0.0448 to 0.1436 where
+   applicable. They are scored, then omitted solely because a global top-score beam gives all 80
+   expansion rights to stronger pairs. Since a rule's score is independent of generation order,
+   merely reordering the same global top 80 cannot help. A general feature-pair-coverage beam is a
+   justified next mechanism: preserve the best eligible rule for each feature-set structure before
+   filling remaining beam slots by score, with no feature, pattern, or trap named in the logic.
+
+**Consequences:** `TASK-060` stays closed and none of its selection knobs may change. `P03` stays
+out of scope. `TASK-064` may implement and unit-test feature-set coverage as a separate method
+version, commit it, and only then perform a truth-free deterministic rehearsal. An official blind
+run and subsequent `TASK-019`/`TASK-028` are required to learn whether the broader depth-3 search
+improves recall without sacrificing precision, direction, or trap safety; this ADR makes no claim
+about that outcome. The scoreable ceiling remains 7 of 9 (`P05`/`P07` excluded under the existing
+pre-registered contract).

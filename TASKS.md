@@ -2210,6 +2210,37 @@ blocker"), not reopened or implied-done by this closure.
   answered the motivating question and would ship a weaker tool for this candidate shape. Residual
   gap accepted as closed, documented (`docs/analytics/validation-contract.md` §11), not deferred.
 
+### TASK-064 — Beam-search reachability and feature-pair coverage
+
+- **Owner:** ML_DISCOVERY
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P1
+- **Status:** IN_PROGRESS
+- **Depends on:** none (`TASK-060` remains closed; this is an upstream search-stage task)
+- **Goal:** Continue the founder-requested recall investigation one level upstream of the closed
+  selection-stage campaign: diagnose why `P04` is absent from the complete eligible pool and test
+  whether structure-aware beam survival can let the already-present `P02`/`P08`/`P09` signal form
+  more specific interactions before top-K selection.
+- **Scope separation:** (1) diagnose `P04` reachability before changing discovery code; do not
+  silently add benchmark-specific features or conditions; (2) separately change beam survival,
+  if justified, using only feature-identity-agnostic structure. Do not alter
+  `_greedy_diverse_select` or any `TASK-060` selection knob. `P03` is explicitly out of scope.
+- **Pre-code diagnosis (2026-08-22, `ADR-045`):** the public analytical contract exposes
+  `booking_date`/`travel_date` as decision-time dates, but discovery deliberately removes both and
+  derives no month/season atom. A seasonal three-condition rule such as disclosed `P04` is
+  therefore not representable at any depth; neither support-floor nor beam-width changes can
+  recover a missing atom. Separately, depth 1 has only 25 eligible atoms (all fit within the
+  default beam of 80), including the disclosed singleton proxies for `P02`/`P08`/`P09`. Their
+  relevant eligible depth-2 feature pairs rank 319, 606, and 908–1047 among 1,201 pairs, so they
+  are evaluated and scored but cannot generate depth-3 descendants. This is a beam-survival timing
+  defect, not another selection-stage floor defect.
+- **Done when:** either a committed, general beam-search change produces a real post-freeze gain
+  on at least one of `P02/P04/P08/P09` without degrading Top-10 precision, direction accuracy, or
+  trap safety after fresh `TASK-019`/`TASK-028`; or the committed diagnostic establishes that the
+  current search vocabulary/depth cannot reach them. The maximum honest scoreable recall remains
+  7/9 because `P05`/`P07` are structurally unscoreable. No official run may start before the
+  method change is committed and a truth-free deterministic rehearsal passes.
+
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
 - **Support:** ARCHITECT
