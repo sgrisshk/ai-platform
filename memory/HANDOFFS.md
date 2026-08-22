@@ -3395,3 +3395,104 @@ truth to make the choice.
 
 **Blocking:** NO — does not block the independently justified TASK-064 beam-survival experiment;
 does block claiming that current search can represent P04.
+
+## HANDOFF-060
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** STATISTICS
+**Status:** OPEN
+
+**Task:** Run TASK-019 validation against the frozen TASK-064 v0.5.0 candidate family, freeze the
+validation artifact, then hand it to the evaluator for TASK-028 comparison.
+
+**Context:** One pre-specified beam-search method change was committed as `a1be806` before the
+official run. Truth-free deterministic rehearsal returned `BLIND_REHEARSAL_VALID`. Official run
+`task-064-beam-20260822-001` was issued, verified, launched with `network=none`, accepted, frozen,
+and evaluator-committed before any evaluation was opened. Discovery makes no causal or recall
+claim. `TASK-060` selection knobs were not changed; P03 was not targeted. P04's separate missing
+temporal-vocabulary limitation is `HANDOFF-059`.
+
+**Files:** frozen reference
+`/private/tmp/policy-blind-runs/task-064-beam-20260822-001/frozen/candidates.json`; archival
+reference `artifacts/blind/task-064-beam-20260822-001.candidates.json`; signed receipt
+`artifacts/blind/task-064-beam-20260822-001.receipt.json`.
+
+**Frozen metadata:** dataset identity
+`dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423`; outcome contract `1.1.0`;
+discovery contract `1.1.0`; method `discovery-engine-v0.5.0`; hypothesis family size `26,213`;
+candidate count `15`; seed `1729`; candidate SHA-256
+`9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09`; manifest SHA-256
+`c3e2c85a94926461ee805282ef76084f1aea60421acb880ec475adaf36087072`; bundle ID
+`3d8e216843e6c04049a722ff851f28df1899ee3ee06b8a3dd7c708f6c136babf`; receipt signature
+`b486269cf12cd9b69812ec58ad6b2e7a19a715a4d612d010018c5048db085642`.
+
+**Question:** Apply the current validation contract without modifying candidate conditions. Freeze
+the result, then request TASK-028. Report whether at least one of P02/P04/P08/P09 moves recall and
+whether Top-10 precision, direction accuracy, or trap safety degrades relative to the authoritative
+safe baseline `task-060-iteration-20260820-002`. The maximum scoreable ceiling remains 7/9; P05/P07
+remain excluded. Do not tune v0.5.0 from the result.
+
+**Expected output:** Frozen TASK-019 artifact plus a subsequent evaluator-owned TASK-028 artifact
+and an explicit TASK-064 done-condition verdict.
+
+**Blocking:** YES — blocks closing TASK-064 and any further search-method iteration.
+
+## HANDOFF-061
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** OPEN
+
+**Task:** Make every file created under `frozen/` read-only, including `hashes.json`.
+
+**Context:** Freeze acceptance for `task-064-beam-20260822-001` succeeded and correctly made
+`candidates.json`, `discovery_metrics.json`, and `run_report.md` mode `0444`. The subsequently
+written `frozen/hashes.json` remained mode `0644`. Candidate integrity is still independently bound
+by the evaluator-signed receipt and SHA-256, so the run is not reopened or manually modified, but
+the protocol's blanket “frozen copy read-only” statement is formally false for this metadata file.
+
+**Question:** Update freeze ordering/permissions so `hashes.json` is also `0444`; add a regression
+test over every file in `frozen/`. Do not modify or re-run the already-frozen TASK-064 run.
+
+**Files:** `tools/blind_agent/core.py`, `tests/blind_agent/test_runner.py`,
+`docs/benchmark/blind-benchmark-protocol.md`, `blind/README.md`.
+
+**Expected output:** Tested fix applying read-only permissions to the complete frozen directory on
+future runs.
+
+**Blocking:** NO — does not invalidate the signed candidate bytes or block Statistics validation;
+blocks repeating the stronger claim that every frozen metadata file is currently read-only.
+
+## HANDOFF-062
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** CODE_REVIEWER
+**Status:** OPEN
+
+**Task:** Adversarially review TASK-064's structure-covered expansion beam and protocol evidence.
+
+**Context:** Pre-code diagnosis is committed separately (`9b6d800`, `ADR-045`); P04 input-contract
+work is separate (`HANDOFF-059`). Method commit `a1be806` adds only
+`_select_expansion_beam`: old global top 80 plus up to two rules per `(feature, operator)`
+signature, combined hard cap 512; zero quota reproduces the old beam. Eligibility, score, maximum
+depth, and TASK-060 selection settings are unchanged. Tests/lint/typecheck passed before the
+official run. Truth-free rehearsal passed. Official run `task-064-beam-20260822-001` is frozen and
+signed; evaluation has not informed this code.
+
+**Question:** Check that the method is genuinely feature/value/trap agnostic, deterministic,
+bounded, backward-reproducible at zero quota, development-only for search, and correctly versioned;
+check that no hidden artifact entered the design or official workspace. Also review whether the
+512 cap can violate the intended structural quota in a materially misleading way and whether the
+tests cover that ordering honestly.
+
+**Files:** `packages/analytics/src/policy_analytics/discovery/engine.py`,
+`tests/analytics/test_discovery_engine.py`, `docs/analytics/discovery-engine-v0.md`, `ADR-045`,
+`ADR-046`, `TASKS.md` TASK-064, run/receipt references in `HANDOFF-060`.
+
+**Expected output:** ACCEPT or blocking findings with exact locations. Do not modify frozen
+candidates or use TASK-028 results to tune this method.
+
+**Blocking:** YES — blocks marking TASK-064 DONE/CLOSED, but not independent Statistics validation.

@@ -2215,7 +2215,7 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** ML_DISCOVERY
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P1
-- **Status:** IN_PROGRESS
+- **Status:** IN_REVIEW
 - **Depends on:** none (`TASK-060` remains closed; this is an upstream search-stage task)
 - **Goal:** Continue the founder-requested recall investigation one level upstream of the closed
   selection-stage campaign: diagnose why `P04` is absent from the complete eligible pool and test
@@ -2246,6 +2246,15 @@ blocker"), not reopened or implied-done by this closure.
   truth-free dry-run: depth-2 expansion beam 80→418, evaluated hypotheses 6,557→26,213, 15
   candidates, about 2m19s. This is reachability/runtime evidence only; recall and safety remain
   unknown pending a committed image rehearsal and fresh official run.
+- **Official run (2026-08-22):** after commit `a1be806` and
+  `BLIND_REHEARSAL_VALID`, coordinator issued `task-064-beam-20260822-001`; signed workspace
+  verification passed, deterministic actor ran with network `none`, and normal acceptance froze
+  15 candidates from 26,213 evaluated hypotheses. Candidate SHA-256
+  `9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09`; signed receipt created
+  before evaluation. `HANDOFF-060` requests fresh TASK-019 validation and only then TASK-028.
+  Status is `IN_REVIEW`: no recall/precision/direction/trap result is assumed before those agents
+  report. `HANDOFF-061` separately records that `frozen/hashes.json` was left writable by tooling;
+  substantive outputs are read-only and the candidate receipt remains valid.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER

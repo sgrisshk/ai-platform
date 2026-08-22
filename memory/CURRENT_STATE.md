@@ -645,6 +645,19 @@ not assumed genuine. `TASK-060` is `IN_PROGRESS`, not `DONE`: its three-part don
 (unique-pattern recovery, no precision/direction degradation, no trap-rejection degradation) needs
 `TASK-019`/`TASK-028` against this new run, handed to Statistics/Architect in `HANDOFF-052`.
 
+**`TASK-064` (beam-search reachability) entered review 2026-08-22 (ML Discovery,
+`ADR-045`/`ADR-046`):** pre-code public trace separated two causes. P04 is not representable because
+the discovery vocabulary has no calendar/season atom (`HANDOFF-059` to Data Engineer/Architect);
+P02/P08/P09 proxies survive depth 1, but relevant eligible depth-2 pairs rank below the global
+top-80 expansion beam. Method `discovery-engine-v0.5.0` keeps that score core plus a bounded,
+feature/operator-structure reserve (hard cap 512), without changing closed TASK-060 selection
+knobs. After commit `a1be806` and `BLIND_REHEARSAL_VALID`, official deterministic/network-none run
+`task-064-beam-20260822-001` froze and committed 15 candidates from 26,213 hypotheses; candidate
+SHA-256 `9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09`.
+No recall/safety claim yet: `HANDOFF-060` blocks closure pending TASK-019 then TASK-028. A minor
+future-run tooling defect (`frozen/hashes.json` mode 0644 while substantive outputs are 0444) is
+tracked non-blocking in `HANDOFF-061`; signed candidate commitment remains valid.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
