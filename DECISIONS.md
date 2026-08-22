@@ -1870,3 +1870,47 @@ run and subsequent `TASK-019`/`TASK-028` are required to learn whether the broad
 improves recall without sacrificing precision, direction, or trap safety; this ADR makes no claim
 about that outcome. The scoreable ceiling remains 7 of 9 (`P05`/`P07` excluded under the existing
 pre-registered contract).
+
+## ADR-046 — Discovery v0.5.0 gives structurally distinct eligible rules bounded expansion rights
+
+**Date:** 2026-08-22
+**Status:** Accepted (implementation committed before any new official run; empirical benchmark
+outcome pending)
+
+**Decision:** Implement `TASK-064`'s second direction as a bounded structural reserve around the
+existing score-core beam. At each expandable depth, keep the previous global top 80 rules and add
+up to the two highest-scoring eligible rules per feature/operator signature. A signature contains
+only `(feature, operator)` pairs; condition values are excluded. The combined beam is capped at
+512 and remains ordered by the unchanged development score. `beam_rules_per_structure=0`
+reproduces the old score-only beam exactly. Method version becomes `discovery-engine-v0.5.0`.
+
+**Why this mechanism:** `ADR-045` measured a survival problem, not an eligibility or scoring
+problem. A global width increase large enough to reach the observed ranks would need roughly
+1,050 rules at every depth and would indiscriminately retain more rescalings of already-dominant
+structures. One representative per structure was insufficient in the public trace because two
+distinct categorical combinations can share the same feature/operator shape; quota two is the
+smallest generic allowance that preserves both without looking at their identities. Structural
+coverage directs the extra compute toward alternative interaction shapes while retaining the old
+top-80 core unchanged.
+
+**Discipline:** no selection-stage setting from closed `TASK-060` changed. Eligibility,
+`_development_score`, `max_conditions=3`, support bounds, and final greedy selection are untouched.
+Production logic and tests contain no P02/P04/P08/P09, feature, or trap identity. P03 is not a
+target. The pre-commit public dry-run used no hidden truth or evaluator output: depth-2 beam grew
+80→418 and total evaluated hypotheses 6,557→26,213; the run completed in about 2m19s and produced
+15 schema-compatible candidates. These are computational/reproducibility facts only, not recall
+evidence.
+
+**Alternatives:** (a) Increase global `beam_width` to about 1,050 — rejected as unselective and
+materially more expensive. (b) Lower support or allow non-harmful rules to survive — rejected;
+the diagnosed pairs were already eligible, so that changes a different invariant without fixing
+the measured cause. (c) Add a seasonal/P04-specific feature here — rejected; that mixes the two
+directions and changes the analytical input vocabulary without Data Engineering review. (d)
+Reopen `_greedy_diverse_select` — prohibited by `ADR-041` and unnecessary for this upstream defect.
+
+**Consequences:** Unit tests must prove the zero-quota reproduction path, preservation of a
+lower-scoring distinct structure, quota validation, and hard cap. After tests/lint/typecheck and a
+truth-free deterministic rehearsal pass, ML Discovery may issue one fresh official blind run.
+Only frozen `TASK-019`/`TASK-028` results decide success: a real gain on P02/P04/P08/P09 with no
+precision/direction/trap-safety degradation closes `TASK-064` as successful; otherwise the honest
+negative result closes it under its alternative done condition. No outcome is assumed here.

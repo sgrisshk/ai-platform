@@ -2240,6 +2240,12 @@ blocker"), not reopened or implied-done by this closure.
   current search vocabulary/depth cannot reach them. The maximum honest scoreable recall remains
   7/9 because `P05`/`P07` are structurally unscoreable. No official run may start before the
   method change is committed and a truth-free deterministic rehearsal passes.
+- **Implementation (2026-08-22, `ADR-046`):** method `discovery-engine-v0.5.0` retains the old
+  top-80 score core plus up to two eligible rules per feature/operator signature, capped at 512;
+  zero quota reproduces v0.4.1. No selection knob or feature-specific logic changed. Public,
+  truth-free dry-run: depth-2 expansion beam 80→418, evaluated hypotheses 6,557→26,213, 15
+  candidates, about 2m19s. This is reachability/runtime evidence only; recall and safety remain
+  unknown pending a committed image rehearsal and fresh official run.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
