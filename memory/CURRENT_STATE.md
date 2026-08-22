@@ -803,6 +803,25 @@ implementation contract, a neutral truth-free falsification fixture, and Code Re
 No benchmark domain or official run was selected or authorized; `b2b_sales/comparable` remains
 diagnostic-only and cannot count as independent portability evidence again.
 
+**`TASK-068` implementation contract delivered 2026-08-23 (ML Discovery, `ADR-057`,
+`HANDOFF-070`) — status intentionally left `BLOCKED`.** `DiscoveryConfig.max_feature_identity_fraction`
+(default `1.0`, disabled) and `_apply_feature_identity_cap` — a pure post-filter that runs strictly
+after `_greedy_diverse_select` returns (called completely unmodified; only its own pre-existing
+`top_k` temporarily raised so the filter has real alternatives, never a change to its own
+overlap/relevance-floor/stability logic or `TASK-064`'s beam settings). Every feature a rule
+touches counts toward its own tally, not one "primary anchor" per rule (a sort-order-based anchor
+was considered and rejected as arbitrary). `DISCOVERY_METHOD_VERSION` → `discovery-engine-v0.6.0`.
+Required truth-free synthetic fixture (invented feature names, `DECISION_TIME`-only, no real
+domain) proves: disabled crowds one dominant feature into every slot; enabling the cap strictly
+increases distinct signal-feature representation while returning a full `top_k`; determinism
+(full-pipeline and the filter function directly, across repeated `PYTHONHASHSEED`-varying
+processes); disabled reproduces `v0.5.0` exactly three independent ways; a column withheld from
+`feature_columns` never leaks in regardless of the cap. 15 new tests; full suite (463 passed),
+`ruff`, `pyright` clean on every touched file. No `b2b_sales`/domain identity referenced anywhere.
+Handed to Code Reviewer (`HANDOFF-070`) for the implementation-contract approval `ADR-056` itself
+requires — `TASK-068` cannot advance past `BLOCKED` without that review, and separately still needs
+a domain-selection preregistration before any official run.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**

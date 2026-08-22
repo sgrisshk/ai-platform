@@ -2509,3 +2509,68 @@ independent portability evidence.
 **Consequences:** `TASK-067` and `HANDOFF-069` are resolved. `TASK-068` remains blocked pending an
 exact implementation contract and Code Reviewer approval. No new benchmark domain is selected and
 no official run is authorized by this decision.
+
+## ADR-057 — Discovery engine v0.6.0: feature-identity diversity cap as a post-filter over `_greedy_diverse_select`'s unmodified output (`TASK-068` implementation contract)
+
+**Date:** 2026-08-23
+**Status:** Accepted — implementation only; not yet Code-Reviewer-approved, no domain selected, no official run authorized
+
+**Decision:** Implement `TASK-068` exactly within `ADR-056`'s boundary:
+`DiscoveryConfig.max_feature_identity_fraction` (default `1.0`, disabled) and a new
+`_apply_feature_identity_cap`, applied strictly *after* `_greedy_diverse_select` returns —
+never modifying that function, `TASK-060`'s overlap/relevance-floor/stability logic, or `TASK-064`'s
+beam width/structural-reserve settings. `DISCOVERY_METHOD_VERSION` bumps
+`"discovery-engine-v0.5.0"` → `"discovery-engine-v0.6.0"`. Full mechanism:
+`docs/analytics/discovery-engine-v0.md` §"Feature-identity diversity cap at final selection".
+
+**Where in the pipeline, and why a post-filter rather than a change inside the greedy loop:**
+`ADR-056`'s implementation boundary forbids touching `_greedy_diverse_select`'s own logic at all.
+The cap is therefore a second, independent step: `discover_candidates` calls
+`_greedy_diverse_select` completely unmodified, only temporarily raising its own pre-existing
+`top_k` parameter (a fixed `5x` multiplier) so the subsequent filter has real alternatives to
+select from instead of only being able to shrink the final set; `_apply_feature_identity_cap` then
+walks that longer, already-ranked list once, admitting rules in order unless a feature they touch
+would exceed its quota. This composes with, rather than reimplements, the existing mechanism, and
+makes the "disabled reproduces v0.5.0 exactly" guarantee a structural property (the resulting
+per-feature cap equals `top_k`, unreachable within a `top_k`-sized set) rather than a
+separately-maintained special case.
+
+**Alternatives considered:** (a) enforce the cap *inside* `_greedy_diverse_select`'s own selection
+loop, alongside its existing `atom_usage`/`max_candidate_jaccard` checks — rejected outright:
+`ADR-056` explicitly forbids touching that function's logic, and even absent that constraint, a
+combined loop would make the "which mechanism caused this exclusion" question harder to audit than
+two composed, independently-testable steps. (b) apply the cap at the expansion-beam stage
+(`TASK-064`'s territory) — also explicitly forbidden by `ADR-056`, and conceptually wrong besides:
+`TASK-064`'s reserve is about which rules may reach a *deeper search depth*, not which features the
+*final reported set* represents; capping there would not stop many differently-scored rescalings
+of the same feature from still winning every final slot. (c) designate one "primary anchor" feature
+per rule (e.g. the first condition in canonical sorted order) and cap only that — rejected:
+`Condition`'s canonical order is alphabetical, an artifact of its own sort key with no relationship
+to which feature actually drives a rule's effect, so this would crown an arbitrary feature as "the"
+anchor rather than a meaningful one. The chosen design — every feature a rule touches counts toward
+its own tally — needs no dominance heuristic and directly caps how often any feature can co-occur
+in the final set at all, which is the actual crowding axis `ADR-055` diagnosed.
+
+**Truth-free proof (`ADR-056`'s precondition for review):**
+`tests/analytics/test_discovery_engine.py` builds one fixture — invented feature names,
+`DECISION_TIME`-only inputs, no real domain or hidden ground truth — proving, in the order
+`ADR-056` requires: (a) the disabled default lets one dominant feature crowd the entire top-K,
+admitting at most one of three independently strong alternatives; (b) enabling the cap strictly
+increases distinct signal-feature representation (more than a one-for-one swap) while still
+returning a full `top_k`, with the dominant feature's own count capped exactly as configured; (c)
+determinism, checked both end-to-end (identical rerun) and directly against
+`_apply_feature_identity_cap` (fixed tie order survives repeated `PYTHONHASHSEED`-varying
+processes, since the function's only "set" usage is an existential membership check and a
+per-element counter increment, both order-independent by construction — not merely empirically
+observed to be stable); (d) the disabled path reproduces `v0.5.0` exactly, checked three
+independent ways; (e) a column withheld from `feature_columns` (standing in for a
+`POST_DECISION`/`OUTCOME`/`UNKNOWN` field) never appears in any candidate, cap enabled or not. 15
+new tests; full analytics suite (463 passed), `ruff`, `pyright` all pass on every file this work
+touched. No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity, or any other domain/feature name, appears
+anywhere in the mechanism's code, comments, or tests.
+
+**Consequences:** `TASK-068` stays `BLOCKED` — this decision authorizes implementation only, not
+`TASK-068`'s advancement. Handed to Code Reviewer (`HANDOFF-070`) for the implementation-contract
+approval `ADR-056` itself requires. No domain is selected and no `hidden_ground_truth.json` was
+opened by this work; the later domain-selection preregistration and official custody-protocol run
+remain separate, not authorized here.

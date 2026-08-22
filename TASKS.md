@@ -2742,6 +2742,38 @@ Do not overbuild before demand.
 - **Done when:** the structural check and (if applicable) the full custody-protocol run against the
   selected domain both complete, and a success/kill determination is recorded citing frozen
   `TASK-019`/`TASK-028` artifacts for that domain, per the preregistered criteria above.
+- **Implementation evidence (2026-08-23, ML Discovery) — status intentionally left `BLOCKED`,
+  handed to Code Reviewer, not self-advanced:** `max_feature_identity_fraction` (`DiscoveryConfig`,
+  default `1.0`, disabled) and `_apply_feature_identity_cap` implemented exactly per `ADR-056`'s
+  boundary — a pure post-filter that runs strictly after `_greedy_diverse_select` returns (called
+  completely unmodified, only its own pre-existing `top_k` temporarily raised so the filter has
+  real alternatives to fall back on, never a change to its overlap/relevance-floor/stability logic
+  or `TASK-064`'s beam settings). Every feature a rule touches counts toward its own tally, not one
+  designated "primary" feature per rule — a sort-order-based "anchor" was considered and rejected
+  as arbitrary (alphabetical, unrelated to actual effect drivers). `DISCOVERY_METHOD_VERSION` →
+  `discovery-engine-v0.6.0`. Only `DECISION_TIME`-classified columns can ever reach
+  `feature_columns` (enforced upstream, unchanged), so the cap structurally cannot see a
+  `POST_DECISION`/`OUTCOME`/`UNKNOWN` field. Methodology: `docs/analytics/discovery-engine-v0.md`
+  §"Feature-identity diversity cap at final selection".
+  **Required truth-free synthetic proof, all passing:** one invented-feature-name,
+  `DECISION_TIME`-only fixture (one dominant feature able to pair with several effect-free filler
+  features, plus three independent, genuinely distinct, independently-strong alternatives) proves,
+  in order: (a) disabled default lets the dominant feature crowd every slot, admitting at most one
+  alternative; (b) enabling the cap strictly increases distinct signal-feature representation
+  (more than a one-for-one swap) while still returning a full `top_k`, dominant feature capped
+  exactly as configured; (c) deterministic — full-pipeline rerun and direct
+  `_apply_feature_identity_cap` calls both reproduce byte-identically across repeated
+  `PYTHONHASHSEED`-varying processes; (d) disabled reproduces `v0.5.0` exactly, checked three
+  independent ways (implicit default, explicit `1.0`, and a direct unmodified
+  `_greedy_diverse_select` call bypassing all `TASK-068` code); (e) a column withheld from
+  `feature_columns` never appears in any candidate, cap enabled or not. 15 new tests; full suite
+  (463 passed), `ruff`, `pyright` all pass on every file this work touched (a separate,
+  pre-existing, unrelated file already had lint/type findings before this work began — not
+  touched, not in scope). No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity referenced anywhere in
+  code, comments, or tests. No domain selected, no hidden ground truth opened, no official blind
+  run issued — that remains a separate, later preregistration per `ADR-055`/`ADR-056`. **Handed to
+  Code Reviewer for the implementation-contract approval `ADR-056` requires before this task may
+  advance past `BLOCKED`.**
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 

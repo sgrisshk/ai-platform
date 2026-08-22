@@ -4099,3 +4099,85 @@ and include a neutral truth-free falsification fixture with exact disabled-mode 
 reproduction. A later untouched-domain test has real kill criteria, but no domain or official run
 is selected or authorized by this concurrence. `b2b_sales/comparable` remains diagnostic-only and
 cannot become independent portability evidence again.
+
+## HANDOFF-070
+
+**Created:** 2026-08-23
+**From:** ML_DISCOVERY
+**To:** CODE_REVIEWER
+**Status:** OPEN
+
+**Task:** Review `TASK-068`'s implementation contract — the feature-identity diversity cap at
+final candidate selection — before `TASK-068` may advance past `BLOCKED`, per `ADR-056`'s own
+requirement.
+
+**Context:** `ADR-055`/`ADR-056` scoped `TASK-068` after a `b2b_sales/comparable` portability
+postmortem found every one of 15 committed candidates anchored on the same one or two features — a
+crowding axis neither `_greedy_diverse_select`'s population-overlap diversity (`TASK-060`) nor the
+expansion beam's `(feature, operator)`-structure reserve (`TASK-064`) guards. ML Discovery already
+concurred (`ADR-056`) the underlying G06 gap is general, not b2b-specific, and that a
+feature-identity constraint is a justified, separate, falsifiable selection-stage experiment — not
+a validation fix.
+
+**Implementation, exactly per `ADR-056`'s boundary:**
+
+- `DiscoveryConfig.max_feature_identity_fraction` (default `1.0`, disabled) and
+  `_apply_feature_identity_cap` (`packages/analytics/src/policy_analytics/discovery/engine.py`).
+- Pure post-filter, applied strictly *after* `_greedy_diverse_select` returns. That function is
+  called completely unmodified — same overlap discount, relevance floor, stability credit,
+  atom-usage cap — only its own pre-existing `top_k` parameter is temporarily raised (a fixed,
+  generic `5x` multiplier, `_IDENTITY_CAP_OVERSELECT_MULTIPLIER`) for this one internal call, so
+  the filter has genuinely different alternatives to fall back on instead of only being able to
+  shrink the final set. `TASK-064`'s beam width/structural-reserve settings are untouched.
+- Every feature a rule's conditions touch counts toward that feature's own tally — not one
+  designated "primary" feature per rule. A per-rule "anchor" chosen by canonical sort order was
+  considered and rejected as arbitrary (alphabetical, unrelated to which feature actually drives a
+  rule's effect).
+- `max_feature_identity_fraction=1.0` is a no-op by construction (the resulting cap equals
+  `top_k`, unreachable within a `top_k`-sized final set) — reproduces `discovery-engine-v0.5.0`
+  selection exactly, regression-tested three independent ways.
+- Only `DECISION_TIME`-classified columns can ever reach `feature_columns` (enforced upstream,
+  unchanged) — the cap structurally cannot see a `POST_DECISION`/`OUTCOME`/`UNKNOWN` field.
+- `DISCOVERY_METHOD_VERSION` → `discovery-engine-v0.6.0`.
+- No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity, or any other domain/feature name, appears
+  anywhere in the mechanism's code, comments, or tests — verified by direct review, not just
+  intent.
+
+**Required truth-free synthetic proof, all passing (`tests/analytics/test_discovery_engine.py`,
+`test_identity_cap_*`/`test_apply_feature_identity_cap_*`):** one fixture, invented feature names,
+`DECISION_TIME`-only inputs, no real domain or hidden ground truth anywhere in its construction or
+this review — (a) disabled default lets one dominant feature crowd every slot, admitting at most
+one of three independently strong alternatives; (b) enabling the cap strictly increases distinct
+signal-feature representation (more than a one-for-one swap) while still returning a full `top_k`,
+with the dominant feature's own count capped exactly as configured; (c) deterministic — full
+pipeline and the filter function directly, both reproduced across repeated
+`PYTHONHASHSEED`-varying processes; (d) disabled reproduces `v0.5.0` exactly, three independent
+ways (implicit default, explicit `1.0`, and a direct call to the unmodified
+`_greedy_diverse_select` primitive bypassing every line of `TASK-068` code); (e) a column withheld
+from `feature_columns` never appears in any candidate, cap enabled or not.
+
+**Verification run (this session):** 15 new tests; full analytics suite (463 passed, 155
+deselected non-analytics), `ruff`, `pyright` all clean on every file this work touched.
+`scripts/diagnose_g06_task065_b2b.py` (a different, pre-existing file from the prior `TASK-067`
+diagnostic session, not touched here) already has unrelated `ruff`/`pyright` findings predating
+this work — flagged for awareness, not fixed here, out of this task's scope.
+
+**Files:**
+
+- `packages/analytics/src/policy_analytics/discovery/engine.py`
+  (`max_feature_identity_fraction`, `_apply_feature_identity_cap`,
+  `_IDENTITY_CAP_OVERSELECT_MULTIPLIER`)
+- `tests/analytics/test_discovery_engine.py` (`test_identity_cap_*`,
+  `test_apply_feature_identity_cap_*`, `test_max_feature_identity_fraction_must_be_in...`)
+- `docs/analytics/discovery-engine-v0.md` ("Feature-identity diversity cap at final selection")
+- `TASKS.md` (`TASK-068`), `ADR-056`, `ADR-057` (this handoff)
+
+**Expected output:** Code Reviewer approval or a specific, actionable rejection of the
+implementation contract. `TASK-068` stays `BLOCKED` regardless of this review's outcome until that
+approval lands *and* a separate domain-selection preregistration is authorized per
+`ADR-055`/`ADR-056` — this handoff covers implementation review only, not domain selection or an
+official run.
+
+**Blocking:** YES — `TASK-068` cannot advance past `BLOCKED` without this review.
+
+**Resolution:** Pending.
