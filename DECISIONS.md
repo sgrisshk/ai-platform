@@ -2224,3 +2224,255 @@ verdict confirming the slot, custody chain, and issuance mechanics are correctly
 requested or issued. This ADR is process documentation: it performs no rehearsal, creates no
 workspace or actor, and discloses no ground truth. `ADR-048`'s disclosed contamination is not
 cured, narrowed, or time-limited by this decision.
+
+## ADR-053 — TASK-065 b2b portability cycle is procedurally complete with a FAILED analytical verdict
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Decision:** Close `TASK-065` as DONE because its single preregistered
+`b2b_sales/comparable` cycle completed in the required order, while recording the analytical
+portability verdict as **FAILED**. This is not a successful portability claim. The run produced
+90% Top-10 candidate precision and rejected every trap from promoted readiness, but no candidate
+survived prespecified confounder adjustment above descriptive evidence. Consequently
+validation-qualified/economic-weighted recall is 0%, below the preregistered 5% FAILED boundary;
+direction accuracy and impact error have no eligible denominator.
+
+**Evidence:** Candidate SHA-256
+`ec3b1c17c9826724dfaa6adec1a1db431768bad772b228d33cf906be6ab49bcc` matched the signed receipt
+and independent custody verdict. TASK-019 was run before truth access and frozen read-only at
+`artifacts/validation/task-019-task-065-b2b-comparable-20260822-001.json` (SHA-256
+`873db1f40a4c35ef693f8195dd2cc046164847c803f60c7de85112a27bf69f3c`). Only after rechecking that
+freeze did TASK-028 open the preregistered truth and freeze
+`artifacts/evaluation/task-028-task-065-b2b-comparable-20260822-001.json` (SHA-256
+`02ad8ca8996cd411cc3d86aa8ce6db41243ac55f456c2b07f6e5cbb0600ffca1`). No threshold, matching
+rule, discovery output, validation code, or methodology changed during the cycle.
+
+**Consequences:** The current discovery/validation mechanism has not demonstrated portability to
+the first non-travel comparable benchmark. Do not represent this run as portable or use it to
+justify real b2b customer data. Any follow-up must begin with a new, explicitly scoped diagnosis;
+this result does not authorize b2b-specific tuning or retrospective re-scoring. Full evidence is
+in `docs/benchmark/task-065-b2b-portability-report.md`.
+
+## ADR-055 — TASK-065 postmortem: categorized root causes, a recorded `TASK-067` attribution, and
+the next general-purpose experiment (`TASK-068`)
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Decision:** Record the postmortem's categorized findings against `ADR-053`'s FAILED verdict as
+factual results, and record this session's Statistics-side attribution for `TASK-067`'s diagnosis
+question. This entry adds no new evidence beyond what is already frozen in
+`artifacts/validation/task-019-task-065-b2b-comparable-20260822-001.json` and
+`artifacts/evaluation/task-028-task-065-b2b-comparable-20260822-001.json`; it interprets those
+artifacts. No code, threshold, matching logic, or frozen artifact changed to produce this ADR. Full
+account: `docs/benchmark/task-065-b2b-portability-postmortem.md`. This entry concurs with, and does
+not reopen, `ADR-054`'s Option A path and its two hard rules on `b2b_sales` reuse and b2b-specific
+tuning; `TASK-067`'s own done condition (a recorded attribution with ML_DISCOVERY's concurrence or
+a documented dissent) is only partially met by this entry — the Statistics-side attribution is
+recorded here, but ML_DISCOVERY's concurrence is not yet obtained (see `TASKS.md` `TASK-067`).
+
+**Custody:** Authored by a freshly-spawned Statistics session with no conversation history prior to
+this task, no context inherited from the `ADR-048`-contaminated session or any of its forks, and no
+exposure to any domain's `hidden_ground_truth.json` at any point while producing it — consistent
+with the fresh, independent identity `ADR-051`'s custody chain requires for interpreting this
+result. It took no part in `b2b_sales` discovery, candidate selection, or the earlier
+`TASK-065-INDEPENDENT-EVALUATOR` run.
+
+**Metric detail beyond `ADR-053`:** unique scoreable-pattern candidate-match recall is 1/6
+(16.7%, pattern `B03` only, recovered by 9 of 15 candidates at recall 0.26–0.99) — materially
+higher than the 0% validation-qualified/economic-weighted recall `ADR-053` reports. The gap is
+G06 alone: every one of the 15 candidates fails G06 on both its conditions simultaneously
+(attenuation 89.2–99.7% against the 50% ceiling; E-value 1.04–1.32 against the 1.50 floor) while
+`confounder_stratum_coverage` stays adequate (0.50–0.97, mean 0.70) — not a coverage-collapse
+artifact. G09 is `NOT_EVALUATED` for all 15 (`validation_roles.heterogeneity_column = null` in the
+b2b manifest), a second, independent ceiling that is moot for this run only because G06 already
+caps every candidate first. Direction accuracy and impact estimation error are undefined
+(zero eligible denominator), not zero. Every one of the 15 candidates shares `deal_size_usd` or its
+banded proxy `company_size_band` as one of its two conditions — a directly-observable, public fact
+from `validation_report.pattern_definition`.
+
+**Categorized root causes (8 fixed categories; findings recorded only where frozen-artifact
+evidence supports one):**
+
+1. **Discovery vocabulary — partially implicated, not confirmed.** b2b_sales has no derived
+   calendar/month atom (only raw `deal_created_date`, excluded from G06 as date-like); travel only
+   gained its own equivalent (`travel_month`) after its seasonal pattern was diagnosed
+   vocabulary-blocked (`ADR-045`/`ADR-047`). `docs/benchmark/multi-domain-benchmarks.md` publicly
+   describes two of b2b's nine patterns in seasonal terms. Whether either is among the five missing
+   scoreable patterns cannot be confirmed without opening hidden ground truth, which this postmortem
+   does not do; the underlying vocabulary gap is real regardless.
+2. **Search reachability — indeterminate.** The full evaluated-hypothesis pool (7,202 hypotheses)
+   is not itself a persisted artifact; only the committed 15 candidates are frozen. Confirming
+   whether the five missing patterns scored below the beam/top-K cutoff requires the same
+   already-precedented post-hoc pool diagnostic `ADR-038` used for travel
+   (`scripts/diagnose_candidate_pool_recall.py`), which requires opening `b2b_sales`'s hidden
+   ground truth directly — outside this postmortem's scope. Not confirmed, not ruled out.
+3. **Ranking/selection — implicated.** All 15 committed candidates anchor on `deal_size_usd`/
+   `company_size_band`. `_development_score` rewards population × effect magnitude
+   (`docs/analytics/discovery-engine-v0.md`, `ADR-039`/`ADR-040`); `docs/benchmark/multi-domain-
+   benchmarks.md` documents that b2b's traps were deliberately built to ride a pathway scaling with
+   `deal_size_usd`, "the dominant driver of variance" in this domain by design. `TASK-060`'s
+   diversity mechanism guards population overlap, not anchor-feature identity, and would not by
+   construction prevent this. This is the basis for `TASK-068`.
+4. **Validation — candidates found, correctly downgraded on the evidence available.** `B03`'s
+   statistical signature (adequate coverage, tight and near-total attenuation, uniformly failing
+   E-value across 15 independently-conditioned candidates) matches a genuine, well-powered
+   adjustment result, not a coverage-starved or malfunctioning gate. Cannot be certified against
+   true generative structure without opening hidden ground truth; nothing in the frozen artifacts
+   points to a validation defect.
+5. **Confounding safety — not implicated.** All five traps rejected/downgraded; zero promoted.
+   Three traps appeared as literal candidate conditions and were correctly capped by the same G06
+   mechanism as every other candidate.
+6. **Economic impact — not implicated.** Direction accuracy and impact error have zero eligible
+   denominator; the failure occurred one gate earlier (G06) than where a magnitude question becomes
+   askable.
+7. **Domain contract — implicated.** b2b's outcome contract is `PROVISIONAL` (never brought to
+   travel's TASK-013-reviewed `ATTACHED` standard, per `TASK-062`'s own explicit scope decision),
+   has a third fewer decision-time/adjustment-eligible features than travel (12/11 vs. 19/16), and
+   has no reviewed heterogeneity role (G09 `NOT_EVALUATED`). Sample sizes are comparable between
+   domains (~5,000 development rows each) — not a differentiator.
+8. **Benchmark mismatch — weakly implicated, flagged as an open question, not confirmed.**
+   Whether "economic-weighted recall" is measuring search/selection-stage dominant-covariate
+   crowding (category 3) rather than validation's ability to separate transportable patterns from
+   confounded ones in general cannot be resolved without the same pool-reachability diagnostic
+   category 2 also needs. Named because partial evidence exists, per the task's own instruction not
+   to force or omit findings based on evidence strength alone.
+
+**`TASK-067` attribution (Statistics side; ML_DISCOVERY concurrence still requested, see
+`TASKS.md`):** the G06 failure on all 15 b2b candidates is **the same general adjustment-richness
+limitation already disclosed in `ADR-036`/`ADR-042`/`ADR-043`, not a new gate defect and not a
+`b2b_sales`-specific data characteristic.** Evidence: G06's statistical signature here (adequate
+coverage, near-total and highly consistent attenuation, uniformly failing E-value, §4.4/category 4
+above) is the same qualitative shape `ADR-043` already characterized in general terms — a
+confound that is at least partly interaction-driven, which closed-form joint stratification can
+only partially resolve before its own coverage floor binds, and which `ADR-043` already showed
+generalizes across candidates rather than being tied to one feature's identity. What is materially
+different from travel's own residual G06 case is not the gate's behavior but the search/selection
+stage feeding it: category 3 above is a distinct, upstream contributor this attribution does not
+fold into G06's own limitation — the candidate pool G06 evaluated here was itself unusually
+homogeneous (one anchor-feature pair across all 15 candidates), which is a `TASK-060`/`TASK-064`-
+era selection-stage property, not a `TASK-063`-era G06 property. Both are general, not b2b-specific:
+neither conclusion depends on any `b2b_sales` pattern or trap identity beyond the bare public
+`Bxx`/`BTxx` IDs already in `docs/benchmark/task-065-b2b-portability-report.md` and `ADR-053`.
+
+**Determination:** Primarily an expected domain-adaptation requirement (category 7 — b2b's
+contract was deliberately built to a lower, provisional standard, `TASK-061`/`TASK-062`'s own scope
+decision, not an oversight), compounded by a real, pre-existing general-purpose selection-stage gap
+(category 3) that this domain's publicly-documented unusually concentrated outcome variance exposes
+more severely than travel has to date. Not a new methodology defect: G06 behaved exactly per its own
+acceptance test (`docs/analytics/validation-contract.md` §10), and every other gate passed cleanly
+on a strong, temporally stable raw signal.
+
+**Next mechanism (`TASK-068`, scoped, not implemented):** a feature-identity diversity floor at
+final top-K/beam-survivor selection — cap the fraction of selected slots any single anchor-feature
+identity may claim, orthogonal to the existing population-overlap (`TASK-060`) and structural
+(feature, operator)-signature (`TASK-064`) mechanisms. Feature-identity-agnostic and domain-neutral
+by construction (operates on feature identity as a string key, never a specific feature name).
+Preregistered test: implement and truth-free-rehearse; verify a structural check (increased
+distinct anchor-feature count in the committed Top-K vs. the same-domain `v0.5.0` baseline) before
+any new domain's ground truth opens — a failing structural check is itself a kill, decided
+truth-free; if it passes, run the full `ADR-051`-style independent custody protocol against
+`ecommerce` (lexicographically first of the five remaining unopened `TASK-061` domains, by the same
+selection rule `TASK-065` used) and grade economic-weighted/unique-scoreable-pattern recall against
+the same-domain baseline under `docs/benchmark/decision-gate.md`'s existing hard disqualifiers and
+bands. No parameter may be tuned from what any diagnostic run shows about a specific domain's
+patterns.
+
+**Eligible domains:** filesystem-existence check (not content) confirms all six `TASK-061` domains
+have a materialized `hidden_ground_truth.json`; only `b2b_sales`'s has actually been opened, per
+`ADR-048` and the absence of an equivalent disclosure for any other domain.
+`ecommerce`/`saas`/`insurance`/`manufacturing`/`healthcare` remain genuinely unopened and eligible
+for `TASK-068`.
+
+**Consequences:** `TASK-068` is created at status `BLOCKED` (depends on `TASK-067` reaching a
+recorded ML_DISCOVERY concurrence or documented dissent, per `ADR-054`'s own sequencing: "a
+follow-on task... is scoped separately, after this diagnosis lands, and only if the diagnosis
+supports a general fix") — scoping only, no implementation authorized by this entry. This ADR does
+not reopen, narrow, or reinterpret `ADR-053`'s FAILED verdict, does not close `TASK-067` (Statistics'
+half is recorded here; ML_DISCOVERY's concurrence remains open), and does not authorize any
+b2b-specific tuning or retrospective re-scoring. Full evidence and per-category detail:
+`docs/benchmark/task-065-b2b-portability-postmortem.md`.
+
+## ADR-054 — Portability track path after TASK-065 FAILED: fix the general defect, retest on a new untouched domain (Option A); not domain-specific configs, not a thesis pivot, not a halt
+
+**Date:** 2026-08-22
+**Status:** Accepted
+
+**Decision:** Of the four paths considered, Founder Strategy selects **Option A**: diagnose and, if
+warranted, fix a general-purpose methodological defect, then retest portability against a second,
+still genuinely untouched `TASK-061` domain. Rejects **B** (concede domain-specific configuration
+contracts are necessary), **C** (halt portability work entirely and finish the travel production
+workflow), and **D** (reopen the core discovery thesis). `TASK-067` is opened as the bounded,
+diagnosis-only first step; no fix or second-domain run is authorized until that diagnosis lands.
+
+**What was refuted:** The claim under test was that the frozen, travel-tuned discovery+validation
+method (`discovery-engine-v0.5.0`, validation v1.2.0), unmodified, produces *validated* findings —
+not just candidates — when pointed at a structurally different domain with zero adaptation. That
+is refuted: validation-qualified and economic-weighted recall are both 0% (below the preregistered
+5% floor), because all 15 candidates were downgraded by gate G06 (confounding adjustment) to
+`descriptive_observation`/`experiment_only` and none reached predictive evidence
+(`docs/benchmark/task-065-b2b-portability-report.md`).
+
+**What remains confirmed:** (1) The blind-custody/governance chain built for exactly this
+situation — `ADR-008`, `ADR-048`, `ADR-051`, `ADR-052` — worked end to end for real, for the first
+time, with zero leakage violations and no premature truth access; the evaluator-slot mechanism
+correctly resolved the actor-timing problem it was built for. (2) Raw discovery/search still
+generalizes: Top-10 candidate precision was 90% in a domain the engine had never seen, so the
+*search* is not the failure. (3) Conservatism transfers without adaptation: all 5 confounding traps
+were rejected/downgraded, none promoted — the mechanism did not fool itself in an unfamiliar
+domain. (4) Travel's own standing `PROMISING` verdict (`ADR-025`) and the real-customer critical
+path (`TASK-057`) are both unaffected by this result. (5) This is one data point from a
+preregistered, non-cherry-picked domain-selection rule (lexicographically first of six), not a
+worst-case or best-case pick.
+
+**Why not B, C, or D:** **B** would generalize from a single domain to "portability requires
+bespoke configuration," before the cheaper hypothesis — a general, fixable gap in G06's confounding
+adjustment — has even been tested; conceding this now would durably commit the product to a
+per-vertical consulting-shaped cost structure `agents/FOUNDER_STRATEGY.md`'s differentiation
+guardrails exist to prevent, on insufficient evidence (n=1 domain). **C** has a real kernel of
+truth — portability was never on the critical path to `MILESTONE-M3`, and founder bandwidth stays
+on `TASK-057` regardless of this decision — but halting forecloses a cheap, high-information
+diagnostic step (analysis of already-frozen artifacts, no new domain spent) for no compensating
+saving. **D** is not supported by the specific, localized shape of the failure: the discovery
+mechanism itself found relevant structure (90% precision) and correctly rejected decoys (5/5 traps);
+what failed is one identified statistical component's adjustment richness in a new domain, not the
+premise that historical decisions contain discoverable patterns.
+
+**Cost of the next experiment:** The expensive part — designing and proving the custody/evaluator
+chain — is built and reusable; a second domain does not require re-inventing `ADR-051`/`ADR-052`.
+Remaining real cost: (1) a scoped technical diagnosis from Statistics/ML_Discovery of *why* G06
+failed all 15 candidates, using only already-frozen `TASK-065` artifacts — cheap, no new domain
+touched (`TASK-067`); (2) contingent on that diagnosis supporting a general (not b2b-specific)
+fix, implementing and testing it; (3) validating the fix against one new, still-untouched domain,
+chosen by a pre-declared rule before any result is seen — not the analyst's pick. Step (3) spends
+one of five remaining untouched domains, a scarce, non-renewable resource, and is not authorized by
+this ADR alone.
+
+**Risk of tuning on now-open b2b truth:** `b2b_sales/comparable` ground truth is now fully open —
+first by the `ADR-048` incident, then correctly by this completed evaluation cycle — and can never
+again serve as a blind test. Any method change motivated by this result, then re-validated by
+re-running against `b2b_sales/comparable` itself, is not new portability evidence; it is fitting a
+method to a known answer key, exactly what this project's pre-registration discipline
+(`ADR-007`, `ADR-012`) exists to prevent. Two hard rules follow, binding on `TASK-067` and any
+successor task: **(1) `b2b_sales/comparable` may not be used again as independent portability
+evidence** — rerunning discovery/validation against it after a method change proves nothing about
+generality; **(2) no method change may be scoped, parameterized, or justified by reference to
+`b2b_sales`'s specific patterns or traps** once known — only domain-neutral, structurally-general
+reasoning is permitted, matching the discipline `TASK-058`/`TASK-059` already applied to travel's
+own earlier `FAILED` remediation (`ADR-023`/`ADR-024`). Diagnostic *reading* of the frozen b2b
+artifacts to understand the failure mechanism is permitted and required; using that reading to
+hand-fit a fix is not.
+
+**Cheapest falsifiable test:** `TASK-067` — a diagnosis-only handoff (Statistics, concurrence
+requested from ML_Discovery, mirroring the dual-sign-off pattern `HANDOFF-043` already
+established) asking whether the G06 failure is the same general adjustment-richness/interaction-
+effect gap already disclosed and left open in `ADR-036`/`ADR-042`/`ADR-043`, or something new.
+This costs analysis time only — no new domain, no new custody cycle, no code change — and is the
+necessary gate before any real spend is authorized on step (2) or (3) above.
+
+**Consequences:** `TASK-067` is created, scoped strictly as diagnosis. No fix, no second-domain
+run, and no `b2b_sales`-specific tuning is authorized by this ADR. `docs/benchmark/decision-gate.md`
+and its travel verdict are untouched. `memory/CURRENT_STATE.md` records this as the portability
+track's current state; it does not change the 14-day technical/commercial milestones already
+tracked there, which concern the travel benchmark and `TASK-057` respectively.

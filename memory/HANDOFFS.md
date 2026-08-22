@@ -4031,6 +4031,18 @@ did not create the actor, run discovery, run `TASK-019`/`TASK-028`, or open grou
 
 EVALUATOR_ACTOR_CREATION_AUTHORIZED: TASK-065-INDEPENDENT-EVALUATOR
 
+**Independent evaluator completion (2026-08-22):** The fresh Statistics actor bound to
+`TASK-065-INDEPENDENT-EVALUATOR` declared no discovery/candidate-selection participation, no prior
+`b2b_sales` hidden-truth exposure, and no inherited ADR-048 Statistics context. It reverified the
+candidate/receipt hash, completed ground-truth-free TASK-019, froze and hash-verified the validation
+artifact, and only then ran TASK-028 against the preregistered truth. Validation SHA-256:
+`873db1f40a4c35ef693f8195dd2cc046164847c803f60c7de85112a27bf69f3c`; evaluation SHA-256:
+`02ad8ca8996cd411cc3d86aa8ce6db41243ac55f456c2b07f6e5cbb0600ffca1`. Result: 15 DOWNGRADE,
+0 PASS, 0 REJECT; Top-10 precision 90%, scoreable candidate recall 1/6, economic-weighted recall
+0%, zero leakage, zero promoted traps, and no eligible direction/impact denominator. Statistical
+portability verdict: FAILED, without a hard disqualifier. `TASK-065` is procedurally DONE; see
+ADR-053 and `docs/benchmark/task-065-b2b-portability-report.md`.
+
 ## HANDOFF-068
 
 Created: 2026-08-22
@@ -4050,4 +4062,31 @@ Files: `tools/blind_agent/core.py`, `tests/blind_agent/test_runner.py`.
 Expected output: Future frozen runs produce `hashes.json` and all substantive outputs with mode
 `0444`; tests fail if any frozen artifact is owner-writable.
 Blocking: NO
+Resolution:
+
+## HANDOFF-069
+
+Created: 2026-08-22
+From: STATISTICS
+To: ML_DISCOVERY
+Status: OPEN
+Task: Concur with, or record a documented dissent to, the Statistics-side `TASK-067` attribution.
+Context: A freshly-spawned, `ADR-051`-eligible Statistics session (no prior `b2b_sales` ground-truth
+exposure, no inherited `ADR-048` context) produced `docs/benchmark/task-065-b2b-portability-postmortem.md`
+and `ADR-055`, an 8-category root-cause postmortem of `task-065-b2b-comparable-20260822-001`'s
+FAILED verdict, read entirely from already-frozen `TASK-019`/`TASK-028` artifacts and already-public
+manifests/docs — no hidden ground truth was opened to produce it. Its `TASK-067` attribution:
+the G06 failure on all 15 candidates is general/fixable (the same adjustment-richness limitation
+already disclosed in `ADR-036`/`ADR-042`/`ADR-043`), not a `b2b_sales`-specific data characteristic,
+and is analytically separate from a distinct, also-general search/selection-stage finding (all 15
+candidates share one anchor-feature identity) scoped as `TASK-068`.
+Question: Does ML_DISCOVERY concur with this attribution (general/fixable G06 limitation, distinct
+from a separate search/selection-stage crowding finding), or dissent with a documented reason? This
+is `TASK-067`'s own stated done condition (`ADR-054`) and gates whether `TASK-068` may proceed past
+`BLOCKED`.
+Files: `docs/benchmark/task-065-b2b-portability-postmortem.md`, `DECISIONS.md` ADR-054/ADR-055,
+`TASKS.md` TASK-067/TASK-068.
+Expected output: A recorded concurrence or documented dissent in `TASKS.md` TASK-067, per its own
+done condition.
+Blocking: YES — blocks `TASK-068` moving past `BLOCKED`.
 Resolution:

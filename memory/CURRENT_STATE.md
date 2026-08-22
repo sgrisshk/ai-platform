@@ -740,8 +740,60 @@ outcome for direction and unit semantics; and reads typed economic-impact result
 legacy travel-named diagnostics key. Cross-dataset/partial-family tests pass and the historical
 travel metrics object is byte-identical to its frozen artifact. TASK-066's public non-travel CLI
 path, both truth-free blind rehearsals, lint, typecheck, and the non-integration suite pass. The
-remaining readiness condition is committing the reviewed multi-role worktree and its versioned
-synthetic artifacts; no official TASK-065 run has been issued.
+At that review point, the remaining readiness condition was committing the reviewed multi-role
+worktree and its versioned synthetic artifacts; the later official run and result are recorded
+immediately below.
+
+**`TASK-065` completed 2026-08-22 (independent Statistics evaluator, ADR-053):** The official
+`b2b_sales/comparable` run completed the signed commitment → truth-free TASK-019 freeze → TASK-028
+sequence. All 15 candidates were downgraded to descriptive/experiment-only after G06 confounding
+failure; Top-10 candidate precision was 90%, but validation-qualified/economic-weighted recall was
+0%, with zero leakage and zero promoted traps. Direction and impact accuracy had no eligible
+denominator. The task is procedurally DONE and the portability verdict is analytically **FAILED**;
+the mechanism has not demonstrated non-travel portability. Frozen artifact hashes and the full
+account are in `docs/benchmark/task-065-b2b-portability-report.md`.
+
+**Portability track decision (2026-08-22, Founder Strategy, `ADR-054`):** Of four options
+(fix-general-defect-and-retest / accept domain-specific configs / halt portability, ship travel /
+reopen core thesis), **Option A is chosen**: diagnose, and if warranted fix, a general
+methodological defect, then retest on a new untouched domain. Refuted: that the frozen method
+ports to a new domain unmodified. Confirmed: the custody/evaluator-slot chain (`ADR-008`/`ADR-048`/
+`ADR-051`/`ADR-052`) worked end to end with zero leakage for the first time; raw discovery
+precision (90%) and trap rejection (5/5) both transferred without adaptation; travel's own
+`PROMISING` verdict and `TASK-057` are unaffected. `TASK-067` opens a diagnosis-only step (no
+domain spent, no code changed). Two hard rules bind all follow-on work: `b2b_sales/comparable`
+cannot be reused as independent portability evidence, and no fix may be scoped or justified by
+reference to its specific patterns/traps. This does not change the 14-day milestones below, which
+concern the travel benchmark and real-customer acquisition, not the portability track.
+
+**TASK-065 postmortem and TASK-067 attribution (2026-08-22, a freshly-spawned, `ADR-051`-eligible
+Statistics session, `ADR-055`):** `docs/benchmark/task-065-b2b-portability-postmortem.md` reads only
+already-frozen `TASK-019`/`TASK-028` artifacts and public manifests/docs (no hidden ground truth
+opened) and adds detail beyond `ADR-053`: unique scoreable-pattern candidate-match recall is 1/6
+(16.7%, `B03` only, found by 9/15 candidates), materially above the 0% validation-qualified figure —
+the entire gap is G06, which fails all 15 candidates on both conditions at once (attenuation
+89.2–99.7% against the 50% ceiling; E-value 1.04–1.32 against the 1.50 floor) with adequate
+stratification coverage (mean 0.70), not a coverage-collapse artifact. G09 is `NOT_EVALUATED` for
+all 15 (no reviewed heterogeneity role in the b2b manifest) — a second, independent ceiling, moot
+here only because G06 caps every candidate first. Every one of the 15 candidates anchors on
+`deal_size_usd` or its proxy `company_size_band`. Of the 8 fixed root-cause categories: implicated
+with direct evidence — ranking/selection (category 3, the anchor-feature homogeneity above) and
+domain contract (category 7, b2b's `PROVISIONAL` outcome contract, fewer decision-time/adjustment-
+eligible features, no reviewed heterogeneity role); partially implicated but unconfirmed without
+opening hidden truth — discovery vocabulary (category 1, no derived calendar atom for b2b, unlike
+travel's `travel_month`) and benchmark mismatch (category 8); not implicated — confounding safety
+(0 traps promoted) and economic impact (no eligible denominator); indeterminate from frozen
+artifacts alone — search reachability (category 2); correctly downgraded on the evidence available,
+not a validation defect — validation (category 4). Determination: primarily an expected
+domain-adaptation requirement, compounded by a real, pre-existing selection-stage gap this domain's
+publicly-documented concentrated outcome variance exposes more severely than travel has to date —
+not a new methodology defect. `TASK-067`'s Statistics-side attribution is recorded (general/fixable
+G06 limitation, same shape `ADR-043` already characterized, distinct from the separate
+search/selection finding) with ML_DISCOVERY concurrence still requested (`HANDOFF-069`). `TASK-068`
+(feature-identity diversity floor at selection, preregistered success/kill criteria, tested against
+`ecommerce` — lexicographically first of the five remaining unopened `TASK-061` domains) is created
+`BLOCKED` on `TASK-067`'s concurrence, scoping only. No code, threshold, matching logic, or frozen
+artifact changed to produce this entry.
 
 ## Next milestone
 
