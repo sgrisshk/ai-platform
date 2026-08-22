@@ -3987,3 +3987,67 @@ The concrete evaluator remains uncreated until the signed commitment is independ
 Hidden ground truth remains prohibited until both that commitment check and the evaluator's
 ground-truth-free `TASK-019` validation freeze are complete. This review did not create an official
 workspace, issue the official run, execute discovery, or open hidden ground truth.
+
+**Independent frozen-custody verification (2026-08-22, Code Reviewer):**
+
+CUSTODY_VERIFIED
+
+- Run: `task-065-b2b-comparable-20260822-001`.
+- Reviewed repository HEAD: `d57630a`.
+- Run state: `FROZEN`; audit sequence ends with `completed → verified → frozen` at
+  `2026-08-22T17:27:38.962322+00:00`, with no later run event or provenance mutation recorded.
+- Candidate SHA-256: `ec3b1c17c9826724dfaa6adec1a1db431768bad772b228d33cf906be6ab49bcc`.
+- Receipt SHA-256: `25eee7116ed48c558907c9187f01bf9530cbcfce9a3ce28aa9f80770cd990047`.
+- Bundle ID/workspace SHA-256: `82ec2caac8d5d9ef0991a482cf4f127caf52442d7fe2cb1a94c5d2d3d9d5518f`.
+- The evaluator-owned key validated both the issued manifest signature and candidate-receipt HMAC.
+  The receipt's manifest SHA matches the issued manifest, and its candidate SHA and bundle ID
+  match the frozen candidates and recomputed signed input bundle.
+- Archived candidates are byte-identical to run-local frozen candidates. Archived metrics,
+  run report, and hash index are also byte-identical to their frozen copies; the run-local hash
+  index matches all three substantive frozen outputs.
+- The signed acceptance contract matches the preregistration: dataset selector
+  `b2b_sales/comparable`, dataset identity
+  `72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`, discovery method
+  `discovery-engine-v0.5.0`, outcome contract `0.1.0-provisional`, and split contract
+  `b2b-sales-temporal-split-v1.0.0`.
+- Commitment time is `2026-08-22T17:28:13.413965+00:00`, after freeze. The run audit contains no
+  ground-truth-access or evaluation event, and neither the run artifact inventory nor the archived
+  artifact inventory contains hidden truth or evaluation results.
+- Run-local `candidates.json`, `discovery_metrics.json`, and `run_report.md` have mode `0444`.
+  Run-local `hashes.json` has mode `0644`. This is a non-blocking tooling defect recorded as
+  `HANDOFF-068`: changing that index cannot silently change committed candidate identity because
+  candidate bytes are independently bound by the evaluator-signed receipt and its expected
+  receipt SHA. No permission or byte in the frozen run was modified during this review.
+- Verification commands were read-only: `stat`/`find` inventory and mode checks; `shasum -a 256`;
+  `cmp` across archived, frozen, and workspace candidate copies; JSON projection of state,
+  provenance, events, manifest, and receipt; and direct calls to `_verify_manifest_signature` and
+  `verify_candidate_commitment` followed by independent bundle/output hash recomputation.
+
+Creation of a concrete actor for the already approved
+`TASK-065-INDEPENDENT-EVALUATOR` slot is now authorized. The actor must still satisfy every
+`ADR-051`/`ADR-052` eligibility rule. Its first result-bearing action is ground-truth-free
+`TASK-019`; that report must be frozen before hidden ground truth is disclosed. This custody review
+did not create the actor, run discovery, run `TASK-019`/`TASK-028`, or open ground truth.
+
+EVALUATOR_ACTOR_CREATION_AUTHORIZED: TASK-065-INDEPENDENT-EVALUATOR
+
+## HANDOFF-068
+
+Created: 2026-08-22
+From: CODE_REVIEWER
+To: ARCHITECT
+Status: OPEN
+Task: Make every future run-local frozen hash index read-only after it is written.
+Context: In `tools/blind_agent/core.py`, `_validated_freeze` applies mode `0444` to substantive
+outputs before `_write(frozen / "hashes.json", hashes)` creates the index with the process default
+mode `0644`. TASK-065 custody remains valid because the evaluator-signed receipt independently
+binds candidate bytes, manifest SHA, and bundle ID; the defect does not provide a path to replace
+the committed candidate identity without failing receipt verification. The already frozen
+TASK-065 run must not be mutated to remediate this tooling issue.
+Question: Change the freeze implementation so newly created `hashes.json` is `0444`, and add an
+exact-mode regression covering every file in `frozen/` without modifying historical runs.
+Files: `tools/blind_agent/core.py`, `tests/blind_agent/test_runner.py`.
+Expected output: Future frozen runs produce `hashes.json` and all substantive outputs with mode
+`0444`; tests fail if any frozen artifact is owner-writable.
+Blocking: NO
+Resolution:
