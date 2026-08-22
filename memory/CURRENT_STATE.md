@@ -795,6 +795,14 @@ search/selection finding) with ML_DISCOVERY concurrence still requested (`HANDOF
 `BLOCKED` on `TASK-067`'s concurrence, scoping only. No code, threshold, matching logic, or frozen
 artifact changed to produce this entry.
 
+**`TASK-067` concurrence completed 2026-08-22 (ML Discovery, `ADR-056`, `HANDOFF-069`):**
+`CONCUR_GENERAL_FIXABLE`. G06's general adjustment-richness limitation and the upstream
+feature-identity crowding are separate defects; the proposed mechanism is justified only as a
+selection-stage experiment, never as a validation fix. `TASK-068` remains blocked pending an exact
+implementation contract, a neutral truth-free falsification fixture, and Code Reviewer approval.
+No benchmark domain or official run was selected or authorized; `b2b_sales/comparable` remains
+diagnostic-only and cannot count as independent portability evidence again.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**

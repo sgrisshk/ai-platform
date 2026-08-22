@@ -2623,9 +2623,9 @@ Do not overbuild before demand.
 - **Concurrence requested:** ML_DISCOVERY (mirrors the dual sign-off `HANDOFF-043` established for
   the earlier travel `FAILED` verdict)
 - **Priority:** P1
-- **Status:** IN_PROGRESS — Statistics-side attribution recorded (2026-08-22, `ADR-055`, via a
-  freshly-spawned, `ADR-051`-eligible postmortem session); ML_DISCOVERY concurrence or documented
-  dissent still outstanding, per this task's own done condition. See `HANDOFF-069`.
+- **Status:** DONE — Statistics-side attribution recorded in `ADR-055`; ML_DISCOVERY concurrence
+  recorded as `CONCUR_GENERAL_FIXABLE` in `ADR-056`/`HANDOFF-069`. This closes diagnosis only and
+  authorizes neither implementation nor an official run.
 - **Depends on:** none — operates entirely on already-frozen `TASK-065` artifacts
   (`artifacts/validation/task-019-task-065-b2b-comparable-20260822-001.json`,
   `artifacts/evaluation/task-028-task-065-b2b-comparable-20260822-001.json`,
@@ -2665,8 +2665,16 @@ Do not overbuild before demand.
   proxy `company_size_band` — a `TASK-060`/`TASK-064`-era search/selection-stage property, scoped
   separately as `TASK-068`. Neither conclusion references any `b2b_sales` pattern/trap identity
   beyond the bare public IDs already in `docs/benchmark/task-065-b2b-portability-report.md`.
-  **ML_DISCOVERY concurrence or documented dissent is still required to close this task** —
-  requested in `HANDOFF-069`.
+  ML_DISCOVERY concurrence is recorded immediately below and resolves `HANDOFF-069`.
+- **ML_DISCOVERY concurrence (2026-08-22, `ADR-056`): `CONCUR_GENERAL_FIXABLE`.** The observed G06
+  limitation is general and distinct from the upstream selection-stage feature-identity crowding.
+  The proposed selection mechanism is domain/feature-name agnostic in principle, but it is not a
+  G06 or validation fix and must never be presented as one. Implementation scope is limited to a
+  new, independently configurable feature-identity constraint adjacent to final candidate
+  selection; all TASK-060 overlap/relevance/stability knobs and TASK-064 beam settings remain
+  unchanged. A neutral truth-free synthetic fixture must first falsifiably demonstrate increased
+  feature-identity coverage, deterministic ordering, exact disabled-mode reproduction, and
+  rejection of non-DECISION_TIME inputs. No benchmark domain or official run is authorized here.
 
 ### TASK-068 — Feature-identity diversity floor at selection, tested on a new `TASK-061` domain
 
@@ -2674,10 +2682,9 @@ Do not overbuild before demand.
   `TASK-060`/`TASK-064`'s ownership split
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P2
-- **Status:** BLOCKED — depends on `TASK-067` reaching a recorded attribution with ML_DISCOVERY's
-  concurrence or a documented dissent (`ADR-054`'s own sequencing: a follow-on fix/validation task
-  is scoped "after this diagnosis lands, and only if the diagnosis supports a general fix"). Scoping
-  only; no implementation authorized by this entry or by `ADR-055`.
+- **Status:** BLOCKED — `TASK-067` now concurs that a general selection-stage fix is justified,
+  but this task still requires a revised implementation contract and Code Reviewer approval.
+  Neither implementation nor an official run is authorized by `ADR-056`.
 - **Depends on:** `TASK-067`
 - **Goal:** `docs/benchmark/task-065-b2b-portability-postmortem.md` §4.3/§6 (`ADR-055`) found that
   every one of `task-065-b2b-comparable-20260822-001`'s 15 committed candidates anchors on
@@ -2696,6 +2703,12 @@ Do not overbuild before demand.
   feature happens to be capped in any specific run. Fixed before implementation, not tuned to any
   domain's result: no version of this mechanism may reference `deal_size_usd`, `company_size_band`,
   any other b2b feature, or any `Bxx`/`BTxx`/`Pxx`/`Txx` identity by name in its logic.
+- **Required truth-free synthetic test before implementation review:** use neutral feature names
+  and only `DECISION_TIME` inputs to construct a pool where one feature identity crowds the
+  score-leading rules while several independently strong alternatives exist. The test must fail
+  the old behavior and prove that the enabled constraint increases distinct feature identities;
+  prove deterministic tie-breaking; prove the disabled/default-compatibility path reproduces
+  v0.5.0 exactly; and prove `POST_DECISION`, `OUTCOME`, and `UNKNOWN` fields cannot participate.
 - **Hard rules (`ADR-054`, binding on this task):** (1) `b2b_sales/comparable` may not be used again
   as independent portability evidence — any truth-free engineering rehearsal against its
   already-open ground truth is for verification only, never for tuning the cap fraction or any other
@@ -2707,15 +2720,13 @@ Do not overbuild before demand.
      distinct anchor-feature identities in the committed Top-K relative to the same-domain
      `discovery-engine-v0.5.0` baseline. Failing this is itself a kill — the remaining criteria are
      not evaluated.
-  3. If the structural check passes, run the full `ADR-051`-style independent custody protocol
-     (fresh isolated Blind Discovery actor → signed commitment → independent Code Reviewer custody
-     verification → new independent Statistics/evaluator actor for `TASK-019` then `TASK-028`)
-     against `ecommerce` — lexicographically first of the five remaining unopened `TASK-061`
-     domains at the time this task starts (re-check `TASKS.md`/`DECISIONS.md` for any newer
-     disclosure before selecting).
-  4. Grade against the same-domain `discovery-engine-v0.5.0` baseline (a prior run on that domain,
-     or one run alongside this test) under `docs/benchmark/decision-gate.md`'s existing hard
-     disqualifiers and bands.
+  3. If the structural check passes, stop. Selection of exactly one still-untouched domain and
+     authorization of the full `ADR-051` custody protocol require a separate preregistration after
+     implementation and Code Reviewer approval. `TASK-067`/`ADR-056` deliberately choose no
+     domain and authorize no official run.
+  4. The later separate preregistration must define a same-domain
+     `discovery-engine-v0.5.0` baseline and retain `docs/benchmark/decision-gate.md`'s existing
+     hard disqualifiers and bands before any official run begins.
 - **Success:** economic-weighted recall (or unique scoreable-pattern candidate-match recall) is
   strictly higher than the same-domain baseline, with Top-10 precision, direction accuracy, and
   trap rejection not degraded relative to that baseline.

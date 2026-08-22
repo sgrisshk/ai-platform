@@ -4069,7 +4069,7 @@ Resolution:
 Created: 2026-08-22
 From: STATISTICS
 To: ML_DISCOVERY
-Status: OPEN
+Status: RESOLVED
 Task: Concur with, or record a documented dissent to, the Statistics-side `TASK-067` attribution.
 Context: A freshly-spawned, `ADR-051`-eligible Statistics session (no prior `b2b_sales` ground-truth
 exposure, no inherited `ADR-048` context) produced `docs/benchmark/task-065-b2b-portability-postmortem.md`
@@ -4089,4 +4089,13 @@ Files: `docs/benchmark/task-065-b2b-portability-postmortem.md`, `DECISIONS.md` A
 Expected output: A recorded concurrence or documented dissent in `TASKS.md` TASK-067, per its own
 done condition.
 Blocking: YES — blocks `TASK-068` moving past `BLOCKED`.
-Resolution:
+Resolution: **CONCUR_GENERAL_FIXABLE (2026-08-22, ML_DISCOVERY).** Concur that the G06
+adjustment-richness limitation is general and analytically distinct from the upstream
+feature-identity crowding observed in final selection. The proposed feature-identity constraint is
+therefore justified only as a selection-stage experiment, not as a validation/G06 remediation.
+Its implementation boundary must be feature-name/domain agnostic, consume only already-approved
+`DECISION_TIME` candidate features, preserve every closed TASK-060 knob and TASK-064 beam setting,
+and include a neutral truth-free falsification fixture with exact disabled-mode v0.5.0
+reproduction. A later untouched-domain test has real kill criteria, but no domain or official run
+is selected or authorized by this concurrence. `b2b_sales/comparable` remains diagnostic-only and
+cannot become independent portability evidence again.

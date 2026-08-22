@@ -2476,3 +2476,36 @@ run, and no `b2b_sales`-specific tuning is authorized by this ADR. `docs/benchma
 and its travel verdict are untouched. `memory/CURRENT_STATE.md` records this as the portability
 track's current state; it does not change the 14-day technical/commercial milestones already
 tracked there, which concern the travel benchmark and `TASK-057` respectively.
+
+## ADR-056 — ML Discovery concurs that feature-identity crowding is generally fixable, separately from G06
+
+**Date:** 2026-08-22
+**Status:** Accepted — diagnosis concurrence only
+
+**Decision:** `CONCUR_GENERAL_FIXABLE` for `TASK-067`. ML Discovery concurs with Statistics that
+G06's adjustment-richness limitation is general rather than tied to the identity of a particular
+`b2b_sales` pattern or trap, and that the observed final-candidate feature-identity crowding is a
+distinct upstream selection defect. A feature-identity diversity constraint is therefore justified
+as a falsifiable selection-stage experiment. It is not a validation change and must not be
+described as fixing G06.
+
+**Implementation boundary:** A successor implementation may add one independently configurable,
+feature-name/domain-agnostic constraint adjacent to final candidate selection. It may use only
+features already admitted as `DECISION_TIME`; `POST_DECISION`, `OUTCOME`, and `UNKNOWN` fields
+remain ineligible. It must not change `_greedy_diverse_select`'s existing TASK-060 overlap,
+relevance-floor, stability, or atom-usage settings, nor TASK-064 beam width/structural-reserve
+settings. Disabled mode must reproduce `discovery-engine-v0.5.0` exactly. Before review, a neutral
+truth-free synthetic fixture must prove the enabled mechanism increases distinct feature identity
+coverage when one identity crowds otherwise eligible rules, preserves deterministic ordering,
+reproduces disabled behavior exactly, and fails closed on non-decision-time inputs.
+
+**Evidence boundary:** This concurrence uses the already-frozen postmortem and public discovery
+contracts. It does not reopen the statistical verdict, inspect another domain's hidden truth, or
+claim that the proposed mechanism will improve recall. The later untouched-domain comparison can
+refute the hypothesis through predeclared structural, precision, direction, trap-safety, and recall
+kill criteria. `b2b_sales/comparable` remains diagnostic-only and can never again count as
+independent portability evidence.
+
+**Consequences:** `TASK-067` and `HANDOFF-069` are resolved. `TASK-068` remains blocked pending an
+exact implementation contract and Code Reviewer approval. No new benchmark domain is selected and
+no official run is authorized by this decision.
