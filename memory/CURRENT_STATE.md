@@ -572,6 +572,18 @@ are identical, `git status` on `synthetic_data/analytical/` is empty. 495 tests 
 integration), `ruff`/`pyright` clean. The one disclosed gap (`evaluate_benchmark.py` still
 hardcodes travel's dataset root) is real and correctly not claimed fixed.
 
+**`evaluate_benchmark.py` parameterized 2026-08-22 (Statistics), closing that gap's evaluator
+half.** `--dataset-root`/`--ground-truth` added, mirroring `--validation-report`/`--output`
+(`ADR-025`) — input sources only, no metric logic touched. The previously-hardcoded
+`ground_truth_sha256_expected` literal is now a computed `ground_truth_sha256` (verified
+bit-for-bit equal to the old hardcoded value for the default/travel case). Regression test runs
+`main()` with only `--output` overridden and confirms all six metrics match the already-frozen
+`task-028-benchmark-evaluation.json` exactly. `analytical_dataset.build_analytical_dataset`'s own
+hardcoding is unrelated and still open. **Unrelated, noticed in passing:** a concurrent session's
+in-flight edits to `tools/blind_agent/models.py` and friends currently fail 2 pre-existing tests in
+`test_validation_apply.py` (`discount_rate` rejected as non-decision-time) — not caused by this
+change, not fixed by it either; flagged, not touched.
+
 ## Current hypothesis
 
 Historical decision/outcome data may contain actionable interaction patterns the business does not currently recognize. This remains a hypothesis, not a validated finding.
@@ -654,9 +666,82 @@ feature/operator-structure reserve (hard cap 512), without changing closed TASK-
 knobs. After commit `a1be806` and `BLIND_REHEARSAL_VALID`, official deterministic/network-none run
 `task-064-beam-20260822-001` froze and committed 15 candidates from 26,213 hypotheses; candidate
 SHA-256 `9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09`.
-No recall/safety claim yet: `HANDOFF-060` blocks closure pending TASK-019 then TASK-028. A minor
-future-run tooling defect (`frozen/hashes.json` mode 0644 while substantive outputs are 0444) is
-tracked non-blocking in `HANDOFF-061`; signed candidate commitment remains valid.
+A minor future-run tooling defect (`frozen/hashes.json` mode 0644 while substantive outputs are
+0444) is tracked non-blocking in `HANDOFF-061`; signed candidate commitment remains valid.
+
+**`TASK-064` closed 2026-08-22 (Statistics, `ADR-049`), not `DONE`:** `TASK-019` then `TASK-028`
+run for real against `task-064-beam-20260822-001`, independently re-verified byte-for-byte on a
+second pass. Against the standing baseline `task-060-iteration-20260820-002`: Top-10 precision
+90%→**70%** (real degradation), economic-weighted recall unchanged 45.2%, direction accuracy
+unchanged 100%, leakage unchanged 0, no trap promoted (safe — `T03`/`T04` appear as candidate
+conditions but neither reaches a promoted readiness). **None of P02/P04/P08/P09 recovered** — the
+wider hypothesis family (26,213 vs `TASK-060`'s counts) changed which candidates reach the top 15
+without changing what the search can recover, buying broader coverage at the cost of precision, not
+the benefit of recall. Done condition not met; closed at the unchanged baseline, matching
+`TASK-060`'s own `ADR-041` precedent. `discovery-engine-v0.5.0` is not reverted (safe at its tested
+defaults) but is not adopted as default on this result. `P04` remains a separate, still-open
+temporal-vocabulary gap (`HANDOFF-059`).
+
+**`HANDOFF-059` analytical-input remediation implemented 2026-08-22 (Data Engineer, Architect
+review pending):** versioned successor `travel-bookings-analytical-v1.1.0` adds reusable
+decision-time `travel_month` derived from scheduled `travel_date`, with fail-closed parsing,
+lineage, schema/transformation bump, deterministic identity, and blind-allowlist propagation.
+Frozen v1.0.0 runs remain immutable. This enables temporal atoms in a future separate discovery
+iteration; it does not alter or reinterpret TASK-064 v0.5.0 results.
+
+**`HANDOFF-064` b2b temporal contract resolved 2026-08-22 (Data Engineer):** public analytical
+dataset `b2b_sales-analytical-v1.0.0` now includes deterministic split contract
+`b2b-sales-temporal-split-v1.0.0`, pinned to dataset identity
+`72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`. Inclusive decision-time
+windows contain 5,028 development, 2,491 validation, and 2,481 future-holdout rows; only development
+is selection-eligible. Both public split artifacts reproduce byte-for-byte without raw or hidden
+truth access.
+
+**`HANDOFF-063` domain-aware blind issuance resolved 2026-08-22
+(Architect):** the ADR-008 runner now requires a reviewed `BLIND_DATASET` registry key and signs
+the selected versioned root together with dataset identity, outcome/split/method acceptance fields,
+and copied-file hashes. Issued workspaces contain common discovery inputs plus only the selected
+dataset's six public partitions; unknown selectors, missing inputs/contracts, selector drift, and
+analytical/source drift fail closed. Relevant tests (66), repository-wide lint, targeted strict
+Pyright, and
+pinned networkless Docker rehearsals for both `travel` and `b2b_sales/comparable` pass. The b2b
+signed contract pins dataset identity `72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`,
+outcome `net_deal_contribution_usd` / contract `0.1.0-provisional`, temporal split
+`b2b-sales-temporal-split-v1.0.0`, and discovery method v0.5.0. No TASK-065 official run has been
+issued. The isolated runner change is committed as `851564e`; both travel and b2b truth-free
+rehearsals returned `BLIND_REHEARSAL_VALID`. TASK-066 is now complete; TASK-065 remains blocked by
+the independent custody chain in ADR-051 and by committing the reviewed shared worktree.
+
+**`HANDOFF-065` domain-aware `TASK-019`/`TASK-028` semantics — resolved 2026-08-22
+(Statistics):** `TASK-028` half DONE — `evaluate_benchmark.py`'s trap-identity and scoreable-pattern
+mapping are now computed generically at run time from whichever `ground_truth` is loaded (no domain
+feature names hardcoded), verified to reproduce travel's exact historical values byte-for-byte
+(25 tests). `TASK-019`'s outcome-binding half DONE and unit-verified: new
+`outcomes/manifest_binding.py` (`outcome_definition_from_manifest`) binds to whichever dataset's own
+manifest pins its primary outcome — an exact pass-through for travel, a disclosed-`PROVISIONAL`
+derivation for any other registered dataset — wired into `validate_candidates.py`, 10 new unit
+tests plus a full-CLI default-behavior regression test. **`TASK-066`/`ADR-050` now closes the
+remaining TASK-019 portability gap:** a typed, hash-verified manifest contract supplies feature
+roles, adjustment eligibility, optional heterogeneity/seasonality roles, clustering, and
+robustness inputs; absent reviewed G09/G11 roles are conservatively `NOT_EVALUATED`. Neutral-domain
+and travel-regression tests pass, and a full public b2b TASK-019 CLI run completes without ground
+truth. This removes TASK-066's specific block on `TASK-065`; other recorded prerequisites and
+ADR-048 recusal still apply. **Incident, disclosed in full in `ADR-048`:** while shape-verifying the new generic
+logic against a second domain, this agent opened `b2b_sales`'s own `hidden_ground_truth.json`
+before that domain's `TASK-065` discovery run has happened — a real blind-boundary breach. No
+shipped code, docs, or (after a caught-and-fixed near-miss in two new tests) test carries any
+`b2b_sales`-specific trap/pattern content; the residual risk is this session's own context, not a
+code defect. Statistics recuses from reviewing `b2b_sales` `TASK-065` output; every other
+`TASK-061` domain remains genuinely unopened.
+
+**Independent Code Reviewer hardening (2026-08-22):** TASK-028 now fails closed on any mismatch
+between analytical manifest, candidates, and validation lineage; uses the manifest-bound primary
+outcome for direction and unit semantics; and reads typed economic-impact results rather than the
+legacy travel-named diagnostics key. Cross-dataset/partial-family tests pass and the historical
+travel metrics object is byte-identical to its frozen artifact. TASK-066's public non-travel CLI
+path, both truth-free blind rehearsals, lint, typecheck, and the non-integration suite pass. The
+remaining readiness condition is committing the reviewed multi-role worktree and its versioned
+synthetic artifacts; no official TASK-065 run has been issued.
 
 ## Next milestone
 

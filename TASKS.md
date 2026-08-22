@@ -429,6 +429,16 @@ Do not mark work `DONE` without executing its required checks and completion pro
   reflects current state and is corrected here rather than rewritten in place. This dataset's own
   build still used the benchmark's already-canonical column names directly, not TASK-010's mapping
   layer — that remains true and unchanged; only the "still blocked" characterization was stale.
+- **Additive contract update (2026-08-22, `ADR-047`, `HANDOFF-059`):** Current successor
+  `travel-bookings-analytical-v1.1.0` / analytical schema v1.1.0 adds generic `travel_month`
+  (integer 1–12) derived strictly from decision-known `travel_date`. The source canonical schema
+  remains v1.0.0; the transformation is v1.1.0 with explicit Gregorian/date-only lineage and
+  fail-closed null/invalid-date handling. Dataset identity is
+  `b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`. The immutable v1.0.0
+  directory remains untouched for
+  frozen-run reproducibility. Blind allowlists and acceptance timing metadata now target v1.1.0;
+  no discovery search parameter or benchmark-pattern-specific logic changed. Architect final diff
+  review remains recorded on `HANDOFF-059`.
 
 ### TASK-012 — Temporal split builder
 
@@ -2029,6 +2039,15 @@ blocker"), not reopened or implied-done by this closure.
   hardcodes travel-specific column names. This was a dedicated task for travel too (`TASK-011`),
   not an implied side effect of the raw generator existing, and stays real, separate, explicitly
   out-of-scope follow-up work rather than something to file a new task for unprompted.
+- **`evaluate_benchmark.py` parameterized (2026-08-22, Statistics):** `--dataset-root`/
+  `--ground-truth` added, mirroring `--validation-report`/`--output` (`ADR-025`) — input sources
+  only, no metric logic touched. `ground_truth_sha256_expected` (a hardcoded literal pinned to
+  travel's file) is now `ground_truth_sha256`, computed from whichever file was actually loaded —
+  verified to equal the old hardcoded value bit-for-bit for the default case. Regression test runs
+  `main()` with every flag but `--output` left at its default and asserts all six metrics match the
+  already-frozen `artifacts/evaluation/task-028-benchmark-evaluation.json` exactly. The
+  `analytical_dataset.build_analytical_dataset` hardcoding above is unrelated and still open — this
+  closes only the evaluator's own half of the gap.
 - **Reviewer sign-off, domains 2-6 + final state (2026-08-21, Statistics):** Independently
   re-verified, not just read — full non-integration suite reran clean (495 passed), `ruff`/
   `pyright` clean project-wide. Spot-checked domain 3 (insurance, chosen for its inverted harm
@@ -2215,7 +2234,10 @@ blocker"), not reopened or implied-done by this closure.
 - **Owner:** ML_DISCOVERY
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P1
-- **Status:** IN_REVIEW
+- **Status:** CLOSED (2026-08-22, Statistics, `ADR-049`) — accepted at the pre-existing safe
+  baseline, not `DONE` against its original success condition. Same distinction `TASK-060` carries
+  (`ADR-041`): closed means no further iteration on this specific mechanism is scoped or
+  authorized, not that the goal was achieved.
 - **Depends on:** none (`TASK-060` remains closed; this is an upstream search-stage task)
 - **Goal:** Continue the founder-requested recall investigation one level upstream of the closed
   selection-stage campaign: diagnose why `P04` is absent from the complete eligible pool and test
@@ -2251,10 +2273,27 @@ blocker"), not reopened or implied-done by this closure.
   verification passed, deterministic actor ran with network `none`, and normal acceptance froze
   15 candidates from 26,213 evaluated hypotheses. Candidate SHA-256
   `9f55dddc17e22a6064af42a89fd0c3951b4ee09a5f43595c6a3a4cc618fa6d09`; signed receipt created
-  before evaluation. `HANDOFF-060` requests fresh TASK-019 validation and only then TASK-028.
-  Status is `IN_REVIEW`: no recall/precision/direction/trap result is assumed before those agents
-  report. `HANDOFF-061` separately records that `frozen/hashes.json` was left writable by tooling;
-  substantive outputs are read-only and the candidate receipt remains valid.
+  before evaluation. `HANDOFF-061` separately records that `frozen/hashes.json` was left writable by
+  tooling; substantive outputs are read-only and the candidate receipt remains valid.
+- **Statistical evaluation, final (2026-08-22, Statistics, `ADR-049`):** integrity re-checked
+  independently (receipt/hash/permissions consistent; HMAC itself not re-checkable, the ephemeral
+  evaluator key no longer exists — disclosed, not a defect). `TASK-019` then `TASK-028` both
+  reproduced to a scratch path byte-for-byte identical to the frozen
+  `artifacts/validation/task-019-official-20260822-task-064-beam-001.json` and
+  `artifacts/evaluation/task-028-task-064-beam-001.json`. Result against baseline
+  `task-060-iteration-20260820-002`: Top-10 precision 90%→**70%** (real degradation); economic-
+  weighted recall unchanged 45.2%; direction accuracy unchanged 100%; leakage unchanged 0; no trap
+  promoted (safe) — `T03`/`T04` appear as candidate conditions but neither reaches a promoted
+  readiness. **None of P02/P04/P08/P09 recovered.** One new, non-gating observation: `CAND-010`
+  (noise, no matched pattern or trap) reached `shadow_policy`, which the baseline never produced.
+  **Done condition not met** — the success branch required a real gain on P02/P04/P08/P09 without
+  precision degradation; this run gained nothing and lost 20pp of precision. `P04`'s vocabulary
+  block (`ADR-045`) predates and is independent of this task's actual mechanism/target
+  (P02/P08/P09), so it does not itself satisfy the done condition's "or" branch for this task.
+  Closed at the unchanged, standing baseline; `discovery-engine-v0.5.0` is not reverted (safe at
+  its tested defaults, zero-quota reproduces `v0.4.1` exactly) but is not adopted as default on the
+  strength of this result. No further tuning of `beam_rules_per_structure` authorized. Full detail:
+  `ADR-049`, `HANDOFF-060` (resolved).
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
@@ -2484,6 +2523,117 @@ Do not overbuild before demand.
 - **Depends on:** Real customer usage
 
 ## Explicitly deferred
+
+### TASK-065 — First full non-travel portability evaluation
+
+- **Owner:** ML_DISCOVERY (orchestration); STATISTICS owns validation/evaluation semantics;
+  ARCHITECT/DATA_ENGINEER own blind/domain contracts.
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P1
+- **Status:** BLOCKED — technical prerequisites `HANDOFF-063`, `HANDOFF-064`, and `TASK-066` are
+  resolved; the independent custody chain is fixed by `ADR-051`, and its evaluator slot is now
+  approved (`EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR`, `HANDOFF-067`). The absence
+  of a pre-instantiated evaluator session is not, and was never meant to be, a blocker — the
+  mandatory pre-issuance condition is the approved slot, not a live actor (`ADR-052`). Remains
+  `BLOCKED` pending a `CODE_REVIEWER`-issued readiness verdict confirming the slot, custody chain,
+  and issuance mechanics are correctly wired; that verdict has not been requested or issued.
+- **Depends on:** `TASK-061`, `TASK-062`, committed domain-parameterized blind issuance,
+  domain-aware `TASK-019`, and domain-aware `TASK-028`.
+- **Preregistered test (2026-08-22):** exactly one domain and one variant:
+  `b2b_sales / comparable`. Domain selection rule was fixed without reading any hidden truth:
+  lexicographically first `domain_id` among the registered non-travel domains. The discovery
+  method is frozen at `discovery-engine-v0.5.0`; no domain-specific tuning or method change is
+  permitted before this run is evaluated.
+- **Preregistered official run ID:** `task-065-b2b-comparable-20260822-001`. Pre-issuance review
+  must confirm that this ID does not exist in the configured blind-runs root or repository
+  artifacts. It may be created only by the approved issuance command after readiness approval.
+- **Required cycle:** issue a fresh isolated allowlisted workspace; run real deterministic
+  `discover_candidates` only on the development split; accept and freeze candidates; commit their
+  bytes/checksum before opening
+  `synthetic_data_domains/b2b_sales/comparable/evaluation/hidden_ground_truth.json`; run TASK-019;
+  then run TASK-028 against that domain truth; report Top-10 precision, recall, direction accuracy,
+  and trap rejection exactly as produced.
+- **Current readiness finding (updated 2026-08-22, Statistics, `HANDOFF-065` resolution):** the
+  public analytical dataset and deterministic temporal contract now exist (`HANDOFF-064` resolved:
+  development-only selection, diagnostic-only validation and holdout). The blind issuer has a
+  committed registry-backed `b2b_sales/comparable` selector (`HANDOFF-063` resolved in `851564e`)
+  whose truth-free pinned-image integrated rehearsal passes.
+  `TASK-028`'s half of `HANDOFF-065` is DONE: `evaluate_benchmark.py`'s trap-identity and
+  scoreable-pattern mapping are now computed generically from whichever `ground_truth` is loaded,
+  no domain feature names hardcoded, verified to reproduce travel's exact historical values.
+  Code Reviewer hardening additionally binds manifest/candidates/validation lineage, derives harm
+  direction and economic-impact units from the selected outcome contract, and preserves the
+  historical travel metrics object byte-for-byte.
+  `TASK-019`'s outcome-binding half is also DONE and unit-verified
+  (`outcome_definition_from_manifest`, travel pass-through confirmed byte-identical). `TASK-066`
+  subsequently removed the remaining travel-hardcoded validation inputs through the typed,
+  manifest-owned contract in `ADR-050`; a public b2b TASK-019 CLI regression now passes without
+  hidden truth. Technical validation readiness is therefore no longer the blocker. **Independent
+  review blocker:** while
+  verifying `TASK-028`'s generalization, Statistics opened `b2b_sales`'s own
+  `hidden_ground_truth.json` before this task's candidate-commitment step — a blind-boundary
+  incident, disclosed in `HANDOFF-065` and `ADR-048`. Under `ADR-051`, that contaminated identity
+  is ineligible not only for discovery/candidate review but also for TASK-019, TASK-028, the final
+  evidence verdict, and interpretation of this b2b result. Blindness is not restored for it.
+- **Required independent review chain (`ADR-051`):** a fresh isolated Blind Discovery actor creates
+  the official candidates; ARCHITECT, as trusted evaluation coordinator, signs the frozen candidate
+  commitment; an uncontaminated independent CODE_REVIEWER verifies the signature, candidate hash,
+  bundle/manifest binding, and freeze status before any evaluator receives ground truth; a new
+  independent STATISTICS/evaluator actor then runs TASK-019, freezes its report, runs TASK-028, and
+  gives the final evidence verdict. FOUNDER_STRATEGY may interpret portability only afterward from
+  those frozen outputs. Session/actor ineligibility is defined exhaustively in ADR-051.
+- **Evaluator slot (`ADR-052`, resolves the pre-issuance circular dependency):** the independent
+  evaluator's *role/eligibility rule* is approved before issuance
+  (`EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR`, `HANDOFF-067`); the *concrete*
+  Statistics/evaluator actor is deliberately not bound to that slot yet — it is created only after
+  signed candidate commitment, runs with no history from the `ADR-048`-contaminated actor, has not
+  previously seen `b2b_sales` ground truth, and takes no part in discovery/candidate
+  generation/selection. Its session/actor ID is recorded into `HANDOFF-067` at that time, not
+  before.
+- **Done when:** one frozen, signed candidate artifact is committed before truth access, one
+  frozen TASK-019 report and one evaluator-owned TASK-028 report exist for `b2b_sales/comparable`,
+  all four requested metrics are reported without comparison-driven tuning, and an honest
+  portability verdict is recorded. Any result is acceptable; infrastructure failure or a
+  travel-semantic score is not a result.
+
+### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
+
+- **Owner:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P1 (blocks `TASK-065`)
+- **Status:** DONE — manifest-owned typed validation roles implemented; G09/G11 fail conservatively
+  as `NOT_EVALUATED` when no reviewed role exists; public b2b full CLI regression passes without
+  hidden truth access (`ADR-050`, `HANDOFF-067`).
+- **Depends on:** none directly; `TASK-065` depends on this
+- **Context:** `HANDOFF-065` generalized `TASK-019`'s outcome binding and `TASK-028`'s trap/pattern
+  mapping to be domain-neutral. A deeper, separate gap was discovered but explicitly left unfixed
+  (out of that handoff's literal scope): `packages/analytics/src/policy_analytics/validation/
+  apply.py` still hardcodes travel column names in several places —
+  `DECISION_TIME_FEATURES` (a frozenset consumed by G01's leakage gate and, since `TASK-063`, by
+  `_adjustment_pool` for G06's adjustment-set computation), `HETEROGENEITY_COLUMN = "customer_segment"`
+  (G09), and G11's seasonality gate (hardcoded `booking_month` group-by). Confirmed via live
+  traceback: a `validate_candidates.py` run against a non-travel `--dataset-root` crashes inside
+  G06's `_binned_group_label` with a `KeyError` for a travel-only column name absent from the
+  non-travel frame.
+- **Goal:** Make G01/G06/G09/G11's column inputs derived from each dataset's own manifest/schema
+  (e.g. `DECISION_TIME`-classified columns already recorded somewhere per-dataset, analogous to how
+  `TASK-062`'s `manifest.outcome_contract` made the outcome domain-aware) instead of one
+  travel-specific frozenset/constant, without changing gate *semantics* for travel — a version bump
+  and regression tests are required if any gate's behavior for travel's own dataset changes as a
+  side effect, per `docs/analytics/validation-contract.md`'s versioning discipline.
+  `HETEROGENEITY_COLUMN` and G11's seasonality grouping need the same treatment or an explicit,
+  documented decision that they degrade gracefully (e.g. skip) for a dataset that has no equivalent
+  column, rather than crashing.
+- **Explicitly not in scope:** re-deriving or re-verifying `TASK-063`'s G06 greedy-selection
+  mechanism itself (unchanged); any change to the six `TASK-028` benchmark metrics.
+- **Blind-boundary note:** this task can and should be designed and implemented entirely from
+  public schema (manifest/feature-timing classifications), never from any domain's
+  `hidden_ground_truth.json` — none of G01/G06/G09/G11's column selection logic needs it today and
+  must not start needing it.
+- **Done when:** `scripts/validate_candidates.py --dataset-root <any registered TASK-061 domain>`
+  completes end to end (all gates evaluate without crashing) without any gate referencing a
+  travel-specific column name by literal; travel's own historical validation results are proven
+  unchanged (regression test); `TASK-065` is unblocked by this task specifically.
 
 Do not create implementation tasks without customer-backed justification for Salesforce, HubSpot, SAP, Slack/Gmail integrations, streaming, Kafka, Kubernetes, autonomous enforcement, agent runtime, universal Business Graph, SSO/SAML, billing automation, complex RBAC, mobile apps, vector databases, generic workflow builders, or AI-agent organization governance.
 

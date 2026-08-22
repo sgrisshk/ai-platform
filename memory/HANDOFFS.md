@@ -265,7 +265,7 @@ data remain explicitly out of scope — see `docs/analytics/outcome-contract.md`
 **Created:** 2026-08-13
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Extend the `TASK-024` full finding persistence model to cover fields required by the `TASK-027` finding detail screen.
 
@@ -291,7 +291,7 @@ data remain explicitly out of scope — see `docs/analytics/outcome-contract.md`
 **Created:** 2026-08-13
 **From:** PRODUCT
 **To:** ARCHITECT
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Implement `TASK-027` (finding detail screen) against `docs/product/finding-detail-screen.md` once `TASK-025` is unblocked.
 
@@ -315,7 +315,7 @@ data remain explicitly out of scope — see `docs/analytics/outcome-contract.md`
 **Created:** 2026-08-13
 **From:** FRONTEND (ad hoc dispatch — not a role defined in `AGENTS.md`)
 **To:** PRODUCT
-**Status:** RESOLVED
+**Status:** OPEN
 
 **Task:** Provide the approved product specification for the Finding Detail screen required by `TASK-027`.
 
@@ -485,7 +485,7 @@ HANDOFF-016.
 **Created:** 2026-08-13
 **From:** ML_DISCOVERY
 **To:** STATISTICS
-**Status:** IN_PROGRESS
+**Status:** OPEN
 
 **Task:** Validate the serious TASK-015 candidate patterns under validation contract v1.0.0.
 
@@ -3366,7 +3366,7 @@ mechanism already handles it without new code.
 **Created:** 2026-08-22
 **From:** ML_DISCOVERY
 **To:** DATA_ENGINEER, ARCHITECT
-**Status:** OPEN
+**Status:** IN_PROGRESS
 
 **Task:** Decide whether the analytical input contract should expose a generic decision-time
 calendar feature for reusable seasonal discovery rules.
@@ -3396,12 +3396,48 @@ truth to make the choice.
 **Blocking:** NO — does not block the independently justified TASK-064 beam-survival experiment;
 does block claiming that current search can represent P04.
 
+**Architect review (2026-08-22):** APPROVE IN PRINCIPLE; awaiting Data Engineer implementation.
+This conclusion uses only the public canonical/timing contracts, not hidden truth. `travel_date` is
+already explicitly classified `DECISION_TIME` and described as the scheduled travel date known at
+the booking decision, so a deterministic calendar bucket derived solely from it does not cross the
+post-decision boundary. A reusable travel-period feature is legitimate business semantics beyond
+P04 (seasonal capacity, supplier, destination, pricing, and staffing patterns).
+
+Data Engineer retains ownership of the exact representation and must close the following as one
+atomic contract change: choose and document a generic field name/granularity; derive it
+deterministically from `travel_date`; record source column, transform, timezone/calendar convention,
+null/error policy, and transformation version in lineage; classify it `DECISION_TIME` with an
+explicit leakage rationale; bump analytical dataset/schema or transformation versions rather than
+mutating v1.0.0; regenerate under a new dataset identity; propagate the new versioned paths and
+timing metadata through blind issuance/acceptance; and test row alignment, exact values at calendar
+boundaries, null/invalid-date fail-closed behavior, reproducibility, identity change, absence from
+outcome/post-decision partitions, and visibility in a truth-free blind workspace. Do not add a
+P04-named field or modify search parameters as part of this handoff.
+
+Architect will review the resulting version/lineage/blind-boundary diff. Until Data Engineer has
+selected and implemented the representation, this handoff remains unresolved and current frozen
+runs remain immutable.
+
+**Implementation (2026-08-22, Data Engineer):** Chose generic `travel_month` (integer 1–12) rather
+than a culturally ambiguous season label or coarser quarter. It is derived solely from the
+scheduled `travel_date` already classified decision-time, using the proleptic Gregorian calendar;
+the source is a date (no timezone conversion), and null/invalid values fail closed. Delivered as
+additive dataset `travel-bookings-analytical-v1.1.0`, analytical schema/transformation v1.1.0, with
+new content identity `b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`
+and explicit derived-feature lineage. Existing v1.0.0 remains immutable.
+`blind/allowlist.yaml`, legacy public workspace issuance, the current blind runner acceptance
+contract, `scripts/run_discovery.py`, and `tools/blind_agent/models.py` propagate and enforce the
+new decision-time field. Tests cover month boundaries, exact row-aligned derivation, null/invalid
+failure, role leakage, deterministic identity, and truth-free blind-workspace visibility. No
+hidden evaluation artifact was opened or inspected, and no pattern-specific logic/search tuning
+was added. Awaiting Architect's final diff review before marking this handoff `RESOLVED`.
+
 ## HANDOFF-060
 
 **Created:** 2026-08-22
 **From:** ML_DISCOVERY
 **To:** STATISTICS
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Run TASK-019 validation against the frozen TASK-064 v0.5.0 candidate family, freeze the
 validation artifact, then hand it to the evaluator for TASK-028 comparison.
@@ -3437,6 +3473,50 @@ remain excluded. Do not tune v0.5.0 from the result.
 and an explicit TASK-064 done-condition verdict.
 
 **Blocking:** YES — blocks closing TASK-064 and any further search-method iteration.
+
+**Resolution (2026-08-22, Statistics):** Ran `TASK-019` then `TASK-028` for real against
+`task-064-beam-20260822-001`
+(`artifacts/validation/task-019-official-20260822-task-064-beam-001.json`,
+`artifacts/evaluation/task-028-task-064-beam-001.json`). **Recall did not move. Precision
+degraded. `TASK-064`'s done condition is not met — do not close, do not iterate v0.5.0 further
+without a new diagnosis.**
+
+1. **Unique matched patterns: still 2 (P01, P06) — unchanged.** None of `P02`/`P04`/`P08`/`P09`
+   were recovered. `economic_weighted_recall` unchanged at 45.2%.
+2. **Top-10 precision: 70% (7/10), down from the 90% authoritative-baseline bar
+   (`task-060-iteration-20260820-002`).** A real degradation, not noise: 3 of the top 10 are now
+   noise/trap-adjacent (`CAND-010` noise reaching `shadow_policy`; `CAND-012`/`CAND-013` noise;
+   `CAND-014` trap-tainted). Direction accuracy 100%, unchanged.
+3. **No hard disqualifier fired** — `any_trap_promoted = False`. `T03` (`CAND-014`) and `T04`
+   (`CAND-007`, `CAND-015`) both appear as candidate conditions this run (new for `T03`; `T04` was
+   already a recurring case), but neither reaches `PASS`/`shadow_policy`. This is not the same
+   failure mode as `ADR-036`'s original regression.
+4. **New, distinct observation, flagged not smoothed over:** `CAND-010` — matches no true pattern
+   and no trap (`is_true_pattern=False`, `matched_traps=[]`) — reached `shadow_policy` anyway. Not
+   a disqualifier under the letter of `docs/benchmark/decision-gate.md` (which is scoped to traps
+   specifically), but it is a noise candidate reaching a promotable readiness, which the
+   pre-`v0.5.0` baseline did not produce. Worth a name if this recurs, not yet worth a new gate.
+
+**Verdict:** the structure-covered beam expansion changed *which* candidates reach the top 15
+without changing *what the search can recover* — consistent with `HANDOFF-059`'s finding that
+`P04` needs a temporal/seasonal vocabulary the search doesn't have at all yet, and consistent with
+`P02`/`P08`/`P09` still not surviving to a matched, non-trap candidate. The wider hypothesis family
+(26,213 vs `TASK-060`'s counts) bought broader coverage at the cost of precision, not at the
+benefit of recall. Per `HANDOFF-060`'s own instruction, `v0.5.0` is not tuned further from this
+result. `TASK-064` does not close; the authoritative safe baseline remains
+`task-060-iteration-20260820-002` (`ADR-041`), unchanged and untouched by this run.
+
+**Recommendation, not a decision:** `HANDOFF-059` (the `P04` temporal-vocabulary input-contract
+gap, Data Engineer/Architect) is the one genuinely unexplored lever left that isn't a repeat of an
+already-exhausted approach. Further beam-width/hypothesis-family-size tuning without that
+vocabulary addition would likely reproduce this run's precision/recall trade rather than improve
+on it.
+
+**Finalized (2026-08-22, Statistics, `ADR-049`):** independently re-derived every number above from
+the frozen artifacts (receipt/hash integrity, a scratch-path `TASK-019` re-run, a scratch-path
+`TASK-028` re-run) rather than trusting this resolution's prior text — all matched exactly. Formal
+task closure recorded in `TASKS.md`/`ADR-049`: `TASK-064` is `CLOSED` at the unchanged baseline, not
+`DONE`. No further action pending under this handoff.
 
 ## HANDOFF-061
 
@@ -3496,3 +3576,384 @@ tests cover that ordering honestly.
 candidates or use TASK-028 results to tune this method.
 
 **Blocking:** YES — blocks marking TASK-064 DONE/CLOSED, but not independent Statistics validation.
+
+## HANDOFF-063
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** ARCHITECT
+**Status:** RESOLVED
+
+**Task:** Parameterize ADR-008 blind workspace issuance and acceptance for one registered
+non-travel analytical dataset without weakening isolation.
+
+**Context:** `TASK-065` preregistered `b2b_sales/comparable` before any domain ground truth was
+opened. Current `blind/allowlist.yaml`, `tools/blind_agent/core.py::_acceptance_contract`, and
+`scripts/run_discovery.py` default to a travel analytical path. The b2b analytical root exists but
+cannot currently be selected by the approved signed-workspace command. There are unrelated
+in-progress working-tree changes in these same files; preserve them and land this as an explicit,
+reviewable contract change rather than an ad-hoc run-tree edit.
+
+**Question:** Add a pinned, explicit domain/dataset selector to prepare/verify/launch; derive the
+allowlist and signed acceptance contract from that selector; ensure the issued workspace contains
+only the selected public analytical partitions/contracts and never generator/evaluation files;
+keep immutable image, unique run ID, source snapshot, signature, and freeze guarantees intact.
+
+**Files:** `blind/`, `tools/blind_agent/`, `scripts/run_discovery.py`, `Makefile`, blind runner tests.
+
+**Expected output:** Committed and reviewed commands capable of preparing/verifying a fresh
+`b2b_sales-analytical-v1.0.0` workspace, with a truth-free rehearsal proving dataset identity,
+outcome contract, temporal split, and v0.5.0 method pins.
+
+**Blocking:** YES — blocks candidate generation for TASK-065.
+
+**Progress (2026-08-22, Architect):** Implemented a mandatory registry key
+(`BLIND_DATASET`) across rehearsal/prepare/verify/launch. `blind/allowlist.yaml` maps reviewed keys
+to fixed versioned roots; the runner derives exactly six public analytical partitions and signs
+the selector, root, dataset/outcome/split/method acceptance values, and input hashes. Unknown keys,
+missing partitions/manifests, selector mismatch, analytical-manifest drift, and source drift fail
+closed. `scripts/run_discovery.py` now consumes the signed root instead of a travel default.
+Security/lifecycle tests pass (20), targeted Ruff and strict Pyright pass, and the real pinned
+networkless Docker rehearsal returns `BLIND_REHEARSAL_VALID` for `BLIND_DATASET=travel`. After the
+HANDOFF-064 files appeared, the same production-boundary rehearsal also returned
+`BLIND_REHEARSAL_VALID` for `BLIND_DATASET=b2b_sales/comparable`, binding dataset identity
+`72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`, outcome contract
+`0.1.0-provisional` / `net_deal_contribution_usd`, temporal split
+`b2b-sales-temporal-split-v1.0.0`, and discovery method `discovery-engine-v0.5.0`. Full relevant
+tests pass (62); repository-wide lint and typecheck pass. HANDOFF-063 remains `IN_PROGRESS` only
+because the shared cross-role diff has not yet been reviewed and committed. No official TASK-065
+run was issued.
+
+**Dependency update (2026-08-22, Data Engineer):** `HANDOFF-064` is resolved and both required
+public split artifacts are now published with deterministic hashes. The Architect can rerun the
+truth-free b2b rehearsal; no official TASK-065 run was issued by Data Engineering.
+
+**Resolution (2026-08-22, Architect):** Independently re-reviewed and committed the isolated
+runner change as `851564e` (`feat(blind): parameterize signed dataset issuance`). The commit
+contains only the Make/runner/allowlist/protocol/tests needed by HANDOFF-063; it excludes outcome
+binding, TASK-066 validation work, evaluator changes, and DATA_ENGINEER artifact builders. The
+mandatory registry selector signs the selected versioned root, dataset identity, outcome contract
+and version, temporal split contract and version, discovery method, and every copied-file hash.
+Issuance additionally verifies analytical↔split dataset version/identity, outcome dataset scope,
+all four declared analytical partition hashes, and the declared split-membership hash. Unknown
+selectors, missing manifests/partitions, selector/source drift, mismatched identity/version, hash
+drift, other-domain files, private paths, and symlinks fail closed.
+
+Verification evidence: `uv run pytest tests/blind_agent tests/analytics/test_discovery_engine.py
+-q` → **66 passed**; targeted Ruff and strict Pyright passed; `make lint` passed. Both
+`make blind-rehearsal BLIND_DATASET=travel` and
+`make blind-rehearsal BLIND_DATASET='b2b_sales/comparable'` returned
+`BLIND_REHEARSAL_VALID` against pinned image
+`policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`.
+Allowlist SHA-256 at verification was
+`f70bc724f7275936c22c2391a9e30eab02557d722a438fed4017934aa8cf40be`.
+Travel identity/root/split were
+`b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`,
+`synthetic_data/analytical/travel-bookings-analytical-v1.1.0`, and
+`travel-bookings-temporal-split-v1.0.0`; b2b values were
+`72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`,
+`synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0`, and
+`b2b-sales-temporal-split-v1.0.0`. Repository-wide `make typecheck` was attempted but failed only
+in concurrent unstaged TASK-066 work (`backtest/engine.py`, `baseline_statistics.py`); targeted
+H063 Pyright reported 0 errors. No official workspace/run was issued and no hidden truth was read.
+Selected dataset-file SHA-256 values at rehearsal were: travel `features`
+`dcadea6b5f21ebdf24f965288d00e9b4f9b89106e83713a60c6c26c049fb05d3`, `outcomes`
+`e56b8bd6f02e135f38a21c68577fd8ce953b51e094208c190c86e73bdb58948e`, `identifiers`
+`e730e8b2c005a4b0fb3ed9d96f448dc206d9053b866a332cf63a0e673b199ec4`, `metadata`
+`37c175397f0d7cda72b30280cbffd833d21af8e561aaafe77094f3f44d9d2224`, split manifest
+`3ada2929411b4eac7647a8e7f746ac130c7401a9fe612baa628eebb356ff8829`, membership
+`82558c0d801d6b11b2a23e1790a889e8df1cf38dbdb789f3d9bc54ea72292413`; b2b `features`
+`0325eb069154f5d736c62ca8217c51443bde86757498c9132d8d896480d46b9c`, `outcomes`
+`5dfe2d5e0ec67e68604e39ae8a38f60632d8f7f9411924c94f81c03ea96f303b`, `identifiers`
+`e5b17d305d48de69d17dc7501e78382514005a5e00c08dd2fc2264da67e651c4`, `metadata`
+`c64f94d51ed54596512769cf3c53164a8b8c72b0950e6f0efe342aefe35d566d`, split manifest
+`acb253b63795f8235ec473a5912d607185ceaf995768ade2f38ac3147a641771`, membership
+`2a7c93e6f012a8eceac9be07995e61666432765d6f25715207792bb202b054af`.
+
+## HANDOFF-064
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** DATA_ENGINEER
+**Status:** RESOLVED
+
+**Task:** Publish the temporal-selection contract required for blind discovery on the preregistered
+`b2b_sales/comparable` analytical dataset.
+
+**Context:** The analytical root contains features/outcomes/identifiers/metadata and manifests, but
+no `split_manifest.json` or `split_membership.csv`, while the current signed blind acceptance
+contract requires an explicit search-fit split and diagnostic-only splits. Selection must remain
+development-only and the validation/holdout period must never tune candidates.
+
+**Question:** Provide the same deterministic, checksummed temporal split contract expected by the
+blind runner, derived from the already-built analytical metadata without regenerating or inspecting
+hidden truth. Pin it into dataset identity/provenance as appropriate.
+
+**Files:** `packages/analytics/src/policy_analytics/domain_benchmarks/analytical_bridge.py`,
+`synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/`, bridge tests/docs.
+
+**Expected output:** Public temporal split artifacts and tests for row alignment, development-only
+selection, diagnostic-only validation/holdout, determinism, and checksums.
+
+**Blocking:** YES — blocks signed acceptance and TASK-065 discovery.
+
+**Resolution:** Published public `split_manifest.json` and `split_membership.csv` under
+`synthetic_data_domains/b2b_sales/analytical/b2b_sales-analytical-v1.0.0/`. Contract
+`b2b-sales-temporal-split-v1.0.0` is pinned to analytical identity
+`72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`; development/validation/
+future-holdout contain 5,028/2,491/2,481 unique rows, with development the sole search-fit split.
+The manifest records inclusive boundaries, no-shuffle/overlap/unassigned invariants, outcome
+availability, provenance, and membership SHA-256
+`2a7c93e6f012a8eceac9be07995e61666432765d6f25715207792bb202b054af`; manifest SHA-256 is
+`acb253b63795f8235ec473a5912d607185ceaf995768ade2f38ac3147a641771`. Two consecutive runs of
+`uv run python scripts/build_domain_temporal_splits.py --domain b2b_sales` reproduced both hashes.
+Targeted Ruff and 18 temporal/bridge tests pass. No raw or hidden ground truth was read or
+regenerated. Ready for Architect's truth-free integrated rehearsal in `HANDOFF-063`.
+
+## HANDOFF-065
+
+**Created:** 2026-08-22
+**From:** ML_DISCOVERY
+**To:** STATISTICS
+**Status:** RESOLVED (TASK-019 remainder completed by TASK-066), 2026-08-22, Statistics
+
+**Task:** Make TASK-019 and TASK-028 semantics genuinely domain-aware for the preregistered
+`b2b_sales/comparable` portability evaluation.
+
+**Context:** `validate_candidates.py --dataset-root` still calls the travel-global
+`primary_outcome()` and records its version. The current uncommitted evaluator path flags permit a
+different dataset/truth path, but scoring still hardcodes travel pattern IDs (`P*`) and travel trap
+conditions (`T*`). Those would yield invalid b2b metrics even though the CLI completed. No b2b
+hidden truth has been opened; preserve that boundary until candidates are committed.
+
+**Question:** Bind TASK-019 to the selected analytical manifest's pinned primary outcome/harm
+direction and contract version. Define a domain-neutral TASK-028 mapping from the post-commit
+ground-truth schema (including scoreable-pattern exclusions and trap identity) without naming
+domain features in discovery logic or changing the six metric definitions. Add fixtures/tests that
+prove historical travel evaluation remains reproducible and non-travel IDs are not silently
+discarded.
+
+**Files:** `scripts/validate_candidates.py`, `scripts/evaluate_benchmark.py`, validation/evaluation
+tests, `docs/benchmark/decision-gate.md` if the scoreable-denominator contract requires a version.
+
+**Expected output:** Committed, reviewer-approved TASK-019/TASK-028 commands for a selected domain,
+ready to run only after TASK-065 candidates are frozen and committed.
+
+**Blocking:** YES — blocks validation/evaluation and the requested portability metrics.
+
+---
+
+**Resolution (2026-08-22, Statistics):**
+
+**TASK-028 half (`scripts/evaluate_benchmark.py`) — DONE, verified.** Replaced the hand-transcribed
+`TRAP_APPARENT_CONDITIONS`/`SCOREABLE_PATTERN_IDS` module constants with `_trap_apparent_conditions`/
+`_scoreable_pattern_ids`, computed at run time from whichever `ground_truth`/`frame` `--ground-
+truth`/`--dataset-root` point at — no domain feature names hardcoded anywhere in the new logic.
+`_scoreable_pattern_ids` reimplements `docs/benchmark/decision-gate.md`'s own §"Fixed denominators"
+rule generically: `affected_n >= ValidationThresholds.min_exposed_records` and at least one affected
+record in the `development` split. `_trap_apparent_conditions` parses every
+`confounding_traps[].apparent_feature` string (`"col=value"`, with `"true"`/`"false"` -> `bool`
+coercion). Two supporting generalizations: the record-id column is read from `manifest.json`'s
+`partitions.identifiers.columns[0]` instead of a hardcoded `"booking_id"`; each pattern's affected-
+id list is located by key shape (`affected_.*_ids`) since travel's key
+(`affected_booking_ids`) and every `TASK-061` domain's key (`affected_record_ids`) differ. Both new
+rules were verified to reproduce travel's exact historical values byte-for-byte before replacing the
+constants (`tests/analytics/test_evaluate_benchmark.py`, 25 tests, all passing) — including the full
+CLI regression test asserting the frozen `task-028-benchmark-evaluation.json` metrics, trap ids, and
+`scoreable_pattern_ids` are reproduced exactly under `main()`'s new dynamic computation. A downstream
+consumer, `scripts/validate_backtest_synthetic.py` (`TASK-033`), imported the removed
+`TRAP_APPARENT_CONDITIONS` constant directly — fixed to call `_trap_apparent_conditions(ground_truth)`
+instead; unaffected otherwise (still fully travel-hardcoded by original design, out of this
+handoff's scope). Also fixed a stale prose bug found along the way: the `confounder_trap_rejection`
+metric's `note` field still said "manager x supplier stratified adjustment", false since `TASK-063`
+generalized G06 (`ADR-036`/`ADR-042`); now describes G06 generically and computes candidate counts
+dynamically instead of a hardcoded "15".
+
+**TASK-019 half (`scripts/validate_candidates.py`) — outcome-binding DONE and unit-verified; full
+end-to-end non-travel run BLOCKED on a separate, deeper gap (not fixed here).** New
+`packages/analytics/src/policy_analytics/outcomes/manifest_binding.py`
+(`outcome_definition_from_manifest`) binds to whichever primary outcome the *selected* dataset's own
+`manifest.json` pins: a byte-for-byte pass-through to the real `primary_outcome()` for travel
+(checked by `dataset_version`, so travel can never silently drift through this new binding path);
+a real but explicitly-disclosed-`PROVISIONAL` `OutcomeDefinition` for any other registered dataset,
+derived from its `manifest.outcome_contract` block (`TASK-062`) plus an empirically-computed
+`valid_range`. Wired into `validate_candidates.py`'s `main()` in place of the hardcoded
+`primary_outcome()` import. 10 new unit tests (`tests/analytics/test_manifest_binding.py`) plus a
+full-CLI default-behavior regression test (`tests/analytics/test_validate_candidates.py`, marked
+`slow`, ~20s) proving travel's `outcome_id`/`outcome_contract_version`/`dataset_version` are
+unchanged. **However**, a full end-to-end `validate_candidates.py` run against any non-travel
+dataset still crashes inside `apply.py`'s G06 gate: `_adjustment_pool` (`TASK-063`) draws from
+`DECISION_TIME_FEATURES`, a travel-hardcoded column-name frozenset (also used by G01's leakage gate,
+`HETEROGENEITY_COLUMN` for G09, and G11's seasonality gate) — confirmed via live traceback
+(`KeyError` on a travel-only column name absent from a non-travel frame) during a manual smoke test.
+A prerequisite fix was made along the way — `load_analytical_frame`'s `booking_month` derivation is
+now conditional on `booking_date` being present, letting any registered dataset load at all — but
+`DECISION_TIME_FEATURES`/G01/G06/G09/G11 generalization is a substantially larger piece of work
+(touches gate semantics for travel too if done carelessly) than this handoff's literal ask
+(outcome binding + trap/pattern mapping). **Explicitly not attempted here; flagged as the next
+blocker for whichever task actually runs a non-travel `TASK-019` validation end-to-end** — most
+likely a new, separately-scoped handoff/task once a `TASK-065` domain has committed candidates to
+validate.
+
+**Incident disclosed alongside this resolution — see `ADR-048`:** while shape-verifying the new
+generic trap/pattern logic against a second (non-travel) domain, this agent opened
+`synthetic_data_domains/b2b_sales/comparable/evaluation/hidden_ground_truth.json` before
+`b2b_sales`'s own `TASK-065` discovery run has happened — exactly the boundary this handoff's own
+context paragraph said to preserve. No code, doc, or (after a caught-and-fixed near-miss) test
+carries any `b2b_sales`-specific trap/pattern content. Statistics recuses from reviewing
+`b2b_sales` `TASK-065` discovery/candidate output; a different reviewer should do it. Every other
+`TASK-061` domain remains genuinely unopened by this session.
+
+**Follow-up completed by TASK-066 (`ADR-050`):** the `DECISION_TIME_FEATURES`/G01/G06/G09/G11
+generalization named above is now manifest-owned, typed, fail-closed, and verified by a public
+non-travel full CLI run without ground truth. `docs/benchmark/decision-gate.md` was
+deliberately left untouched — it is Founder-owned, pre-registered, and "must not be edited after
+`TASK-028`/`TASK-029` produce results" (its own header); the scoreable-pattern *rule* did not
+change (only its implementation generalized, verified to reproduce the exact same travel set), so
+no version bump to that document is triggered by this work.
+
+**Independent Code Reviewer verification (2026-08-22):** domain-aware TASK-028 now fails closed
+unless analytical manifest, candidate artifact, and frozen validation report bind the same dataset
+version, dataset identity, outcome-contract version, and exact ordered candidate family. Effect
+direction is derived from the selected manifest's primary-outcome direction; economic-impact
+estimates are read from the typed `economic_impact.historical_impact` object and its declared unit,
+not the legacy travel-named diagnostics key. Synthetic cross-dataset and partial-family tests were
+added. The historical travel `metrics` object remains canonical-byte-identical to the frozen
+TASK-028 artifact. No b2b ground truth was opened for this verification, and no b2b pattern/trap
+identity appears in production code or tests. HANDOFF-065 remains RESOLVED; its implementation must
+be committed before TASK-065 issuance.
+
+## HANDOFF-066
+
+**Created:** 2026-08-22
+**From:** DATA_ENGINEER
+**To:** STATISTICS
+**Status:** OPEN
+
+**Task:** Confirm TASK-013 outcome-contract compatibility with additive analytical dataset v1.1.0.
+
+**Context:** `HANDOFF-059` adds only generic decision-time `travel_month`; the outcomes partition,
+eligible cohort, primary outcome, harm direction, units, and missingness policy are unchanged from
+v1.0.0. The v1.1.0 analytical manifest attaches the existing TASK-013 v1.1.0 definitions and scopes
+them to the new dataset version. Data Engineering has not changed any statistical meaning. The
+new dataset identity is `b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`.
+
+**Question:** Does the feature-only additive bump preserve TASK-013 v1.1.0 compatibility, or must
+Statistics publish a mechanical outcome-contract version amendment before a new official blind
+run uses analytical dataset v1.1.0?
+
+**Files:** `packages/analytics/src/policy_analytics/outcomes/contract.py`,
+`synthetic_data/analytical/travel-bookings-analytical-v1.1.0/manifest.json`,
+`synthetic_data/analytical/travel-bookings-analytical-v1.1.0/outcomes.csv`, `ADR-047`.
+
+**Expected output:** Explicit compatibility acceptance or a version-only contract amendment with
+no change to outcome semantics.
+
+**Blocking:** NO for HANDOFF-059 implementation and all frozen runs; YES before issuing a new
+official blind run on v1.1.0 if Statistics requires a formal contract amendment.
+
+**Resolution:** Pending.
+
+## HANDOFF-067
+
+**Created:** 2026-08-22
+**From:** ARCHITECT
+**To:** DATA_ENGINEER, STATISTICS
+**Status:** RESOLVED (2026-08-22, TASK-066)
+
+**Task:** Define the manifest-owned validation feature-role contract required by `TASK-066`.
+
+**Context:** Public versioned analytical manifests already classify every column as
+`DECISION_TIME`, `POST_DECISION`, `OUTCOME`, `IDENTIFIER`, `METADATA`, or `UNKNOWN`, and list the
+physical feature partition. That is sufficient for G01's fail-closed leakage check, but not for
+the other gate inputs. Validation v1.2.0 additionally excludes raw travel date columns from G06,
+uses `customer_segment` as G09's heterogeneity stratum, and derives G11 month from `booking_date`.
+Those three choices are hardcoded in `validation/apply.py`. No current manifest field identifies
+which DECISION_TIME columns are adjustment-eligible, which single column has the heterogeneity
+role, or which decision-known calendar column/derivation has the seasonality role. Registered
+TASK-061 domain manifests therefore provide no authorized equivalent. Choosing by column name,
+dtype, cardinality, or similarity to travel would invent data/method semantics. No hidden ground
+truth was opened for this diagnosis.
+
+**Question:** DATA_ENGINEER: specify a versioned, fail-closed manifest representation for
+(a) adjustment eligibility per feature, including explicit exclusion of date-like or otherwise
+unsupported DECISION_TIME fields, and (b) any declared semantic role metadata needed by G09/G11.
+STATISTICS: decide the domain-neutral G09/G11 rule when a dataset has no reviewed heterogeneity or
+seasonality role — whether the gate must return `NOT_EVALUATED`, use a required declared role, or
+follow another explicit rule — and whether this observable gate-input change requires validation
+contract v1.3.0. Preserve travel's existing gate results exactly and do not change thresholds or
+evidence grading.
+
+**Files:** `packages/analytics/src/policy_analytics/analytical_dataset.py`, registered analytical
+`manifest.json` files, `packages/analytics/src/policy_analytics/validation/apply.py`,
+`docs/analytics/validation-contract.md`, `TASK-066`.
+
+**Expected output:** One machine-readable manifest schema and explicit G09/G11 missing-role
+semantics that Architect can bind generically, with travel mappings supplied from the already
+accepted validation contract and non-travel mappings or explicit absence supplied without hidden
+truth access.
+
+**Blocking:** YES — blocks completing TASK-066 and claiming the full non-travel TASK-019 CLI path.
+
+**Resolution (2026-08-22, Statistics under direct founder instruction):** RESOLVED. Analytical
+manifests now carry `validation_roles` v1.0.0; the typed loader verifies partition hashes, physical
+columns, feature timing, adjustment eligibility, semantic roles, and candidate fields. G09/G11
+with no reviewed role return `NOT_EVALUATED`. Travel mappings preserve validation-v1.2.0 behavior;
+the public b2b analytical dataset completes a full TASK-019 CLI test without ground truth. This
+also closes the remaining domain-aware TASK-019 half left open by HANDOFF-065. TASK-065 was not
+run, and Statistics remains recused from its b2b discovery/candidate review per ADR-048.
+
+**Founder Strategy governance addendum (2026-08-22, ADR-051):** The technical handoff remains
+resolved, but its last sentence is superseded in scope: the ADR-048-contaminated Statistics
+identity is recused from the entire `b2b_sales/comparable` TASK-065 result chain, including
+validation review/execution, evaluation review/execution, evidence verdict, and interpretation —
+not only discovery/candidate review. It and every continuation/fork carrying its context remain
+ineligible; blindness is not restored.
+
+The execution handoff is now explicit: a fresh ADR-008-isolated Blind Discovery actor produces and
+freezes candidates; ARCHITECT creates the signed receipt; an uncontaminated independent
+CODE_REVIEWER verifies receipt signature, candidate hash, bundle/manifest binding, and freeze
+status; only after that recorded check may a new independent STATISTICS/evaluator actor receive
+ground truth, run TASK-019, freeze validation, run TASK-028, and issue the final evidence verdict.
+FOUNDER_STRATEGY performs any later portability interpretation from those frozen independent
+outputs. No TASK-065 execution occurred as part of this addendum.
+
+**Evaluator slot registration (2026-08-22, Founder Strategy — resolves the pre-issuance circular
+dependency in `ADR-051`; see `ADR-052`):**
+
+```
+EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR
+```
+
+The preregistered official run ID is `task-065-b2b-comparable-20260822-001`. It must remain absent
+from the blind-runs root and repository artifacts until the pre-issuance Code Reviewer approves
+readiness; rehearsal must use temporary IDs and must not reserve this ID.
+
+This registers approval of the evaluator **slot** — a fixed eligibility rule — before blind
+issuance. It is not the approval of a live actor or session. `ADR-051` required "a new independent
+STATISTICS/evaluator actor with no prior `b2b_sales` ground-truth exposure" without specifying when
+such an actor could exist relative to issuance; read literally, that is circular — a concrete,
+already-uncontaminated session cannot be verified independent before it has done anything, and
+instantiating one early and leaving it idle only creates a stale, unused credential. Separating slot
+approval (now) from actor binding (after commitment) resolves this without weakening the chain.
+
+**Slot rules, binding on whichever actor is later assigned into `TASK-065-INDEPENDENT-EVALUATOR`:**
+
+1. This slot is approved before blind issuance; the concrete actor is not.
+2. The concrete Statistics/evaluator actor is created only after the signed candidate commitment
+   (ARCHITECT-issued receipt, `CODE_REVIEWER`-verified per `ADR-051`) exists.
+3. That actor must run as a new, independent session carrying no history, context, or continuation
+   from the `ADR-048`-contaminated actor or any of its forks.
+4. That actor must not have previously seen `b2b_sales` hidden ground truth in any form.
+5. That actor takes no part in discovery, candidate generation, or candidate selection for this run.
+6. After commitment, the actor's first action is `TASK-019` (validation) — not `TASK-028`, and not
+   ground-truth access.
+7. Ground truth is disclosed to the actor only after its `TASK-019` validation report is frozen.
+8. Only then may the same actor run `TASK-028` against that now-authorized ground truth.
+9. The `ADR-048` Statistics identity is permanently recused from every step of `TASK-065` — this
+   slot registration does not reopen, narrow, or time-limit that recusal.
+10. The ML Discovery orchestrator's role ends at commitment: it does not open ground truth and does
+    not act as or select the evaluator.
+
+This registration is process documentation only. It runs no rehearsal, creates no workspace or
+actor, and discloses no ground truth.
