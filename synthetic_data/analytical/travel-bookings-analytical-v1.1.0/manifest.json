@@ -1,10 +1,24 @@
 {
+  "canonical_schema_version": "travel-booking-canonical-v1.0.0",
   "clustering": {
     "column": "customer_id",
     "partition": "identifiers"
   },
-  "dataset_identity_sha256": "dd7889f7d14264a7ae19e2fc11d95dcdb9da8ad4df3645b4adf7f8bab79cd423",
-  "dataset_version": "travel-bookings-analytical-v1.0.0",
+  "dataset_identity_sha256": "b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683",
+  "dataset_version": "travel-bookings-analytical-v1.1.0",
+  "derived_feature_lineage": {
+    "travel_month": {
+      "calendar": "proleptic Gregorian",
+      "invalid_value_policy": "fail closed",
+      "null_policy": "fail closed",
+      "source_columns": [
+        "travel_date"
+      ],
+      "timezone": "not applicable: source is a date without a time-of-day",
+      "transform": "parse ISO-8601 calendar date and extract Gregorian month (1-12)",
+      "transformation_version": "1.1.0"
+    }
+  },
   "derived_metadata_columns": {
     "source_currency": "Renamed from the source METADATA field currency.",
     "source_row_number": "One-based row lineage in the clean reference CSV.",
@@ -172,6 +186,11 @@
       "discovery_feature_allowed": true,
       "leakage_risk": "NONE"
     },
+    "travel_month": {
+      "classification": "DECISION_TIME",
+      "discovery_feature_allowed": true,
+      "leakage_risk": "LOW"
+    },
     "trip_duration_days": {
       "classification": "DECISION_TIME",
       "discovery_feature_allowed": true,
@@ -192,7 +211,7 @@
       "contribution_margin_eur",
       "repeat_purchase_180d"
     ],
-    "dataset_scope": "travel-bookings-analytical-v1.0.0",
+    "dataset_scope": "travel-bookings-analytical-v1.1.0",
     "default_comparison_rule": "complement of the candidate condition within the eligible cohort",
     "definitions": [
       {
@@ -295,7 +314,8 @@
         "booking_lead_days",
         "payment_method",
         "installments",
-        "manual_exception"
+        "manual_exception",
+        "travel_month"
       ],
       "path": "features.csv",
       "schema": [
@@ -370,9 +390,13 @@
         {
           "dtype": "Boolean",
           "name": "manual_exception"
+        },
+        {
+          "dtype": "Int8",
+          "name": "travel_month"
         }
       ],
-      "sha256": "7199ae40639c55cfc8bf564fa68da0d90c55fc7ad541c79d3b6bb0d1f89b8a9b"
+      "sha256": "dcadea6b5f21ebdf24f965288d00e9b4f9b89106e83713a60c6c26c049fb05d3"
     },
     "identifiers": {
       "columns": [
@@ -463,7 +487,7 @@
   "record_count": 10000,
   "reproducibility_command": "make analytical-dataset",
   "row_alignment": "All CSV partitions preserve identical source row order.",
-  "schema_version": "travel-booking-canonical-v1.0.0",
+  "schema_version": "travel-bookings-analytical-schema-v1.1.0",
   "source": {
     "feature_timing_path": "synthetic_data/metadata/feature_timing.json",
     "feature_timing_sha256": "71a94071f7fbec5915e896f408137a9c33e39da0c3e58bfb569b63c66f5d83e0",
@@ -474,23 +498,23 @@
   "supporting_artifacts": {
     "excluded_columns_manifest": {
       "path": "excluded_columns_manifest.json",
-      "sha256": "d5e0d37905db9b894b4dc0c00770feb70c1c498ed6d58b4b0b026e9c8ff2a996"
+      "sha256": "cbdfd5d3ee927bfc98a2323060d64e7c4e21ae112e26324c8941518542ce0c26"
     },
     "feature_manifest": {
       "path": "feature_manifest.json",
-      "sha256": "47146711d16f875a84fd2f6f2b3a775496b6561fd3e8a7144bb1b52c7daba743"
+      "sha256": "c2d3efe88d2625827d523b3981f607e6a63efa869292a19450dad6b697390c2d"
     },
     "missingness": {
       "path": "missingness.json",
-      "sha256": "548eae87bf944f487ddf1e8d0c0fdce531bd23512075641c09d269237b58e102"
+      "sha256": "55712bd379100ff534397a564674656a6414cfecceacb51e9582bff2d2193996"
     },
     "outcome_columns_manifest": {
       "path": "outcome_columns_manifest.json",
-      "sha256": "e34774cda463d5d283d6c3206d163f9ad851afc68b92b1cf3ca60c109d8c9d16"
+      "sha256": "bb3a18b86b1ffed07a65cda4049631488b45f91d11f60630d8894ac8fbd64474"
     },
     "version_metadata": {
       "path": "version_metadata.json",
-      "sha256": "b33fbced3df875dcd3f0d07cedcb2397d59b611914dd42f422420f00362bda1d"
+      "sha256": "e7d8fb772866727f12a87e649ec61be26d19bcc5bb54b84ac5df624bca833a2e"
     }
   },
   "temporal_splits": {
@@ -518,13 +542,21 @@
     "strategy": "chronological; no random shuffling"
   },
   "transformation": {
+    "analytical_schema_version": "travel-bookings-analytical-schema-v1.1.0",
     "canonical_schema_version": "travel-booking-canonical-v1.0.0",
     "clustering_key": "customer_id",
-    "dataset_version": "travel-bookings-analytical-v1.0.0",
+    "dataset_version": "travel-bookings-analytical-v1.1.0",
     "decision_timestamp_column": "booking_date",
+    "derived_calendar_features": [
+      {
+        "name": "travel_month",
+        "source_column": "travel_date",
+        "transform": "gregorian_month_1_to_12"
+      }
+    ],
     "development_end": "2024-12-31",
     "future_holdout_end": "2025-12-31",
-    "transformation_version": "1.0.0",
+    "transformation_version": "1.1.0",
     "validation_end": "2025-06-30"
   },
   "validation_roles": {
