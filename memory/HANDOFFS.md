@@ -3957,3 +3957,33 @@ approval (now) from actor binding (after commitment) resolves this without weake
 
 This registration is process documentation only. It runs no rehearsal, creates no workspace or
 actor, and discloses no ground truth.
+
+**Independent pre-issuance review (2026-08-22, Code Reviewer):**
+
+APPROVE_TASK_065_READINESS
+
+- Reviewed implementation commit: `f500f74`.
+- Dataset identity: `72c5ce99e97bb56bc8831653bc8820ad92610ad114b53589c3ac580bd2c15493`.
+- Outcome contract version: `0.1.0-provisional`.
+- Split contract version: `b2b-sales-temporal-split-v1.0.0`.
+- Discovery method version: `discovery-engine-v0.5.0`.
+- Preregistered official run ID: `task-065-b2b-comparable-20260822-001`; confirmed absent from
+  `/tmp/policy-blind-runs` and repository artifacts during review.
+- `uv run pytest -m 'not integration'`: PASS (`546 passed`, `3 skipped`, `61 deselected`; the three
+  PostgreSQL tests require `TEST_DATABASE_URL` and persistence was not changed).
+- `uv run pytest tests/blind_agent -q`: PASS (`34 passed`).
+- `make blind-rehearsal BLIND_DATASET='b2b_sales/comparable'`: PASS
+  (`BLIND_REHEARSAL_VALID`), using a temporary rehearsal workspace and no official run ID.
+- Public-input non-travel `TASK-019` CLI regression and frozen historical travel `TASK-028`
+  regression: PASS (`2 passed`).
+- `uv run ruff check .` and `uv run ruff format --check .`: PASS (`170 files already formatted`).
+- `uv run pyright`: PASS (`0 errors, 0 warnings, 0 informations`).
+- `uv run python scripts/check_repository_data.py`: PASS
+  (`Repository data allowlist verified (86 tracked artifacts)`).
+
+The only authorized next-stage sequence is:
+`rehearsal → issuance → discovery → freeze → signed commitment`.
+The concrete evaluator remains uncreated until the signed commitment is independently verified.
+Hidden ground truth remains prohibited until both that commitment check and the evaluator's
+ground-truth-free `TASK-019` validation freeze are complete. This review did not create an official
+workspace, issue the official run, execute discovery, or open hidden ground truth.

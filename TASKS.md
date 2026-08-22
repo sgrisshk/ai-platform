@@ -2530,13 +2530,16 @@ Do not overbuild before demand.
   ARCHITECT/DATA_ENGINEER own blind/domain contracts.
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P1
-- **Status:** BLOCKED — technical prerequisites `HANDOFF-063`, `HANDOFF-064`, and `TASK-066` are
+- **Status:** READY — technical prerequisites `HANDOFF-063`, `HANDOFF-064`, and `TASK-066` are
   resolved; the independent custody chain is fixed by `ADR-051`, and its evaluator slot is now
   approved (`EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR`, `HANDOFF-067`). The absence
   of a pre-instantiated evaluator session is not, and was never meant to be, a blocker — the
-  mandatory pre-issuance condition is the approved slot, not a live actor (`ADR-052`). Remains
-  `BLOCKED` pending a `CODE_REVIEWER`-issued readiness verdict confirming the slot, custody chain,
-  and issuance mechanics are correctly wired; that verdict has not been requested or issued.
+  mandatory pre-issuance condition is the approved slot, not a live actor (`ADR-052`). The
+  `CODE_REVIEWER` independently verified the slot, custody chain, issuance mechanics, and
+  truth-free regressions at reviewed implementation commit `f500f74` and issued
+  `APPROVE_TASK_065_READINESS` in `HANDOFF-067`. `READY` authorizes only rehearsal, issuance,
+  discovery, candidate freeze, and signed commitment; it does not authorize ground-truth access,
+  evaluation, or a transition to `IN_PROGRESS`/`DONE`.
 - **Depends on:** `TASK-061`, `TASK-062`, committed domain-parameterized blind issuance,
   domain-aware `TASK-019`, and domain-aware `TASK-028`.
 - **Preregistered test (2026-08-22):** exactly one domain and one variant:
