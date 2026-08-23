@@ -2930,6 +2930,46 @@ Do not overbuild before demand.
   contract approval `ADR-056` requires; the separate domain-selection preregistration `ADR-055`
   step 3 requires (naming `ecommerce`, per `memory/CURRENT_STATE.md`) is not authorized by this
   entry. See `ADR-059` for the formal decision record.
+- **Domain-selection preregistration recorded, runs NOT issued (2026-08-23, Statistics as
+  preregistration authority + ML_DISCOVERY as issuing coordinator, `ADR-061`):**
+  `docs/benchmark/task-068-ecommerce-preregistration.md` performs the separate preregistration
+  `ADR-055` step 3 / this task's own preregistered-test step 4 require and that `ADR-059`
+  explicitly did not perform. Fixed in writing, before any run: domain `ecommerce` / variant
+  `comparable` (selection rule unchanged — lexicographically first still-unopened `TASK-061`
+  domain, verified genuinely unopened by a whole-tree grep finding zero `ecommerce` +
+  `hidden_ground_truth` co-occurrences and no `ADR-048`-equivalent disclosure); a same-domain
+  baseline at `max_feature_identity_fraction = 1.0`; a test run at **`0.34`** (= 5 of 15 slots per
+  feature identity), chosen on domain-neutral grounds only — it is the same constant already fixed
+  truth-free in `ADR-057`'s approved falsification fixture, and `0.5`/`0.25` were considered and
+  rejected in writing before any run; every other `DiscoveryConfig` knob pinned identical across
+  both runs; §5's success/kill criteria quoted verbatim from this entry; and
+  `docs/benchmark/decision-gate.md`'s disqualifiers/bands retained unmodified (only the travel
+  `Pxx`/`Txx` denominators substituted by `evaluate_benchmark.py`'s existing generic derivation,
+  exactly as `TASK-065` did). Two preregistration decisions are recorded rather than left implicit:
+  the baseline is `v0.6.0`-with-the-cap-disabled instead of literally reverted `v0.5.0` code
+  (`run_discovery.py` rejects any signed method version that differs from the implementation;
+  `ADR-059` already re-verified the `1.0` default reproduces `v0.5.0` selection exactly three
+  independent ways), and **both** candidate sets are signed and custody-verified before *any*
+  `TASK-028` opens ground truth, so no baseline score can influence the test run's configuration.
+  **Status stays `BLOCKED` — no run was issued, and five concrete readiness blockers were found by
+  execution, not assumed (`HANDOFF-073`, preregistration §8):** (R1) `blind/allowlist.yaml` has no
+  `ecommerce/comparable` selector — `selected_allowlist` raises `unknown blind dataset selector`
+  (ARCHITECT, `HANDOFF-063` shape); (R2) `ecommerce-analytical-v1.0.0` is missing both mandatory
+  public split partitions `split_manifest.json`/`split_membership.csv`, so issuance fails closed
+  (DATA_ENGINEER, `HANDOFF-064` shape; `scripts/build_domain_temporal_splits.py` already
+  generalizes); (R3) that manifest carries no `validation_roles` block, so `TASK-019` raises
+  `manifest lacks supported validation_roles version 1.0.0` and cannot grade the domain at all —
+  it was built under `TASK-062` before `ADR-050` landed and never regenerated; (R4) **the blind
+  executor cannot express the cap** — `scripts/run_discovery.py:90` constructs
+  `DiscoveryConfig(seed=...)` only, so an "enabled" test run issued today would silently run
+  *disabled*, return a byte-identical candidate set to the baseline, and look like a legitimate
+  null result (the `task-060-iteration-20260820-003` failure mode, except mistaken for the answer);
+  the parameter must also reach the evaluator-signed acceptance contract, not just the CLI, or the
+  baseline/test distinction is unprovable after the fact; (R5) no `ADR-051` custody actors and no
+  `ADR-052` evaluator slot exist for this task — `TASK-065`'s slot is scoped to `b2b_sales` by its
+  own text and cannot be reused, and slot approval is a mandatory pre-issuance condition. The
+  preregistering actor additionally self-excludes from the evaluator role under `ADR-051`
+  ineligibility rule (5), since it fixed this run's parameters pre-commitment.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 

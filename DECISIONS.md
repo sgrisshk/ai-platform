@@ -2768,3 +2768,106 @@ any real requirement, because no real customer contract exists yet. Recorded as 
 `memory/HANDOFFS.md` per the founder-facing instruction to flag rather than silently guess past a
 real-customer-conversation-dependent unknown (`ADR-004`'s disclosed-methodology principle, applied
 here to an operational design decision rather than a numerical claim).
+
+## ADR-061 — `TASK-068`'s `ecommerce` domain-selection preregistration is recorded; no run is issued, and five readiness blockers are recorded instead
+
+**Date:** 2026-08-23
+**Status:** Accepted — preregistration only. No blind run issued, no domain data touched, no
+`hidden_ground_truth.json` opened.
+
+**Decision:** Record `docs/benchmark/task-068-ecommerce-preregistration.md` as the separate
+domain-selection preregistration `ADR-055` step 3, `ADR-056`, and `TASK-068`'s own preregistered-test
+step 4 all require and that `ADR-057`/`ADR-059` each explicitly declined to perform. It fixes, in
+advance of any run: the domain (`ecommerce`, variant `comparable`), both run IDs, the baseline
+(`max_feature_identity_fraction = 1.0`), the test (`0.34`), every other `DiscoveryConfig` value
+held identical across the two runs, the verbatim success/kill criteria, how each metric term is
+computed, the `ADR-051`-shaped custody order, and an actor-eligibility rule. It does **not**
+authorize issuance: five readiness preconditions are unmet and are recorded rather than worked
+around (`HANDOFF-073`). `TASK-068` stays `BLOCKED`.
+
+**The enabled cap fraction, decided here because the implementation ships no non-`1.0` default:**
+`0.34`, which at the pinned `top_k = 15` yields `max(1, floor(0.34 × 15)) = 5` slots per feature
+identity. Domain-neutral reasoning only: it is the same constant already fixed truth-free, before
+any domain was named, in the falsification fixture `ADR-056` required and `ADR-059` approved; "one
+third" is the coarsest bound that still forces genuine plurality against the single-identity-claims-
+everything failure mode `ADR-055` diagnosed; and at `top_k = 15` it is numerically unambiguous
+(`0.3333` would floor to 4 via `int(4.9995)`). Its guarantee is stated conservatively: at least 3
+distinct feature identities in the worst case where every rule is a singleton, more in the normal
+2–3-condition case — a floor, not a promise. Rejected in writing before any run: `0.5` (cap 7 — a
+single identity could still hold nearly half the set, so a null result would be uninformative) and
+`0.25` (cap 3 — risks failing to fill `top_k` and emitting `INSUFFICIENT_CANDIDATES`, converting a
+methodology test into an infrastructure failure and wasting a scarce domain). No `ecommerce` or
+`b2b_sales` pattern, trap, feature name, or effect size informed any of this, per `ADR-054`'s two
+hard rules.
+
+**Two substantive preregistration decisions, recorded rather than left implicit:**
+
+1. **The baseline is `v0.6.0` with the cap disabled, not literally reverted `v0.5.0` code.**
+   `scripts/run_discovery.py` refuses to run unless the signed `discovery_method_version` equals the
+   implementation's own, which is now `v0.6.0`, so a literal `v0.5.0` baseline is unissuable without
+   a code revert. The substitution is exact, not approximate: at `1.0` the per-feature cap equals
+   `top_k` and `_apply_feature_identity_cap` is not even invoked, and `ADR-059` independently
+   re-verified equivalence three ways plus a real regression run.
+2. **Both candidate sets are signed and custody-verified before *any* `TASK-028` opens ground
+   truth** — baseline issue→freeze→sign→verify, then test issue→freeze→sign→verify, then both
+   `TASK-019`s, then both `TASK-028`s. `TASK-019` opens no ground truth, so it may precede truth
+   access. A naive score-the-baseline-then-run-the-test order would leave open exactly the
+   post-hoc configuration adjustment `ADR-007`/`ADR-012` exist to forbid; this ordering closes it
+   structurally rather than by promise.
+
+**Readiness, verified by execution rather than assumed — five blockers, none of them a
+methodological objection to the test:** (R1) `blind/allowlist.yaml` registers only `travel` and
+`b2b_sales/comparable`; `selected_allowlist` raises `unknown blind dataset selector` for both
+`ecommerce/comparable` and `ecommerce` (ARCHITECT, `HANDOFF-063` shape, plus a
+`BLIND_REHEARSAL_VALID` rehearsal). (R2) `ecommerce-analytical-v1.0.0` has four of the six
+mandatory public partitions — `split_manifest.json` and `split_membership.csv` do not exist — so
+issuance fails closed (DATA_ENGINEER, `HANDOFF-064` shape; the tooling already generalizes).
+(R3) The same manifest carries no `validation_roles` block, so `TASK-019` raises `manifest lacks
+supported validation_roles version 1.0.0` and cannot grade this domain at all; it was built under
+`TASK-062` before `ADR-050` landed and never regenerated — and regeneration must be checked
+byte-for-byte against the pinned `dataset_identity_sha256`, the exact regression class `ADR-030`
+and `TASK-062` each caught once already. (R4) **The blind executor cannot express the parameter
+under test:** `scripts/run_discovery.py:90` constructs `DiscoveryConfig(seed=...)` and leaves every
+other knob at its default, so a "cap-enabled" run issued today would silently run *disabled*,
+produce a candidate set byte-identical to the baseline, and present a configuration bug as a
+legitimate null result — the `task-060-iteration-20260820-003` failure mode (`ADR-039`), except
+mistaken for the answer instead of caught by diff. The parameter must additionally be carried in the
+evaluator-signed acceptance contract, not only on the CLI, or which configuration produced which
+candidates is unprovable after the fact. (R5) No `ADR-051` custody actors and no `ADR-052` evaluator
+slot exist for this task; `EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR` is scoped to
+`b2b_sales` by its own text and cannot be reused, and `ADR-052` makes slot approval a mandatory
+pre-issuance condition.
+
+**Disclosed, and deliberately not treated as a domain disqualifier:** `ecommerce`'s pattern/trap
+identities and several generative mechanisms — including one pattern's literal condition set — are
+already recorded in `memory/HANDOFFS.md` (`HANDOFF-053`), `TASKS.md`'s `TASK-061` bullets, and
+`docs/benchmark/multi-domain-benchmarks.md`. This is public design content, not hidden-ground-truth
+access (a whole-tree grep finds zero `ecommerce` + `hidden_ground_truth` co-occurrences and no
+`ADR-048`-equivalent disclosure exists), it predates this task, it is the same kind of partial
+disclosure travel's own `P01`–`P09` already carry, and much of it is stale because those traps were
+rewired when `HANDOFF-053` was resolved. Changing the preregistered lexicographic selection rule to
+avoid it would itself be the post-hoc selection this discipline forbids; it does not reach the
+isolated blind actor, whose workspace contains only the six public partitions plus allowlisted
+discovery code. Recorded so a later reader does not rediscover it and mistake it for a new incident.
+
+**Alternatives considered:** (a) issue the runs anyway and work around R1–R4 inside this session —
+rejected outright: R4 alone would have produced a *false* determination, and R1–R3 are other roles'
+reviewed contracts (`HANDOFF-063`/`HANDOFF-064`/`ADR-050`), not incidental config. (b) Select a
+different domain whose infrastructure happens to be readier — rejected: the selection rule was
+preregistered in `ADR-055` and picking around it on convenience grounds is exactly the cherry-pick
+`ADR-054` credits `TASK-065` for avoiding. (c) Defer the preregistration until the blockers are
+fixed — rejected: preregistration must precede readiness work, not follow it, or the parameters
+become choosable after the infrastructure (and whoever fixes it) has seen the domain.
+
+**Self-exclusion:** the actor recording this preregistration fixed the run's parameters
+pre-commitment and is therefore ineligible, under `ADR-051` ineligibility rule (5), to serve as the
+`TASK-019`/`TASK-028` evaluator for either run. Recorded here so this document cannot later be read
+as authorizing its own author to score the result.
+
+**Consequences:** `TASK-068` stays `BLOCKED`; `ADR-058` reopening condition (1) is **not** met — no
+success or kill determination exists, because no run has happened. `ADR-058` condition (2) is
+unaffected by this entry. `docs/benchmark/decision-gate.md` is not edited and travel's standing
+`PROMISING` verdict (`ADR-025`) is untouched. One of five untouched `TASK-061` domains is now
+*committed* to this experiment but not yet *spent*: no `ecommerce` ground truth has been opened, so
+the domain remains blind and the preregistration remains executable once `HANDOFF-073`'s blockers
+clear.

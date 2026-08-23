@@ -4307,3 +4307,94 @@ agent's own claim.
 record for `TASK-057` cannot cite this as met without Code Reviewer's confirmation here.
 
 **Resolution:** Pending.
+
+## HANDOFF-073
+
+**Created:** 2026-08-23
+**From:** STATISTICS (preregistration authority) / ML_DISCOVERY (issuing coordinator)
+**To:** ARCHITECT, DATA_ENGINEER, CODE_REVIEWER (ML_DISCOVERY for R4's implementation half)
+
+**Status:** OPEN
+
+**Blocking:** YES — `TASK-068` cannot issue either preregistered `ecommerce` run until R1–R5 clear.
+
+**Task:** Clear the five readiness preconditions that block the two blind runs preregistered in
+`docs/benchmark/task-068-ecommerce-preregistration.md` (`ADR-061`). The preregistration itself is
+complete and closed to edit; this handoff is only about the missing infrastructure.
+
+**Context:** `ADR-059` approved `TASK-068`'s implementation contract but selected no domain and
+authorized no run. `ADR-061` now fixes the domain (`ecommerce`/`comparable`), both runs' complete
+configurations (baseline `max_feature_identity_fraction = 1.0`; test `0.34`), the verbatim
+success/kill criteria, and the `ADR-051`-shaped custody order. Verifying readiness by execution
+rather than by reading the task narrative surfaced five blockers. None is a methodological objection
+to the test; all are missing plumbing, and one (R4) would have silently produced a *false* result
+if the run had simply been issued.
+
+**Question — five separable items, each with a named owner:**
+
+1. **R1 (ARCHITECT):** add a reviewed `ecommerce/comparable` key to `blind/allowlist.yaml`'s
+   `datasets` map, pinned to
+   `synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0`, and confirm
+   `make blind-rehearsal BLIND_DATASET=ecommerce/comparable` prints `BLIND_REHEARSAL_VALID` against
+   the pinned image digest. Same shape as `HANDOFF-063` did for `b2b_sales`. Verified today:
+   `selected_allowlist` raises `unknown blind dataset selector` for both `ecommerce/comparable` and
+   `ecommerce`.
+2. **R2 (DATA_ENGINEER):** build and commit `ecommerce`'s public temporal-split contract —
+   `split_manifest.json` and `split_membership.csv` are two of the six partitions
+   `tools/blind_agent/core.py:DATASET_FILES` requires, and neither exists, so issuance fails closed
+   on a missing allowlisted source. Same deliverable `HANDOFF-064` produced for `b2b_sales`
+   (`b2b-sales-temporal-split-v1.0.0`, identity-pinned);
+   `scripts/build_domain_temporal_splits.py` + `analytical_bridge.temporal_split_config` already
+   generalize, so this is a run-and-commit, not new design.
+3. **R3 (DATA_ENGINEER to regenerate, STATISTICS to review the roles):** `ecommerce`'s analytical
+   manifest carries no `validation_roles` block, so
+   `validation/input_contract.py` raises `manifest lacks supported validation_roles version 1.0.0`
+   and `TASK-019` cannot grade this domain at all. It was built under `TASK-062` (2026-08-20),
+   before `ADR-050` landed, and was never regenerated. Two things to handle deliberately, not as
+   side effects: `analytical_bridge.analytical_dataset_config` sets `heterogeneity_column`,
+   `robustness_group_column`, and `alternative_outcome_id` all to `None`, so G09/G11 will be
+   `NOT_EVALUATED` for every candidate (the same second ceiling `TASK-065` hit — accept and record
+   it in advance rather than discover it in the result); and regeneration must be checked
+   byte-for-byte against the pinned `dataset_identity_sha256`, the exact regression class `ADR-030`
+   and `TASK-062`'s `_config_summary()` fix each caught once already.
+4. **R4 (ML_DISCOVERY implementation, ARCHITECT signing surface, CODE_REVIEWER approval) — the
+   important one:** the blind executor cannot express the parameter under test.
+   `scripts/run_discovery.py:90` is `config = DiscoveryConfig(seed=int(manifest["random_seed"]))`
+   and leaves every other knob at its default, so `max_feature_identity_fraction` has no path from
+   the signed manifest into the run. Issued as-is, the "cap-enabled" test run would run *disabled*,
+   return a candidate set byte-identical to the baseline, and present a configuration bug as a
+   legitimate null result — the `task-060-iteration-20260820-003` failure mode (`ADR-039`), except
+   mistaken for the answer instead of caught by diff. Required: (a) the executor accepts the
+   parameter, and (b) it is carried in the evaluator-signed acceptance contract
+   (`tools/blind_agent/core.py:_acceptance_contract`) alongside `discovery_method_version` and
+   `random_seed`, so which configuration produced which candidates is provable after the fact.
+   **Do not `make blind-issue` before this lands** — a run ID is consumed permanently on issuance.
+5. **R5 (ARCHITECT + CODE_REVIEWER):** instantiate the `ADR-051` custody chain for this task and
+   approve an `ADR-052`-style evaluator slot **before** issuance. Four distinct identities are
+   required — issuing coordinator, commitment signer (ARCHITECT), independent custody verifier
+   (CODE_REVIEWER), and a separately-bound STATISTICS evaluator — and no actor may hold more than
+   one. `EVALUATOR_SLOT_APPROVED: TASK-065-INDEPENDENT-EVALUATOR` (`HANDOFF-067`) is scoped to
+   `b2b_sales`/`TASK-065` by its own text and cannot be reused.
+
+**Disclosed by the preregistering actor:** it fixed both runs' parameters pre-commitment and is
+therefore ineligible under `ADR-051` ineligibility rule (5) to serve as the `TASK-019`/`TASK-028`
+evaluator for either run. Separately, `ecommerce`'s pattern/trap identities and several mechanisms
+are already public in `HANDOFF-053`/`TASKS.md`/`docs/benchmark/multi-domain-benchmarks.md` — design
+content, not hidden-ground-truth access (grep-verified zero co-occurrences; no `ADR-048`-equivalent
+disclosure exists) — and this does not disqualify the domain; see `ADR-061` and the
+preregistration's §1a.
+
+**Files:** `docs/benchmark/task-068-ecommerce-preregistration.md`, `blind/allowlist.yaml`,
+`tools/blind_agent/core.py`, `scripts/run_discovery.py`,
+`scripts/build_domain_temporal_splits.py`,
+`packages/analytics/src/policy_analytics/domain_benchmarks/analytical_bridge.py`,
+`packages/analytics/src/policy_analytics/validation/input_contract.py`,
+`synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/manifest.json`,
+`DECISIONS.md` (`ADR-061`), `TASKS.md` (`TASK-068`).
+
+**Expected output:** R1–R5 each resolved and recorded (or explicitly judged unnecessary, with a
+reason), after which the two preregistered runs may be issued **without any change to
+`docs/benchmark/task-068-ecommerce-preregistration.md`** — any change to its fixed parameters or
+criteria voids both runs and costs another untouched domain.
+
+**Resolution:** *(open)*

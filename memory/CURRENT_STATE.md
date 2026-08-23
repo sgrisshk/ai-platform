@@ -832,6 +832,29 @@ genuinely demonstrates both the old failure and the new fix. Test-count correcte
 the separate domain-selection preregistration (`ecommerce`) `ADR-055` step 3 and `ADR-058` condition
 (1) still require.
 
+**`TASK-068`'s domain-selection preregistration recorded 2026-08-23 (`ADR-061`,
+`docs/benchmark/task-068-ecommerce-preregistration.md`) — still `BLOCKED`, no run issued, no
+`ecommerce` ground truth opened.** Fixed before any run: domain `ecommerce`/`comparable` (selection
+rule unchanged; genuinely unopened, grep-verified — zero `ecommerce` + `hidden_ground_truth`
+co-occurrences anywhere, no `ADR-048`-equivalent disclosure); baseline at
+`max_feature_identity_fraction = 1.0`; test at **`0.34`** (5 of 15 slots per feature identity),
+justified only domain-neutrally — the same constant already fixed truth-free in `ADR-057`'s approved
+fixture, with `0.5`/`0.25` rejected in writing beforehand; every other `DiscoveryConfig` knob pinned
+identical across both runs; verbatim success/kill criteria; `decision-gate.md`'s disqualifiers and
+bands retained unmodified. Two recorded preregistration decisions: the baseline is
+`v0.6.0`-with-cap-disabled rather than reverted `v0.5.0` code (`run_discovery.py` rejects any signed
+method version differing from the implementation; `ADR-059` already proved the `1.0` default
+reproduces `v0.5.0` selection exactly), and **both** candidate sets are signed and custody-verified
+before *any* `TASK-028` opens truth, so no baseline score can influence the test run. **Five
+readiness blockers found by execution, not assumed (`HANDOFF-073`):** no `ecommerce/comparable` key
+in `blind/allowlist.yaml`; `ecommerce-analytical-v1.0.0` missing both mandatory split partitions;
+no `validation_roles` block, so `TASK-019` cannot grade this domain at all; **the blind executor
+cannot express the cap** (`scripts/run_discovery.py:90` builds `DiscoveryConfig(seed=...)` only — an
+"enabled" run issued today would silently run disabled, byte-identical to the baseline, and present
+a config bug as a null result); and no `ADR-051` custody actors or `ADR-052` evaluator slot exist
+for this task. `ADR-058` reopening condition (1) is therefore **not** met — no success or kill
+determination exists because no run has happened.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
