@@ -2574,3 +2574,88 @@ anywhere in the mechanism's code, comments, or tests.
 approval `ADR-056` itself requires. No domain is selected and no `hidden_ground_truth.json` was
 opened by this work; the later domain-selection preregistration and official custody-protocol run
 remain separate, not authorized here.
+
+## ADR-058 — Customer acquisition paused again pending technical/portability hardening and pipeline-safety groundwork; supersedes `ADR-025`'s automatic-reopening stance
+
+**Date:** 2026-08-23
+**Status:** Accepted
+
+**Decision:** Active `TASK-057` outreach — new outbound touches, new conversations, any
+continuation of the `ADR-017` sprint cadence — is paused again, effective immediately, until both
+of the following are met: (1) `TASK-068` (feature-identity diversity cap, `ADR-057`, tested against
+`ecommerce`) reaches a recorded success or kill determination per its own preregistered criteria;
+and (2) the portion of `TASK-037`/`TASK-055` achievable without a real customer dataset already in
+hand is completed and recorded — see "Resolving an apparent circularity" below. This supersedes
+`ADR-025`'s consequence #1 ("re-opens automatically... no further ADR required to resume"): a
+further dated Founder Strategy record — this ADR now, and an explicit reopening record later — is
+required before `TASK-057` resumes. This is a founder-directed sequencing change; it does not
+dispute `ADR-025`'s technical re-grade or `ADR-010`/`ADR-017`'s original parallel-track reasoning.
+
+**Context:** `ADR-025` reopened `TASK-057` on 2026-08-17 on its own stated condition (decision-gate
+re-grade to PROMISING), with an explicit "no further ADR required" clause. Since then: `TASK-065`'s
+b2b portability run scored FAILED (`ADR-053`); the postmortem (`ADR-055`) and `TASK-067`'s
+concurrence (`ADR-056`) attributed it to a general, fixable selection-stage gap plus an expected
+domain-adaptation cost, not a core-method or thesis-level failure (`ADR-054`); `TASK-068`
+implements a candidate fix (`ADR-057`) but is not yet Code-Reviewer-approved, structurally tested,
+or run against a real domain. Separately, `TASK-057` has produced zero real conversations under
+either its original parallel design or its brief PROMISING-triggered reopening. The founder now
+directs that outreach wait until this round of technical/portability hardening and baseline
+pipeline-safety preparation land, rather than resume on `ADR-025`'s automatic condition alone.
+
+**Resolving an apparent circularity:** `TASK-037` ("Real-dataset security review") currently
+depends on `TASK-057` — it reviews *the* real dataset a secured customer provides — and `TASK-055`
+("Data-deletion workflow") depends on "First real customer dataset." Read literally, pausing
+`TASK-057` until `TASK-037`/`TASK-055` complete is impossible: neither can finish without the
+customer data `TASK-057` is paused from acquiring. This is resolved explicitly, not silently: the
+reopening bar is whatever hardening in `TASK-037`/`TASK-055` is achievable *without* a real
+customer dataset already in hand — a reviewed security/access/retention/deletion design and
+checklist ready to execute the moment real data arrives — not literal completion of either task as
+currently scoped. Neither task's `Depends on` field is changed by this ADR; final execution of both
+still waits on `TASK-057`. If Code Reviewer/Architect judge no such pre-customer-safe preparatory
+scope exists for one of these tasks, that task drops out of the reopening bar and condition (1)
+alone governs — to be recorded explicitly at that time, not defaulted silently.
+
+**What's paused:** Active `TASK-057` outreach only.
+
+**What's not paused:** Already-produced groundwork stays as-is, not undone: `docs/customer/
+pipeline.md` (tracker, approved offer text), `docs/customer/prospect-target-list.md` (21 researched
+candidates), `docs/customer/data-acquisition-plan.md`, and any Gmail-connector authorization already
+in place. `TASK-048`/`TASK-049` (one-liner, founder story, `docs/strategy/founder-narrative.md`) are
+unaffected — neither involves contacting a customer. `TASK-068`, the `ecommerce` retest, and
+whatever pre-customer-safe scope exists in `TASK-037`/`TASK-055` all proceed without waiting on this
+pause — they are the reopening condition, not blocked by it.
+
+**Alternatives considered:** (a) Leave `ADR-025`'s automatic reopening in force, outreach continuing
+in parallel with `TASK-068`/hardening — rejected by direct founder instruction, not a technical
+rebuttal. (b) Pause only until `TASK-068` resolves, treating `TASK-037`/`TASK-055` as out of scope
+for the reopening bar — considered, but does not match the founder's stated instruction naming both;
+handled instead via the circularity resolution above rather than dropped silently. (c) Wait for a
+literal `TASK-037`/`TASK-055` completion — rejected as impossible given their current dependency on
+`TASK-057` itself.
+
+**Reason:** Same scarce-resource logic as `ADR-022`: founder time and attention on customer
+conversations is the resource being sequenced, and the founder has directed it stay off active
+outreach until the current technical-hardening round (an unresolved `TASK-065` failure's fix, still
+mid-flight) and baseline pipeline-safety preparation land, rather than split attention across both
+at once.
+
+**Reopening condition (binding; checked and recorded before any new `TASK-057` outreach resumes):**
+1. `TASK-068` reaches a recorded success **or** kill determination against `ecommerce`, per its own
+   preregistered criteria — either outcome satisfies this condition; a kill is a complete,
+   acceptable determination, not a reason to keep waiting for a different result.
+2. The pre-customer-safe portion of `TASK-037`/`TASK-055` (as scoped by Code Reviewer/Architect
+   under the resolution above) is completed and recorded — or, if no such portion is judged to
+   exist, condition (1) alone governs, recorded explicitly rather than defaulted.
+
+Unlike `ADR-025`, meeting these conditions does **not** reopen `TASK-057` automatically: reopening
+requires a new, dated Founder Strategy record (a further ADR or an explicit continuation of this
+one) confirming both conditions are met, mirroring how `ADR-025` itself formally reopened `ADR-022`'s
+pause. This is the specific mechanism that prevents a future session from reading `ADR-025` alone
+and resuming outreach without checking this entry.
+
+**Consequences:** `TASK-057` moves from `TODO` back to `BLOCKED`, reason: this ADR, not a technical
+dependency. `TASK-046`/`TASK-047` (downstream of `TASK-057`/`MILESTONE-M3`) remain `BLOCKED` as
+before. `memory/CURRENT_STATE.md`'s "Next milestone" commercial-milestone entry is updated in the
+same change to record this pause and its reopening condition. `docs/strategy/30-day-validation-
+plan.md` and `docs/customer/*` are not rewritten (append-only respected); this ADR is the binding
+sequencing rule until superseded by a dated record confirming both reopening conditions are met.

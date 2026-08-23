@@ -835,18 +835,25 @@ a domain-selection preregistration before any official run.
   direction accuracy, 0 leakage, 0/5 traps promoted). `TASK-058`/`TASK-059` both `DONE`; `HANDOFF-048`
   resolved. Full detail: `docs/benchmark/decision-gate.md` "Post-benchmark comparison" (both
   entries), `docs/benchmark/task-029-benchmark-report-v1.md`.
-- **Commercial milestone — first documented customer/data-sharing conversation. Paused
-  2026-08-17→2026-08-17 (`ADR-022`, same day), reopened same day on the PROMISING re-grade
-  (`ADR-025`).** `ADR-010`, `ADR-017`, and `docs/strategy/30-day-validation-plan.md` originally
-  recorded acquisition as parallel and non-blocking; the founder paused it as a focus choice, then
-  the pause's own stated reopening condition (STRONG/PROMISING re-grade) was met within the day.
-  `TASK-057` is `TODO`. Zero real conversations logged yet — the pause did not cost calendar time,
-  only same-day sequencing.
+- **Commercial milestone — first documented customer/data-sharing conversation. Paused again
+  2026-08-23 (`ADR-058`), after a first pause/reopen cycle 2026-08-17 (`ADR-022`/`ADR-025`).**
+  `ADR-010`, `ADR-017`, and `docs/strategy/30-day-validation-plan.md` originally recorded
+  acquisition as parallel and non-blocking; `ADR-022` paused it as a focus choice, `ADR-025`
+  reopened it automatically on the PROMISING re-grade. `ADR-058` supersedes that automatic-reopening
+  stance: outreach is paused again pending (1) `TASK-068`'s success/kill determination against
+  `ecommerce`, and (2) the pre-customer-safe portion of `TASK-037`/`TASK-055`. Unlike `ADR-025`,
+  meeting those conditions does not reopen `TASK-057` automatically — a new dated Founder Strategy
+  record is required. `TASK-057` is `BLOCKED` (reason: `ADR-058`, not a technical dependency). Zero
+  real conversations logged to date under any state of this task. Already-produced groundwork
+  (`docs/customer/pipeline.md`, `docs/customer/prospect-target-list.md`) is unaffected and not
+  undone.
 
 **14-day go/no-go — technical half now PROMISING, not FAILED:**
 - Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG
-  *and* ≥1 real serious conversation logged. The technical half of that condition is now met; the
-  commercial half is not yet — `TASK-057` just reopened with zero conversations.
+  *and* ≥1 real serious conversation logged. The technical half of that condition is met; the
+  commercial half is not yet, and `TASK-057` is deliberately paused again (`ADR-058`) rather than
+  actively pursued — this 14-day window's original go/no-go framing predates that pause and does
+  not by itself force a decision here; see `ADR-058`'s reopening condition for what resumes it.
 - `docs/benchmark/decision-gate.md`'s own PROMISING action-row text ("do not advance to real
   customer data until re-graded at STRONG or PROMISING-with-the-same-metric-improved") is
   ambiguous on whether this first-time FAILED→PROMISING transition already satisfies it —
