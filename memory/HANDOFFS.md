@@ -4105,7 +4105,7 @@ cannot become independent portability evidence again.
 **Created:** 2026-08-23
 **From:** ML_DISCOVERY
 **To:** CODE_REVIEWER
-**Status:** OPEN
+**Status:** RESOLVED
 
 **Task:** Review `TASK-068`'s implementation contract — the feature-identity diversity cap at
 final candidate selection — before `TASK-068` may advance past `BLOCKED`, per `ADR-056`'s own
@@ -4162,6 +4162,16 @@ deselected non-analytics), `ruff`, `pyright` all clean on every file this work t
 diagnostic session, not touched here) already has unrelated `ruff`/`pyright` findings predating
 this work — flagged for awareness, not fixed here, out of this task's scope.
 
+**Correction (Code Reviewer, this resolution):** the "15 new tests" figure above was wrong — the
+diff adds exactly 8 new test functions (diffed `def test_` lines and `pytest --collect-only`
+count, 32 → 40, both confirmed directly). Also, `9a4eee1` as first committed did name
+`b2b_sales/comparable` in the `engine.py` module docstring, one `DiscoveryConfig` field docstring,
+and one test comment, contradicting this handoff's "no domain identity anywhere" line above —
+fixed in `dd81ea9` before this resolution landed. Neither finding touched the mechanism's logic or
+test coverage. (The matching "15 new tests" text in `TASKS.md`'s `TASK-068` evidence entry is left
+uncorrected by this commit — that file had a live conflicting concurrent edit in progress at
+review time; flagging here for whoever next touches that entry rather than risking a clobber.)
+
 **Files:**
 
 - `packages/analytics/src/policy_analytics/discovery/engine.py`
@@ -4180,4 +4190,19 @@ official run.
 
 **Blocking:** YES — `TASK-068` cannot advance past `BLOCKED` without this review.
 
-**Resolution:** Pending.
+**Resolution (2026-08-23, Code Reviewer):** Implementation contract **approved**. `ADR-056`'s
+boundary independently re-verified by running the code directly (not read off this handoff's
+claims): `TASK-060`/`TASK-064` knobs genuinely untouched (diffed `9a4eee1` and grepped every named
+knob — zero hits); the `1.0` default reproduces `v0.5.0` exactly, both structurally (the cap is
+never invoked below the threshold) and via the regression tests, run in an isolated `git worktree`
+pinned to the exact reviewed commit (462 passed, 1 pre-existing unrelated skip); the truth-free
+fixture genuinely demonstrates the old crowding behavior and the new mechanism's fix — read and run
+directly, not trusted on green status alone. Two findings, one already fixed: a domain-name leak in
+comments (`b2b_sales/comparable` named in three code/test sites in `9a4eee1`, fixed in `dd81ea9`
+before this resolution landed) and a wrong "15 new tests" count (actual: 8, per the correction
+above — `TASKS.md`'s own copy of this figure is left for a follow-up, see that note). Neither
+finding touched the mechanism's logic or test coverage, and this approval is not conditioned on the
+second one landing. `TASK-068` stays `BLOCKED` — this resolves the implementation-contract review
+only; the separate domain-selection preregistration `ADR-055` step 3 requires is not authorized
+here, and is not a formal ADR entry itself (no free ADR number was safe to claim at review time
+without racing a concurrent session's own in-flight edit to `DECISIONS.md`).
