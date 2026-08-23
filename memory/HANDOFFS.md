@@ -4397,4 +4397,92 @@ reason), after which the two preregistered runs may be issued **without any chan
 `docs/benchmark/task-068-ecommerce-preregistration.md`** — any change to its fixed parameters or
 criteria voids both runs and costs another untouched domain.
 
-**Resolution:** *(open)*
+**Resolution:** *(open — R1/R4/R5 still outstanding; R2/R3 resolved below)*
+
+- **R2 — RESOLVED (2026-08-23, Data Engineer).** Built and committed `ecommerce`'s public
+  temporal-split contract with `uv run python scripts/build_domain_temporal_splits.py --domain
+  ecommerce` — run-and-commit via the already-generalized tooling, no new design, exactly
+  `HANDOFF-064`'s `b2b_sales` shape. Contract `ecommerce-temporal-split-v1.0.0` is pinned to
+  `ecommerce`'s **existing** analytical identity
+  `fb8d049d5f81bb0d792ead8d6310e301b998f4eed7acf63a3274456b9f56c658` (unchanged — see R3's
+  byte-identity check). `development`/`validation`/`future_holdout` hold 4,981/2,431/2,588 rows,
+  matching `manifest.temporal_splits.counts` exactly; `development` is the sole search-fit split,
+  `validation`/`future_holdout` are diagnostic-only. Membership SHA-256
+  `73300aec766c4d9a138dc5de6174a71ddd763fa4d663a7aba68753815fff9741`; `split_manifest.json`
+  SHA-256 `18cff1b813df771ab6c0f7e5ba931dbdff0a58de798a7bcc2c39be3035335c2f`; two consecutive runs
+  reproduced both byte-for-byte. All six `tools/blind_agent/core.py:DATASET_FILES` partitions now
+  exist and were confirmed present programmatically. `scripts/check_repository_data.py` needed the
+  new `split_membership.csv` added to `ALLOWED_DATA_FILES` (same entry `b2b_sales` already has),
+  or `make check-data` would have failed CI the moment the file became tracked; done, and the
+  check now verifies 87 tracked artifacts. No raw or hidden ground truth was read. **No blind run
+  was issued.**
+
+- **R3 — RESOLVED (2026-08-23, Data Engineer), and it surfaced a real pre-existing regression that
+  changes how the block had to be added.** `validation_roles` v1.0.0 is now present in
+  `ecommerce`'s analytical manifest; `validation_input_from_manifest` loads it cleanly (16
+  `DECISION_TIME` features, 15 adjustment-eligible, `clustering_column = customer_id`,
+  `seasonality_column = order_date`), so `TASK-019` can grade this domain. Two items handled
+  deliberately, as asked:
+
+  1. **The three semantic roles are confirmed `None`, and are deliberately left unset — this is
+     *not* a mechanical gap.** `analytical_bridge.analytical_dataset_config` hardcodes
+     `heterogeneity_column=None`, `robustness_group_column=None`, `alternative_outcome_id=None`
+     for **all six** `TASK-061` domains, not just `ecommerce`. The reason they cannot simply be
+     "wired" is structural: `DomainSpec` (`domain_benchmarks/common.py`) carries **no field** for
+     any of the three, so there is no unset-but-available value to forward — populating them means
+     authoring new per-domain content and choosing which column carries the heterogeneity /
+     robustness semantics, which is a genuine methodological judgment, requires the STATISTICS
+     review `ADR-050` means by "reviewed", and (given `ecommerce`'s patterns/traps are already
+     public per `HANDOFF-073` above) risks being informed by knowledge of the planted signal —
+     precisely what `ADR-054`'s hard rules forbid before an unissued run. Left unset and recorded
+     rather than invented. **Consequence, accepted in advance:** G09/G11 return `NOT_EVALUATED`
+     for every candidate in both preregistered runs — the identical second ceiling `TASK-065` hit
+     on `b2b_sales`, whose committed manifest carries the same three `null`s (verified directly,
+     not assumed). This is a known ceiling on the evidence grade, not a defect of `TASK-068`'s
+     test, and it applies equally to baseline and test arms so it cannot bias the comparison.
+  2. **Byte-identity: verified explicitly, and a full regeneration would have broken it.** A clean
+     rebuild (`scripts/build_domain_analytical_dataset.py --domain ecommerce`, into a scratch
+     output root, never over the committed tree) reproduces all four CSV partitions
+     `features`/`outcomes`/`identifiers`/`metadata` **byte-for-byte** — but moves
+     `dataset_identity_sha256` from the pinned `fb8d049d…` to `2656b527…`. Cause, isolated to the
+     field: commit `c6d320b` ("bind validation roles across domains", the commit that implemented
+     `ADR-050` itself) bumped `AnalyticalDatasetConfig.transformation_version` `1.0.0` → `1.1.0`
+     and added `analytical_schema_version`/`derived_calendar_features` to `_config_summary()`,
+     which feeds `identity_payload`. **This drift is pre-existing and was introduced before this
+     work**; `ecommerce`'s pinned identity has been unreproducible by current code since
+     2026-08-22. It is exactly the `ADR-030` / `TASK-062` `_config_summary()` regression class this
+     handoff warned about, caught by checking rather than assuming.
+     **Resolution taken — the repository's own precedent, not a new invention:** `c6d320b` handled
+     the identical situation for `b2b_sales` by appending the `validation_roles` block **in place**
+     to the already-pinned `b2b_sales-analytical-v1.0.0/manifest.json` (a 12-line insertion,
+     touching nothing else in that directory) while building travel a *new* `v1.1.0` dataset from
+     the changed code. `ecommerce` got the same treatment: the block was inserted into the existing
+     manifest, its values taken verbatim from the scratch rebuild's own emitted
+     `validation_roles` (so they are the code's output, not hand-authored). Verified three ways —
+     re-serializing the committed manifest through `_write_json`'s exact format
+     (`indent=2, sort_keys=True`, trailing newline) reproduces it byte-for-byte; deleting
+     `validation_roles` from the patched file reproduces the original bytes exactly; and `git diff`
+     is a pure 24-line insertion. **`dataset_identity_sha256` is unchanged at
+     `fb8d049d5f81bb0d792ead8d6310e301b998f4eed7acf63a3274456b9f56c658`**, every other one of the
+     nine pre-existing files is byte-identical, and every partition/supporting-artifact hash
+     recorded in the manifest still matches its file on disk.
+     **Flagged for ARCHITECT/CODE_REVIEWER, not acted on here:** the underlying drift is untouched.
+     `ecommerce`, `b2b_sales`, and the other four `TASK-061` domains all remain pinned to
+     identities today's `analytical_dataset.py` no longer reproduces. That is a separate decision
+     (re-pin once as `ADR-030` did, cut `v1.1.0` datasets as travel got, or exclude
+     `transformation_version` from `identity_payload`) and it does **not** block `TASK-068` —
+     nothing in the two preregistered runs depends on rebuilding these datasets. Recording it so
+     it is not rediscovered mid-run.
+
+- **Checks (2026-08-23, Data Engineer, R2/R3 only):** `uv run ruff check .` clean; `uv run pyright`
+  0 errors/0 warnings; `uv run python scripts/check_repository_data.py` passes at 87 artifacts;
+  full `uv run pytest` **557 passed, 72 skipped, 0 failed** (skips are `TEST_DATABASE_URL`-gated
+  PostgreSQL/migration tests — no test database available in this environment — plus gitignored
+  `artifacts/` fixtures). Two tests
+  (`test_evaluate_benchmark.py::test_main_with_no_dataset_root_or_ground_truth_flags_reproduces_the_frozen_travel_result`,
+  `test_validate_candidates.py::test_default_run_binds_travel_to_its_real_non_provisional_outcome`)
+  fail with `FileNotFoundError` on any checkout lacking the gitignored `artifacts/` tree; both pass
+  once it is present, unrelated to this change, and both lack the skip guard their neighbours have.
+  Separately, `ruff format --check` would reformat `scripts/diagnose_g06_task065_b2b.py` and
+  `tests/analytics/test_discovery_engine.py` — both pre-existing, neither touched here, left for
+  their owners.

@@ -2970,6 +2970,23 @@ Do not overbuild before demand.
   own text and cannot be reused, and slot approval is a mandatory pre-issuance condition. The
   preregistering actor additionally self-excludes from the evaluator role under `ADR-051`
   ineligibility rule (5), since it fixed this run's parameters pre-commitment.
+- **R2 and R3 CLEARED (2026-08-23, Data Engineer) — `TASK-068` stays `BLOCKED` on R1/R4/R5, which
+  other agents own and which this note does not touch.** (R2) `ecommerce-temporal-split-v1.0.0`
+  built and committed via `scripts/build_domain_temporal_splits.py`; all six
+  `DATASET_FILES` partitions now exist, `development`/`validation`/`future_holdout` =
+  4,981/2,431/2,588, `development` the sole search-fit split, reproduced byte-for-byte across two
+  runs. (R3) `validation_roles` v1.0.0 added, so `TASK-019` can grade this domain;
+  `heterogeneity_column`/`robustness_group_column`/`alternative_outcome_id` are confirmed `None`
+  and **deliberately left unset** — `DomainSpec` carries no field for any of them, so populating
+  them is a STATISTICS-reviewed methodological judgment, not a mechanical gap; **G09/G11 will be
+  `NOT_EVALUATED` for every candidate in both preregistered runs**, the same ceiling `TASK-065` hit
+  on `b2b_sales`, applying equally to both arms. `dataset_identity_sha256` is **unchanged** at
+  `fb8d049d…`, verified byte-for-byte. Doing so required following `c6d320b`'s own `b2b_sales`
+  precedent (insert the block in place) rather than regenerating: a clean rebuild reproduces all
+  four CSV partitions byte-for-byte but *moves* the identity, because `c6d320b` bumped
+  `transformation_version` and widened `_config_summary()`. That drift is **pre-existing**, affects
+  all six domains, does not block `TASK-068`, and is recorded in `HANDOFF-073` for
+  ARCHITECT/CODE_REVIEWER. No blind run was issued. Full detail: `HANDOFF-073` Resolution.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 
