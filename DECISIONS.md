@@ -2659,3 +2659,71 @@ before. `memory/CURRENT_STATE.md`'s "Next milestone" commercial-milestone entry 
 same change to record this pause and its reopening condition. `docs/strategy/30-day-validation-
 plan.md` and `docs/customer/*` are not rewritten (append-only respected); this ADR is the binding
 sequencing rule until superseded by a dated record confirming both reopening conditions are met.
+
+## ADR-060 — Dataset deletion (`TASK-055`): immediate tombstone + conditional physical purge, implemented against synthetic/test data under `ADR-058`'s pre-customer-safe scoping
+
+**Date:** 2026-08-23
+**Status:** Accepted — implementation only; the parts of `TASK-055` that need a real customer
+relationship (see "Flagged to Founder Strategy" below) remain open, `TASK-055` stays `BLOCKED`
+
+**Decision:** Implement `DELETE /api/v1/datasets/{id}` against the current synthetic/test-data
+ingestion pipeline (`TASK-005`–`TASK-009`), as the `ADR-058` condition-2 pre-customer-safe portion
+of `TASK-055` (and, by the same design, the deletion-boundary component of `TASK-037`'s goal text —
+see `docs/security/task-037-pre-customer-review-prep.md`). Full contract:
+`docs/architecture/dataset-deletion-contract.md`. In short: `datasets.deleted_at` tombstones the row
+(never a hard delete — every downstream table references `datasets` with `ondelete="RESTRICT"`,
+matching this codebase's existing append-only/immutable-snapshot convention); the raw CSV is
+physically unlinked unless another active dataset shares the same content-addressed hash;
+`dataset_column_profiles.examples`/`suspicious_values` (the schema profiler's own disclosed
+literal-content fields) are redacted, aggregate stats left intact; one append-only
+`dataset_deletions` audit row records who/when/why/disposition. Auth-required (`TASK-053`), reason
+required.
+
+**Why immediate tombstone + conditional purge, not a pure tombstone or a retention-expiry sweep:**
+a pure tombstone never actually removes anything, which cannot satisfy a real erasure request. A
+retention-expiry sweep needs worker/scheduling infrastructure that does not exist anywhere in this
+codebase (`PolicyBacktestRunModel`'s own precedent: everything here runs synchronously in-request)
+and answers a different question (default retention age, currently "indefinite",
+`docs/architecture/ingestion-contract.md`) than "delete this one dataset now." The chosen design
+needs neither.
+
+**Alternatives considered:** (a) `ON DELETE CASCADE` from `datasets` down through
+`analysis_runs`/`candidate_patterns`/`validation_reports`/`findings`/`policy_candidates`, enabling a
+literal row delete — rejected: it would silently destroy the audit trail `TASK-037`'s goal text asks
+this review to cover, and reverses this codebase's deliberate append-only convention for those
+tables. (b) A background retention sweep as the only mechanism — rejected per "no worker
+infrastructure" above; nothing here currently promises time-bound retention regardless. (c) Redact
+`min_value`/`max_value` on `dataset_column_profiles` too, not just `examples`/`suspicious_values` —
+rejected as inventing a new redaction boundary the schema profiler's own design did not intend
+(its module docstring routes only `examples`-shaped fields through the PII-conservative floor);
+flagged as an open question for `TASK-037`'s actual review instead of silently over- or
+under-redacting.
+
+**Dependency impact:** None — no new dependency introduced.
+
+**Migration impact:** Additive only (migration `20260822_0009`): `datasets.deleted_at` (nullable,
+defaults to unset) and the new `dataset_deletions` table. No existing column altered or dropped.
+Verified via `alembic check` and a full `downgrade base` / `upgrade head` round-trip against a real
+Postgres.
+
+**Security impact:** Closes a real gap — before this, nothing in the product could remove an
+uploaded dataset. Extends `TASK-053`'s auth boundary to a second sensitive write
+(`SECURITY.md` updated). Every deletion is attributed and reasoned in an append-only audit row.
+
+**Rollback:** `alembic downgrade` drops `dataset_deletions` and `datasets.deleted_at`; the route,
+service function, and schemas can be reverted independently of the migration (they only fail closed
+— `deleted_at` reads as always-`NULL` — if the migration is rolled back first).
+
+**Files affected:** `apps/api/app/db/models.py`, `apps/api/migrations/versions/20260822_0009_dataset_deletion.py`,
+`apps/api/app/ingestion/storage.py`, `apps/api/app/datasets/service.py`, `apps/api/app/datasets/routes.py`,
+`apps/api/app/api/schemas.py`, `tests/api/test_dataset_deletion.py`,
+`docs/architecture/dataset-deletion-contract.md`, `docs/architecture/ingestion-contract.md`,
+`SECURITY.md`, `TASKS.md`.
+
+**Flagged to Founder Strategy (not resolved here):** whether this design's semantics — synchronous,
+no invented grace/undo period, full audit retention — actually satisfy a real contractual or
+regulatory deletion deadline (e.g. GDPR Article 17's "without undue delay") is unverified against
+any real requirement, because no real customer contract exists yet. Recorded as an open handoff in
+`memory/HANDOFFS.md` per the founder-facing instruction to flag rather than silently guess past a
+real-customer-conversation-dependent unknown (`ADR-004`'s disclosed-methodology principle, applied
+here to an operational design decision rather than a numerical claim).

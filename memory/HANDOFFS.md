@@ -4206,3 +4206,98 @@ second one landing. `TASK-068` stays `BLOCKED` — this resolves the implementat
 only; the separate domain-selection preregistration `ADR-055` step 3 requires is not authorized
 here, and is not a formal ADR entry itself (no free ADR number was safe to claim at review time
 without racing a concurrent session's own in-flight edit to `DECISIONS.md`).
+
+## HANDOFF-071
+
+**Created:** 2026-08-23
+**From:** ARCHITECT
+**To:** FOUNDER_STRATEGY
+**Status:** OPEN
+
+**Task:** Confirm, or correct, one design assumption in the `TASK-055` (data-deletion workflow)
+implementation that genuinely depends on a real customer/legal conversation this repository cannot
+supply.
+
+**Context:** Per `ADR-058` condition 2, implemented the pre-customer-safe portion of `TASK-055`
+against the current synthetic/test-data ingestion pipeline: `DELETE /api/v1/datasets/{id}`
+synchronously tombstones the dataset row, physically purges the raw bytes unless another active
+dataset shares the same content-addressed hash, redacts literal-content derived fields, and writes
+an append-only audit row. Full contract: `docs/architecture/dataset-deletion-contract.md`; decision
+record: `ADR-060`. The implementation is real and verified (real ephemeral Postgres, migration
+round-trip, full repo suite), not a placeholder.
+
+**The open question:** the design is *immediate* — no invented grace/undo window, no configurable
+retention delay before physical purge — on the reasoning that no real deletion deadline is known to
+weigh against, and that this codebase has no worker infrastructure to run a delayed sweep with
+anyway. This is a defensible default, not a verified answer. A real customer contract could require
+something this design does not currently provide: a mandatory undo window before irreversible
+purge, a stricter immediate-hard-delete-with-no-audit-retention model (in tension with this design's
+audit row, which by design keeps `dataset_id`/`reason`/timestamps after the dataset itself is
+purged), or a documented SLA (e.g. GDPR Article 17 "without undue delay") this implementation has
+never been measured against. `ADR-004`'s disclosed-methodology principle, applied here to an
+operational design rather than a numerical claim: this is flagged rather than guessed past.
+
+**Question:** Does the current design (immediate, synchronous, audit-row-retained-after-purge, no
+grace period) match what a real customer relationship is likely to require, or should
+`TASK-055`/`ADR-060` be revisited before real customer data reaches this path — and if so, on what
+concrete requirement (a specific contract clause, a specific regulatory deadline), not a
+speculative one?
+
+**Files:** `docs/architecture/dataset-deletion-contract.md`, `ADR-060` (`DECISIONS.md`), `TASKS.md`
+`TASK-055`.
+
+**Expected output:** A recorded confirmation that the current design is acceptable as the standing
+default until a real requirement says otherwise, or a documented correction with the concrete
+requirement driving it.
+
+**Blocking:** NO — `TASK-055`'s pre-customer-safe portion is already complete and recorded per
+`ADR-058` condition 2 regardless of this answer; this only affects whether the design needs revision
+before real customer data flows through it.
+
+**Resolution:** Pending.
+
+## HANDOFF-072
+
+**Created:** 2026-08-23
+**From:** ARCHITECT
+**To:** CODE_REVIEWER
+
+**Status:** OPEN
+
+**Task:** Review `TASK-055`'s implementation (`ADR-060`) and confirm — or dispute — that it,
+together with `docs/security/task-037-pre-customer-review-prep.md`'s gap list, satisfies `ADR-058`
+condition 2's "pre-customer-safe portion of `TASK-037`/`TASK-055` ... completed and recorded" bar.
+
+**Context:** `ADR-058` names Code Reviewer and Architect jointly as the scope authority for what
+counts as `TASK-037`/`TASK-055`'s pre-customer-safe portion. This handoff is the Architect half of
+that: `TASK-055` implemented and verified against the synthetic/test-data ingestion pipeline
+(`docs/architecture/dataset-deletion-contract.md`, `ADR-060`, `tests/api/test_dataset_deletion.py`
+green against a real ephemeral Postgres, `alembic check` and a full `downgrade base`/`upgrade head`
+round-trip clean, `ruff`/`pyright` clean on every touched file); and a `TASK-037` prep document
+(`docs/security/task-037-pre-customer-review-prep.md`) confirming what already exists per area
+(storage, logs, access, backups, local copies, secrets, deletion) against `SECURITY.md` and
+`TASK-037`'s own goal text, plus a ranked gap list (no persistent disk on the current free-tier
+deploy target; no backup/PITR policy; unverified literal-content risk in
+`analysis_runs`/`candidate_patterns`/`validation_reports`/`findings`/`policy_candidates`; no
+deployment secret manager decided; the deletion-timing question in `HANDOFF-071`; malware scanning
+and login rate-limiting, both already-disclosed pre-existing gaps restated for completeness).
+
+**Question:** Does this satisfy `ADR-058` condition 2 as the recorded pre-customer-safe portion of
+`TASK-037`/`TASK-055` — or does Code Reviewer find the implementation, the gap list, or its ranking
+deficient? If deficient, name the concrete gap; this handoff does not ask for a rubber stamp.
+
+**Files:** `docs/architecture/dataset-deletion-contract.md`, `docs/security/task-037-pre-customer-review-prep.md`,
+`ADR-060`, `apps/api/app/datasets/service.py`, `apps/api/app/datasets/routes.py`,
+`apps/api/app/db/models.py`, `apps/api/app/ingestion/storage.py`, `apps/api/app/api/schemas.py`,
+`apps/api/migrations/versions/20260822_0009_dataset_deletion.py`,
+`tests/api/test_dataset_deletion.py`.
+
+**Expected output:** A recorded confirmation (or dispute) of `ADR-058` condition 2 for `TASK-055`,
+and a recorded confirmation (or dispute) of the `TASK-037` prep document's completeness, so the
+`ADR-058` reopening-condition record has a real, checked basis rather than only the implementing
+agent's own claim.
+
+**Blocking:** YES — `ADR-058` condition 2 is not satisfied on Architect's say-so alone; a reopening
+record for `TASK-057` cannot cite this as met without Code Reviewer's confirmation here.
+
+**Resolution:** Pending.

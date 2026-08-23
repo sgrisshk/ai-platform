@@ -2521,12 +2521,36 @@ Do not overbuild before demand.
 - **Priority:** P1
 - **Status:** BLOCKED
 - **Depends on:** First real customer dataset
+- **Goal:** Review storage, logs, access, backups, local copies, secrets, and deletion boundaries;
+  what "delete" means against content-addressed immutable storage; what happens to already-derived
+  artifacts; an audit record of the deletion itself.
+- **Evidence (2026-08-23, Architect, `ADR-060`):** `ADR-058` resolved the apparent circularity in
+  this task's own `Depends on` field: the portion achievable without a real customer dataset already
+  in hand is real, scoped work, not something to wait on. That portion is done against the current
+  synthetic/test-data ingestion pipeline (`TASK-005`–`TASK-009`) — `DELETE
+  /api/v1/datasets/{id}` (auth-required, `TASK-053`), immediate tombstone (`datasets.deleted_at`,
+  every read path gated) plus conditional physical byte purge (retained only when another active
+  dataset shares the same content-addressed hash), literal-content redaction on
+  `dataset_column_profiles` (`examples`/`suspicious_values`, aggregate stats left intact), and an
+  append-only `dataset_deletions` audit row (who/when/why/disposition). Full contract and disclosed
+  open questions: `docs/architecture/dataset-deletion-contract.md`. Verified against a real
+  ephemeral Postgres (upload → delete → 404 on every read path → raw bytes actually gone from disk
+  → dedup-shared bytes correctly retained → profile redaction confirmed → re-delete correctly `409`,
+  not silent), migration round-trip (`alembic check`, `downgrade base`/`upgrade head`), full repo
+  suite — `tests/api/test_dataset_deletion.py`. This is the `ADR-058` condition-2 record for this
+  task; still `BLOCKED` (`Depends on` unchanged per `ADR-058`) because the parts that genuinely need
+  a real customer relationship — whether this design's grace-period-free, no-invented-retention-
+  window semantics actually satisfy a real contractual/legal deletion deadline — remain open and are
+  flagged to Founder Strategy (`memory/HANDOFFS.md`), not guessed at.
 
 ### TASK-056 — Audit trail
 - **Owner:** ARCHITECT
 - **Priority:** P2
 - **Status:** BLOCKED
 - **Depends on:** Real customer usage
+- **Note (2026-08-23, Architect):** `TASK-055`'s new `dataset_deletions` table is a narrow,
+  deletion-only audit record, not this task's general audit trail — it does not advance or
+  substitute for `TASK-056`, which remains correctly `BLOCKED`.
 
 ## Explicitly deferred
 
