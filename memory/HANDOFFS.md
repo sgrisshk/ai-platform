@@ -4397,7 +4397,10 @@ reason), after which the two preregistered runs may be issued **without any chan
 `docs/benchmark/task-068-ecommerce-preregistration.md`** — any change to its fixed parameters or
 criteria voids both runs and costs another untouched domain.
 
-**Resolution:** *(open — R1/R4/R5 still outstanding; R2/R3 resolved below)*
+**Resolution:** *(partial — R1, R2, R3, and R5 resolved below; R4 remains open with its originally
+named owner (ML_DISCOVERY implementation, ARCHITECT signing surface, CODE_REVIEWER approval). This
+handoff stays `OPEN` and stays `Blocking: YES`: `ADR-061`/§8 require **all five** items cleared
+before either preregistered run may be issued, and nothing here authorizes issuance.)*
 
 - **R2 — RESOLVED (2026-08-23, Data Engineer).** Built and committed `ecommerce`'s public
   temporal-split contract with `uv run python scripts/build_domain_temporal_splits.py --domain
@@ -4486,3 +4489,194 @@ criteria voids both runs and costs another untouched domain.
   Separately, `ruff format --check` would reformat `scripts/diagnose_g06_task065_b2b.py` and
   `tests/analytics/test_discovery_engine.py` — both pre-existing, neither touched here, left for
   their owners.
+
+---
+
+### R1 resolved (2026-08-23, ARCHITECT) — `ecommerce/comparable` registered as a reviewed selector
+
+`blind/allowlist.yaml`'s `datasets` map now carries
+
+```
+"ecommerce/comparable": "synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0"
+```
+
+pinned to exactly the analytical root the preregistration's §2 fixes. This is a **pure registry
+addition**: no line of `tools/blind_agent/core.py` was touched, because `HANDOFF-063` already
+generalized selector resolution, partition derivation, and the signed acceptance contract to any
+registered key. No file under `synthetic_data_domains/ecommerce/` was read for content, created, or
+modified, and no `hidden_ground_truth.json` was opened. Only the `<domain>/<variant>` form is
+registered, matching `b2b_sales`: bare `ecommerce` still raises `unknown blind dataset selector`,
+which is correct — the preregistration names `ecommerce/comparable` as the selector, and a bare
+domain key would be an unreviewed second way to name the same data.
+
+Verified by execution, not assumed:
+
+- `selected_allowlist(blind/allowlist.yaml, "ecommerce/comparable")` now returns the pinned root and
+  the six `DATASET_FILES` patterns, where before this change it raised
+  `ValueError: unknown blind dataset selector: ecommerce/comparable` (the exact error §8/R1
+  recorded). `ecommerce` (bare) and unregistered keys such as `saas/comparable` still fail closed.
+- `blind/allowlist.yaml` SHA-256 after the change:
+  `f35da4a8a6ed67f6fba7813f5002fd649b6a7a0c30eaa89065b407253d261fc1`
+  (was `f70bc724f7275936c22c2391a9e30eab02557d722a438fed4017934aa8cf40be` at `HANDOFF-063`'s
+  verification). Any issued run's launch-time drift check compares against the value current at its
+  own issuance, so this is a record, not a pin being broken.
+- Existing keys are unaffected: after the change, both
+  `make blind-rehearsal BLIND_DATASET='b2b_sales/comparable'` and
+  `make blind-rehearsal BLIND_DATASET=travel` returned `BLIND_REHEARSAL_VALID` against pinned image
+  `policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b`,
+  each using a temporary rehearsal workspace and no official run ID.
+- `uv run pytest tests/blind_agent tests/analytics/test_discovery_engine.py -q` → **75 passed**.
+
+**`BLIND_REHEARSAL_VALID` for `ecommerce/comparable` is NOT yet obtainable, and this is R2's
+dependency, not a defect in R1.** Run as instructed rather than skipped, `make blind-rehearsal
+BLIND_DATASET=ecommerce/comparable` fails with:
+
+```
+FileNotFoundError: allowlisted source is missing:
+  synthetic_data_domains/ecommerce/analytical/ecommerce-analytical-v1.0.0/split_manifest.json
+```
+
+That is the fail-closed path for a *registered* selector whose pinned root is missing a mandatory
+public partition — it is raised from `core.py:_paths` during `prepare`, **after** selector
+resolution succeeded, and it names the missing dataset file. It is not an unknown-selector error, so
+the allowlist entry itself is confirmed not to be the failure point. The two missing partitions are
+exactly `split_manifest.json` and `split_membership.csv` — precisely R2's deliverable. R1 is
+therefore complete as far as ARCHITECT ownership reaches; the preregistration's §7 step-1 rehearsal
+condition remains unmet until R2 lands, at which point the same command must be re-run and its
+`BLIND_REHEARSAL_VALID` line, dataset identity, outcome contract, split contract, method version,
+and per-file SHA-256s recorded here in `HANDOFF-063`'s format before issuance.
+
+### R5 resolved in part (2026-08-23, ARCHITECT) — custody structure recorded and evaluator slot approved
+
+Two separable things are produced here; both are pre-authorization structure, and **neither
+performs, reviews, or scores any part of `TASK-068`**. No run was issued, no workspace or actor was
+created, no rehearsal was reserved under an official ID, and no ground truth was opened.
+
+**(a) Custody-chain instantiation for `TASK-068`/`ecommerce`, per `ADR-051` and preregistration §7.**
+Four roles, no actor holding more than one, each bound to this repository's existing role contract
+rather than to a new definition:
+
+| `ADR-051` role | Repository role contract | Scope for this task |
+|---|---|---|
+| Issuing coordinator | `agents/ML_DISCOVERY.md` | Runs §7 steps 2–4 (`blind-issue`, `blind-verify`, `blind-shell`, `blind-freeze`) for both runs. Per `ADR-051`, its role **ends at commitment**: it never opens ground truth and never acts as or selects the evaluator. |
+| Blind discovery actor | `agents/ML_DISCOVERY_BLIND.md` | The fresh `ADR-008`-isolated deterministic actor inside the issued workspace. Ineligible for every later step (`ADR-051` ineligibility rule (4)). |
+| Commitment signer | `agents/ARCHITECT.md` | §7 step 5 only: accepts the exact frozen candidate bytes and creates the signed receipt with the evaluator-owned key. |
+| Independent custody verifier | `agents/CODE_REVIEWER.md` | §7 step 6: verifies receipt signature, candidate SHA-256, bundle/manifest binding, and freeze status, and records the verdict **before** any ground truth is disclosed to anyone. Must itself be uncontaminated by `ecommerce` ground truth and separate from the blind actor. |
+| Independent evaluator | `agents/STATISTICS.md`, bound into the slot registered in (b) | §7 steps 7–8 only, and only after step 6's recorded pass. |
+
+Already-fixed exclusions carried forward, not re-decided here: the actor that wrote
+`docs/benchmark/task-068-ecommerce-preregistration.md` fixed both runs' parameters pre-commitment
+and is ineligible as evaluator under `ADR-051` ineligibility rule (5) — its own self-exclusion,
+recorded in `ADR-061` and preregistration §7. `ARCHITECT` holds (b) commitment signer and therefore
+cannot be bound into the evaluator slot; **that includes this session**, which is stating so before
+the slot exists rather than after.
+
+**(b) Evaluator slot registration, following `ADR-052` and `HANDOFF-067`'s format exactly:**
+
+```
+EVALUATOR_SLOT_APPROVED: TASK-068-INDEPENDENT-EVALUATOR
+```
+
+Scope, stated in the marker's own text so it cannot be silently reused the way `HANDOFF-067`'s
+`b2b_sales` slot could not be reused here: this slot covers **`TASK-068` / `ecommerce`
+`comparable` only**, and within it **both** preregistered runs — the baseline
+(`max_feature_identity_fraction = 1.0`) and the cap-enabled test (`0.34`). It is not transferable to
+another task, another domain, another variant, or a re-preregistration.
+
+Preregistered official run ID stems (preregistration §3/§4): `task-068-ecommerce-baseline-
+<YYYYMMDD>-001` and `task-068-ecommerce-cap-<YYYYMMDD>-001`. Both must remain absent from
+`BLIND_RUNS_ROOT` and repository artifacts until the pre-issuance `CODE_REVIEWER` readiness verdict
+exists; rehearsal must use temporary IDs and must not reserve either. Confirmed absent at the time
+of this record: `/tmp/policy-blind-runs` holds only the five `TASK-060`/`TASK-064`/`TASK-065`-era
+runs, and no `artifacts/blind/` directory exists.
+
+**Slot rules, binding on whichever actor is later assigned into `TASK-068-INDEPENDENT-EVALUATOR`:**
+
+1. This slot is approved before blind issuance; the concrete actor is not.
+2. The concrete Statistics/evaluator actor is created only after the signed candidate commitment
+   (ARCHITECT-issued receipt, `CODE_REVIEWER`-verified per `ADR-051`) exists — and, per
+   preregistration §7's stronger sequencing, only after **both** runs have been issued, frozen,
+   signed, and custody-verified.
+3. That actor must run as a new, independent session carrying no history, context, or continuation
+   from the preregistering actor, from either issuing/signing role, or from any fork of them.
+4. That actor must not have previously seen `ecommerce` hidden ground truth in any form.
+5. That actor takes no part in discovery, candidate generation, candidate selection, or
+   pre-commitment parameter tuning for either run.
+6. After commitment, the actor's first action is `TASK-019` (validation) — not `TASK-028`, and not
+   ground-truth access. It runs `TASK-019` for the baseline run and then for the test run, and both
+   reports are frozen, before any truth access.
+7. Ground truth is disclosed to the actor only after **both** `TASK-019` validation reports are
+   frozen (`0444`, hashed, `hidden_ground_truth_opened=false`).
+8. Only then may the same actor run `TASK-028` against exactly the preregistered
+   `synthetic_data_domains/ecommerce/comparable/evaluation/hidden_ground_truth.json` — baseline
+   first, then test, per §7's fixed order.
+9. The same single actor holds steps 7–8 for **both** runs. Splitting the two runs across two
+   evaluators is not permitted: §5's criteria are comparative, and a comparison scored by two
+   different identities is not the preregistered test.
+10. The actor applies §5/§5a's criteria exactly as written and may not add, drop, reweight, or
+    re-derive a metric, threshold, or matching rule. The structural check is decided from public
+    frozen candidate bytes before any `TASK-028`; a kill is a complete, valid outcome and is
+    recorded as one.
+11. The preregistering actor, the issuing coordinator, the blind actor, the commitment signer
+    (`ARCHITECT`, including the session writing this record), and the custody verifier are each
+    permanently ineligible for this slot. A new session label alone does not establish
+    independence if context or restricted knowledge is carried forward (`ADR-051`, final sentence
+    of its ineligibility list).
+
+**Stated limitation of this record, deliberately not papered over.** The agent producing this
+registration cannot verify any future actor's independence in real time. It can fix the eligibility
+rule in advance — which is the whole point of `ADR-052`'s slot/actor separation — but it cannot
+observe whether a later session genuinely carries no forked context, and nothing in this repository
+can prove a negative about another session's history. `ADR-051` says the same about itself ("A new
+session label alone does not establish independence if context or restricted knowledge is carried
+forward"), and `ADR-052` says slot approval "is not the approval of a live actor or session". That
+limitation is inherited here unchanged, not resolved: **eligibility at binding time is asserted by
+whoever binds the actor and independently checked by `CODE_REVIEWER` at §7 step 6, not established
+by this record.** Anyone reading this as a guarantee of independence is reading it wrong.
+
+**No new ADR is created for R5, deliberately.** `ADR-052` already accepted the slot/actor separation
+as a general principle and `ADR-061` already committed `TASK-068` to the `ADR-051` custody shape;
+this is an instantiation of two accepted decisions for a named task, not a new architectural
+decision, so it belongs in `memory/HANDOFFS.md` in `HANDOFF-067`'s format — which is where
+`ADR-052` itself put `TASK-065`'s registration.
+
+**What remains outstanding on R5.** Item 5 names **ARCHITECT + CODE_REVIEWER**. This record is the
+ARCHITECT half. The independent pre-issuance `CODE_REVIEWER` readiness verdict — `HANDOFF-067`'s
+`APPROVE_TASK_065_READINESS` block is the precedent for its shape and evidence set — has **not**
+been requested or issued for `TASK-068`, and `ADR-052` makes it a mandatory pre-issuance condition.
+It cannot sensibly be requested before R2/R3/R4 land, since it must confirm the issuance mechanics
+against a rehearsal that actually passes. R5 is therefore recorded as **structure approved, review
+pending**, and is not claimed as fully closed.
+
+**Verification for this entry (2026-08-23, ARCHITECT):** `uv run ruff check .` → **All checks
+passed**; `uv run pyright` → **0 errors, 0 warnings**; `uv run pytest -m 'not integration'` →
+**552 passed, 2 failed, 4 skipped, 71 deselected**. Both failures
+(`test_evaluate_benchmark.py::test_main_with_no_dataset_root_or_ground_truth_flags_reproduces_the_frozen_travel_result`
+and `test_validate_candidates.py::test_default_run_binds_travel_to_its_real_non_provisional_outcome`)
+are **pre-existing and environmental, not caused by this change**: both raise
+`FileNotFoundError: artifacts/discovery/task-015-candidates.json`, `artifacts/` is untracked
+(`git ls-files artifacts` is empty) and simply absent from this git worktree while present in the
+primary checkout, and neither test reads `blind/allowlist.yaml` or any blind selector. Stated rather
+than hidden; a reviewer running in the primary checkout should see both pass. Three PostgreSQL/
+migration skips are the usual `TEST_DATABASE_URL`-gated ones — no test database was available in
+this session and no persistence code was touched. No API/DB migration, no dependency, and no
+production module changed: the only code-surface change is one line of `blind/allowlist.yaml`.
+
+**Orchestrator note (2026-08-23):** R1's text above was written before R2 had landed on `main` in
+this session's worktree and states the rehearsal as unobtainable pending R2. R2 merged to `main`
+first (`bbb2161`); R1's allowlist change merges cleanly on top with no conflict. Re-run for real on
+the actual merged main checkout (not assumed from either agent's separate report):
+
+```
+$ make blind-rehearsal BLIND_DATASET=ecommerce/comparable
+uv run python -m tools.blind_agent.rehearsal --image "policy-blind-agent@sha256:9ad6e1a78ca41a7c04895d1d99c7775e77fc2c8fbb4f23cee268ed04534c7c9b" --dataset "ecommerce/comparable"
+BLIND_REHEARSAL_VALID
+[exited with code 0]
+```
+
+Confirmed against the pinned image digest, container ran with real CPU load (`docker stats` showed
+173% during the run, not a hang) for its full duration. **The preregistration's §7 step-1 rehearsal
+condition (blocked in R1's text above pending R2) is now genuinely satisfied**, on the actual merged
+state, not on either agent's separate worktree. `ruff check .` and `pyright` both clean on the same
+merged tree. R4 and the remainder of R5 (CODE_REVIEWER readiness verdict) are still outstanding —
+this does not authorize issuance on its own.
