@@ -4397,10 +4397,12 @@ reason), after which the two preregistered runs may be issued **without any chan
 `docs/benchmark/task-068-ecommerce-preregistration.md`** — any change to its fixed parameters or
 criteria voids both runs and costs another untouched domain.
 
-**Resolution:** *(partial — R1, R2, R3, and R5 resolved below; R4 remains open with its originally
-named owner (ML_DISCOVERY implementation, ARCHITECT signing surface, CODE_REVIEWER approval). This
-handoff stays `OPEN` and stays `Blocking: YES`: `ADR-061`/§8 require **all five** items cleared
-before either preregistered run may be issued, and nothing here authorizes issuance.)*
+**Resolution:** *(partial — R1, R2, and R3 resolved below; R5 partial (custody structure recorded
+and evaluator slot approved by ARCHITECT, CODE_REVIEWER readiness verdict still pending); R4
+implemented and self-verified by ML_DISCOVERY but explicitly NOT approved, awaiting independent
+CODE_REVIEWER sign-off per this repo's independence rule. This handoff stays `OPEN` and stays
+`Blocking: YES`: `ADR-061`/§8 require **all five** items cleared before either preregistered run
+may be issued, and nothing here authorizes issuance.)*
 
 - **R2 — RESOLVED (2026-08-23, Data Engineer).** Built and committed `ecommerce`'s public
   temporal-split contract with `uv run python scripts/build_domain_temporal_splits.py --domain
@@ -4680,3 +4682,103 @@ condition (blocked in R1's text above pending R2) is now genuinely satisfied**, 
 state, not on either agent's separate worktree. `ruff check .` and `pyright` both clean on the same
 merged tree. R4 and the remainder of R5 (CODE_REVIEWER readiness verdict) are still outstanding —
 this does not authorize issuance on its own.
+
+---
+
+- **R4 (2026-08-23, ML_DISCOVERY): implemented and verified by its author — NOT approved, NOT
+  `DONE`. Awaiting independent Code Reviewer sign-off before `TASK-068` may treat R4 as cleared.**
+  Recorded this way deliberately: `agents/README.md`'s independence rule forbids an agent being the
+  sole judge of its own high-risk output, and this is exactly the change whose silent failure would
+  manufacture a false experimental result. `ADR-059` separately re-verified `ADR-057` rather than
+  letting ML_DISCOVERY self-certify; the same applies here. No ADR is claimed for this work.
+  **No blind run was issued and none may be** — issuance stays gated on all five items.
+
+  *What changed (additive only; `packages/analytics/src/policy_analytics/discovery/engine.py` is
+  not touched at all — the mechanism `ADR-059` approved is unchanged, only the plumbing around it):*
+  1. `tools/blind_agent/core.py` — `validated_identity_fraction` / `signed_identity_fraction`
+     (fail-closed parsers), `max_feature_identity_fraction` added to `_acceptance_contract`'s
+     signed output next to `discovery_method_version`, a new `prepare(...)` parameter validated
+     *before* a run ID is consumed, and the value re-derived from the signed manifest in
+     `verify(check_source=True)`'s drift check the same way `dataset_selector` already is.
+  2. `tools/blind_agent/core.py:_validated_freeze` — the signed fraction joins
+     `expected_metric_fields`, so output declaring a different value cannot be frozen.
+  3. `scripts/run_discovery.py` — reads the signed value and passes it into `DiscoveryConfig(...)`
+     beside `seed`, and echoes what it actually ran with into `discovery_metrics.json`. The parser
+     is deliberately duplicated rather than imported: the isolated workspace holds only
+     `blind/allowlist.yaml`'s files and cannot import `core` (the same reason
+     `OUTPUT_SCHEMA_VERSION` was already duplicated there). A test pins the two to identical
+     behavior over shared accept/reject tables.
+  4. `tools/blind_agent/models.py` — `MetricsDocument.max_feature_identity_fraction`, optional at
+     `1.0`, `schema_version` deliberately left `1.1.0` (see the Code Reviewer ask below).
+  5. `tools/blind_agent/cli.py` + `Makefile` — `--max-feature-identity-fraction` /
+     `BLIND_MAX_FEATURE_IDENTITY_FRACTION`, issuance-only, default `1.0`. The preregistration's
+     §3 baseline command is byte-for-byte unchanged; only a run passing the variable differs.
+  6. `docs/benchmark/blind-benchmark-protocol.md` — the new signed field documented.
+
+  *Falsification result, not just a green suite* (`tests/blind_agent/test_run_discovery_signed_config.py`,
+  9 tests; truth-free fixture, invented feature names, `DECISION_TIME`-only, no domain/pattern/trap
+  reference). The real `scripts/run_discovery.py` runs twice as a subprocess over identical inputs
+  differing only in the signed fraction. Measured: baseline (`1.0`) puts the dominant feature in
+  **all 15** committed slots (0 slots free of it); the cap-enabled run (`0.34`) puts it in
+  **exactly 5** — `floor(0.34 × 15)`, the preregistered quota — leaving 10 slots free, with
+  distinct signal identities rising 6 → 7 and both runs still returning a full `top_k = 15`
+  `PERSISTED` set. **The falsification was executed, not asserted:** reverting
+  `scripts/run_discovery.py`'s `DiscoveryConfig(...)` call to the pre-fix one-argument form and
+  re-running produced `1 failed, 8 passed` — the central test failing on assertion 1 with two
+  byte-identical candidate lists, which is precisely the false-null R4 exists to prevent. The fix
+  was then restored and the file re-verified (53 `tests/blind_agent` tests pass). Note that the
+  other 8 tests still passed under the revert, so the central test is the one carrying the load
+  here — worth knowing when reviewing it. Also proven: an omitted field reproduces explicit `1.0` byte-for-byte
+  (metrics documents identical); `1.5`, `-0.1`, `"0.34"`, `True`, `None`, `NaN` each refuse to run
+  and write no `candidates.json`; and (`tests/blind_agent/test_runner.py`, +4 tests) a run issued
+  at `0.34` whose output declares `1.0` — precisely what an executor ignoring the parameter would
+  emit — **cannot be frozen** and lands `FAILED`, while a matching one freezes normally.
+
+  *Requirement-5 check (nothing about `TASK-060`/`TASK-064` changed).* The diff was grepped for all
+  seventeen `DiscoveryConfig` knobs plus `_greedy_diverse_select`, `_select_expansion_beam` and
+  `DISCOVERY_METHOD_VERSION`: **zero hits on every one**. `tests/analytics/test_validation_apply.py`
+  still constructs `MetricsDocument` without the new field and passes, confirming the optional
+  default is backward-compatible with already-frozen `1.1.0` artifacts.
+
+  *Gates.* `ruff check .` clean; `ruff format --check` clean on every file this work touched (two
+  pre-existing unformatted files, `scripts/diagnose_g06_task065_b2b.py` and
+  `tests/analytics/test_discovery_engine.py`, were not touched and are out of scope); project
+  `pyright` **0 errors**; full suite **572 passed, 73 skipped, 2 failed** — both failures
+  (`test_evaluate_benchmark.py`, `test_validate_candidates.py`) are `FileNotFoundError` on
+  `artifacts/`, which is gitignored and simply absent from this worktree; neither test imports
+  anything this change touches, and both fail before any of this code runs.
+
+  **Specific Code Reviewer ask** (mirroring `ADR-059`'s checklist style; please re-run rather than
+  re-read):
+  1. **Confirm the falsification test actually falsifies.** Revert only
+     `scripts/run_discovery.py`'s `DiscoveryConfig(...)` call to the old one-argument form and
+     confirm `test_signed_cap_changes_the_executor_output_and_is_not_a_relabelled_baseline` fails
+     on assertion 1 (byte-identical candidates). If it still passes, the test is worthless and R4
+     is not resolved.
+  2. **Judge the `schema_version` decision, which is the one genuine judgment call here.** The new
+     `MetricsDocument` field is optional-with-default and `schema_version` stays `1.1.0`. Rationale:
+     a purely additive optional field keeps `TASK-060`/`TASK-064`'s already-frozen `1.1.0`
+     artifacts valid and re-readable, whereas a `1.2.0` bump would invalidate them across
+     `validate_candidates.py` / `ranking_signals.py` / `validation/apply.py` for no gain — any new
+     run's contract always carries the field, and the freeze-time equality check makes an omitting
+     executor fail closed rather than pass at the default. The cost is that two document shapes
+     now share one version string. Please confirm or reject; rejecting means a version bump plus a
+     compatibility story for the existing frozen artifacts.
+  3. **Check the deliberate duplication** of the fail-closed parser between
+     `core.signed_identity_fraction` and `scripts/run_discovery.py:_signed_identity_fraction`.
+     Confirm the isolation argument holds (the workspace genuinely cannot import `core`), that
+     `test_executor_and_evaluator_identity_fraction_parsers_agree` covers the cases that matter,
+     and that the alternative — allowlisting a shared module — is correctly rejected here given
+     `blind/allowlist.yaml` is R1's file and not this work's to touch.
+  4. **Check the `verify(check_source=True)` re-derivation is not circular.** The fraction is an
+     issuer choice, so the drift check reads it back out of the signed manifest, exactly as
+     `dataset_selector` already does. Confirm `_verify_manifest_signature` running first genuinely
+     makes this safe, and that no path lets an unsigned or edited fraction through.
+  5. **Confirm additive-only** independently: `engine.py` untouched, `_greedy_diverse_select` /
+     `_select_expansion_beam` byte-identical, `DISCOVERY_METHOD_VERSION` still
+     `discovery-engine-v0.6.0`, and `make blind-issue RUN=... BLIND_DATASET=...` with no new
+     variable still issues exactly the cap-disabled baseline the preregistration's §3 fixes.
+  6. **Confirm scope was respected:** `blind/allowlist.yaml`, `synthetic_data_domains/ecommerce/`,
+     and evaluator-slot/custody records are untouched (R1/R2/R3/R5's owners), and
+     `docs/benchmark/task-068-ecommerce-preregistration.md` is unedited — its §4b list of held-fixed
+     knobs and its `0.34` are satisfied by this implementation as written, not amended by it.
