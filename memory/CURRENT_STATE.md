@@ -816,11 +816,21 @@ domain) proves: disabled crowds one dominant feature into every slot; enabling t
 increases distinct signal-feature representation while returning a full `top_k`; determinism
 (full-pipeline and the filter function directly, across repeated `PYTHONHASHSEED`-varying
 processes); disabled reproduces `v0.5.0` exactly three independent ways; a column withheld from
-`feature_columns` never leaks in regardless of the cap. 15 new tests; full suite (463 passed),
-`ruff`, `pyright` clean on every touched file. No `b2b_sales`/domain identity referenced anywhere.
-Handed to Code Reviewer (`HANDOFF-070`) for the implementation-contract approval `ADR-056` itself
-requires — `TASK-068` cannot advance past `BLOCKED` without that review, and separately still needs
-a domain-selection preregistration before any official run.
+`feature_columns` never leaks in regardless of the cap. 8 new tests (corrected 2026-08-23 — see
+below; the "15" first recorded here was wrong); full suite (463 passed), `ruff`, `pyright` clean on
+every touched file. No `b2b_sales`/domain identity referenced anywhere. Handed to Code Reviewer
+(`HANDOFF-070`) for the implementation-contract approval `ADR-056` itself requires — `TASK-068`
+cannot advance past `BLOCKED` without that review, and separately still needs a domain-selection
+preregistration before any official run.
+
+**Code Reviewer approved the implementation contract, 2026-08-23 (`HANDOFF-070`, `ADR-059`),
+independently re-run, not read off the write-up:** `TASK-060`/`TASK-064`'s ten named knobs grep to
+zero hits in the diff; the disabled default reproduces `v0.5.0` both structurally and via a real
+regression run (463 passed); the truth-free crowding fixture was read and executed directly and
+genuinely demonstrates both the old failure and the new fix. Test-count corrected to 8 (not 15).
+`TASK-068` **still `BLOCKED`** — this satisfies only the implementation-contract precondition, not
+the separate domain-selection preregistration (`ecommerce`) `ADR-055` step 3 and `ADR-058` condition
+(1) still require.
 
 ## Next milestone
 
@@ -847,6 +857,14 @@ a domain-selection preregistration before any official run.
   real conversations logged to date under any state of this task. Already-produced groundwork
   (`docs/customer/pipeline.md`, `docs/customer/prospect-target-list.md`) is unaffected and not
   undone.
+  **Condition (2) review-portion recorded 2026-08-23 (Code Reviewer):** the ingestion path plus
+  `TASK-053`'s auth boundary reviewed against a real database, not just documentation — storage/
+  logs/local-copies/deletion confirmed accurate; two new HIGH-severity findings (unauthenticated
+  reads exposing literal dataset content and real customer feedback names/comments) recorded, not
+  fixed here. `TASK-037` entry in `TASKS.md`,
+  `docs/security/task-037-pre-customer-review-prep.md`. Whether this satisfies `ADR-058` condition
+  (2) as written, given the two open must-fix findings, is left for Founder Strategy/Architect to
+  judge — not asserted here as met.
 
 **14-day go/no-go — technical half now PROMISING, not FAILED:**
 - Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG

@@ -4207,6 +4207,12 @@ only; the separate domain-selection preregistration `ADR-055` step 3 requires is
 here, and is not a formal ADR entry itself (no free ADR number was safe to claim at review time
 without racing a concurrent session's own in-flight edit to `DECISIONS.md`).
 
+**Follow-up completed (2026-08-23, Code Reviewer):** the formal ADR entry and `TASKS.md`'s "15 new
+tests" correction flagged above as left for later are both done — `ADR-059`, `TASKS.md`'s `TASK-068`
+entry. That pass independently re-verified this resolution's claims a second time (fresh diff/grep
+of the named knobs, a fresh regression run, direct execution of the truth-free fixture) rather than
+just formalizing this entry's text; findings were identical. `TASK-068` remains `BLOCKED`.
+
 ## HANDOFF-071
 
 **Created:** 2026-08-23

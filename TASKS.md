@@ -2308,6 +2308,28 @@ blocker"), not reopened or implied-done by this closure.
 - **Status:** BLOCKED
 - **Depends on:** TASK-057
 - **Goal:** Review storage, logs, access, backups, local copies, secrets, and deletion before any real data enters the system.
+- **Pre-customer-safe prep reviewed, 2026-08-23 (Code Reviewer, `ADR-058` condition (2)):** not this
+  task's own execution — still correctly `BLOCKED` on `TASK-057`, not marked `DONE` here — but the
+  portion achievable without a real customer dataset in hand (`ADR-058`'s resolution of this task's
+  circularity with `TASK-057`) is now reviewed: ingestion path (upload → storage → profiling →
+  timing classification → quality report) plus `TASK-053`'s auth boundary, against
+  `agents/CODE_REVIEWER.md`/`SECURITY.md`, verified live against a real ephemeral Postgres, not just
+  read off `docs/security/task-037-pre-customer-review-prep.md`'s own claims. Storage, logs
+  (`TASK-006`'s log-inspection guarantee reverified with a real test run), the deliberately-narrow
+  `TASK-053` auth surface, local-copy handling, and `TASK-055`'s deletion contract all confirmed
+  accurate as documented. **Two new HIGH-severity findings, not previously catalogued:** (1)
+  `GET /api/v1/datasets`/`GET /api/v1/datasets/{id}` are unauthenticated and return literal raw
+  cell values (`dataset_column_profiles.examples`/`suspicious_values`) gated only by a
+  cardinality-based heuristic its own module docstring calls "not a real PII detector" — must close
+  before `TASK-038`. (2) `GET /api/v1/findings/{id}/feedback` is unauthenticated and returns real
+  customer names/verbatim comments (`customer_owner`/`customer_comment`) even though the
+  corresponding write requires auth specifically for attribution — must close before `TASK-042`.
+  Full write-up, reproduction steps, and recommended-fix options (an `ARCHITECT` decision, not
+  applied here):
+  `docs/security/task-037-pre-customer-review-prep.md`#"Code Reviewer pre-customer-safe review".
+  Pre-existing disclosed gaps (no persistent disk, no backup/PITR policy, no secret-manager
+  decision) reconfirmed unchanged, not re-solved. `TASK-057`/`ADR-058` govern when this task's
+  formal execution and `DONE` status happen — this entry only records the prep-review work done.
 
 ### TASK-038 — Customer dataset ingestion
 - **Owner:** DATA_ENGINEER
@@ -2839,8 +2861,9 @@ Do not overbuild before demand.
   `PYTHONHASHSEED`-varying processes; (d) disabled reproduces `v0.5.0` exactly, checked three
   independent ways (implicit default, explicit `1.0`, and a direct unmodified
   `_greedy_diverse_select` call bypassing all `TASK-068` code); (e) a column withheld from
-  `feature_columns` never appears in any candidate, cap enabled or not. 15 new tests; full suite
-  (463 passed), `ruff`, `pyright` all pass on every file this work touched (a separate,
+  `feature_columns` never appears in any candidate, cap enabled or not. 8 new tests (corrected
+  2026-08-23 by Code Reviewer's independent verification below — the "15" figure here was wrong);
+  full suite (463 passed), `ruff`, `pyright` all pass on every file this work touched (a separate,
   pre-existing, unrelated file already had lint/type findings before this work began — not
   touched, not in scope). No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity referenced anywhere in
   code, comments, or tests. No domain selected, no hidden ground truth opened, no official blind
@@ -2862,6 +2885,37 @@ Do not overbuild before demand.
   remain, untouched, out of scope), all 40 `test_discovery_engine.py` tests, and the full
   non-`blind_agent` suite (521 passed, 62 skipped for `TEST_DATABASE_URL`, 1 deselected) all pass.
   No other hard constraint violated; still handed to Code Reviewer, still `BLOCKED`.
+- **Code Reviewer independent re-verification and approval (2026-08-23, `HANDOFF-070`, `ADR-059`):**
+  Implementation contract **approved** against `agents/CODE_REVIEWER.md`, `ADR-054`'s hard rules,
+  and `ADR-056`'s implementation boundary — every claim above re-run, not trusted on the write-up
+  alone. (1) Diffed `9a4eee1` directly and grepped every named `TASK-060`/`TASK-064` knob
+  (`beam_width`, `diversity_discount_weight`, `min_diversity_relevance_ratio`,
+  `stability_credit_weight`, `relevance_floor_percentile`, `max_candidate_jaccard`,
+  `max_candidates_per_atom`, `population_score_exponent`, `beam_rules_per_structure`,
+  `max_expansion_beam_size`): zero hits; `_greedy_diverse_select` and `_select_expansion_beam`
+  bodies are byte-identical, only the call site's `top_k` argument changed. (2) The `1.0` default
+  reproduces `v0.5.0` exactly, both structurally (the cap can never bind when
+  `max_per_feature == top_k`) and via a real regression run: `uv run pytest
+  tests/analytics/test_discovery_engine.py` (40 passed), full analytics suite (463 passed), `ruff`
+  and project-scoped `pyright` both clean (only the same pre-existing, unrelated
+  `scripts/diagnose_g06_task065_b2b.py` findings remain). (3) Read and ran the truth-free crowding
+  fixture directly — it uses only invented feature names (`feature_alpha`/`filler_*`/
+  `feature_distinct{1,2,3}`) and `DECISION_TIME`-only inputs; confirmed it genuinely falsifies the
+  disabled default (`feature_alpha` crowds all 6 slots, at most one alternative admitted) and that
+  enabling the cap genuinely diversifies (≥2 additional distinct signal features, dominant feature
+  capped exactly to `floor(0.34*6)=2`) — not read off green status alone. (4) Confirmed, post-
+  `dd81ea9`, zero `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx`/`deal_size_usd`/`company_size_band` references
+  anywhere in `engine.py`, `test_discovery_engine.py`, or the methodology doc's new section. One
+  residual, non-blocking observation: `9a4eee1`'s own commit message (immutable git history, not
+  code/comments/tests, and not rewritten by `dd81ea9`) still narrates the motivating
+  `b2b_sales/comparable` postmortem by name — a citation of already-open diagnostic context, not a
+  tuning reference, so it does not violate `ADR-057`'s "code, comments, or tests" scope, but is
+  recorded here since it was in scope of this review's own checklist. Test-count correction above
+  applied in this same pass (actual: 8 new, not 15 — `pytest --collect-only` and a `def test_` diff
+  both confirm 32→40). **`TASK-068` stays `BLOCKED`** — this resolves only the implementation-
+  contract approval `ADR-056` requires; the separate domain-selection preregistration `ADR-055`
+  step 3 requires (naming `ecommerce`, per `memory/CURRENT_STATE.md`) is not authorized by this
+  entry. See `ADR-059` for the formal decision record.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 

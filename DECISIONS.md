@@ -2564,9 +2564,11 @@ processes, since the function's only "set" usage is an existential membership ch
 per-element counter increment, both order-independent by construction — not merely empirically
 observed to be stable); (d) the disabled path reproduces `v0.5.0` exactly, checked three
 independent ways; (e) a column withheld from `feature_columns` (standing in for a
-`POST_DECISION`/`OUTCOME`/`UNKNOWN` field) never appears in any candidate, cap enabled or not. 15
-new tests; full analytics suite (463 passed), `ruff`, `pyright` all pass on every file this work
-touched. No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity, or any other domain/feature name, appears
+`POST_DECISION`/`OUTCOME`/`UNKNOWN` field) never appears in any candidate, cap enabled or not. 8
+new tests (corrected 2026-08-23 by Code Reviewer's independent verification, `HANDOFF-070`/
+`ADR-059` — the "15" figure first recorded here was wrong, confirmed by `pytest --collect-only`
+count and a direct `def test_` diff, 32 → 40); full analytics suite (463 passed), `ruff`, `pyright`
+all pass on every file this work touched. No `b2b_sales`/`Bxx`/`BTxx`/`Pxx`/`Txx` identity, or any other domain/feature name, appears
 anywhere in the mechanism's code, comments, or tests.
 
 **Consequences:** `TASK-068` stays `BLOCKED` — this decision authorizes implementation only, not
@@ -2659,6 +2661,45 @@ before. `memory/CURRENT_STATE.md`'s "Next milestone" commercial-milestone entry 
 same change to record this pause and its reopening condition. `docs/strategy/30-day-validation-
 plan.md` and `docs/customer/*` are not rewritten (append-only respected); this ADR is the binding
 sequencing rule until superseded by a dated record confirming both reopening conditions are met.
+
+## ADR-059 — Code Reviewer formally approves `TASK-068`'s implementation contract (`HANDOFF-070`); `TASK-068` still `BLOCKED`
+
+**Date:** 2026-08-23
+**Status:** Accepted — implementation-contract approval only
+
+**Decision:** `9a4eee1`/`dd81ea9` (feature-identity diversity cap, `ADR-057`) is **approved** as
+satisfying `ADR-056`'s implementation boundary. This formalizes `HANDOFF-070`'s resolution, which
+recorded approval in `memory/HANDOFFS.md` but deliberately left this ADR entry and `TASKS.md`'s own
+test-count figure for a follow-up rather than race a concurrent session's in-flight edit to this
+file. Both are completed by this entry.
+
+**Independent re-verification, not a re-read of the write-up:** every claim in `HANDOFF-070` was
+re-run directly against the reviewed commits. `TASK-060`/`TASK-064`'s ten named knobs — diffed and
+grepped individually — have zero hits in `9a4eee1`; `_greedy_diverse_select` and
+`_select_expansion_beam` are byte-identical, only a call-site `top_k` argument changed. The `1.0`
+default reproduces `discovery-engine-v0.5.0` both structurally (the per-feature cap equals `top_k`,
+unreachable within a `top_k`-sized set) and via a real regression run (`test_discovery_engine.py`,
+40 passed; full analytics suite, 463 passed; `ruff`/project-scoped `pyright` clean). The required
+truth-free synthetic fixture was read and executed directly: it uses only invented feature names
+and `DECISION_TIME`-only inputs, and genuinely demonstrates both the old crowding failure mode and
+the new mechanism's fix, not merely a green checkmark. Post-`dd81ea9`, zero `b2b_sales`/`Bxx`/
+`BTxx`/`Pxx`/`Txx` identity remains in the mechanism's code, comments, or the methodology doc.
+
+**Two findings, both already resolved or non-blocking:** (1) `9a4eee1` as first committed named
+`b2b_sales/comparable` in three code/test/doc comment sites — fixed in `dd81ea9` before this
+approval. (2) The "15 new tests" figure recorded in `9a4eee1`'s commit message, `TASKS.md`, and this
+file's own `ADR-057` entry was wrong; the diff adds exactly 8 (`pytest --collect-only`, 32 → 40) —
+corrected in `TASKS.md` and `ADR-057` by this same entry. Neither finding touched the mechanism's
+logic or test coverage. A third, non-blocking observation, outside `ADR-057`'s own "code, comments,
+or tests" scope but checked because this review's brief named commit messages explicitly:
+`9a4eee1`'s commit message (immutable history) still narrates the `b2b_sales/comparable` postmortem
+by name as motivating context — a citation, not a tuning reference — and is not rewritten here.
+
+**Consequences:** `TASK-068` **stays `BLOCKED`.** This approval satisfies only the implementation-
+contract precondition `ADR-056` requires; it does not select a domain, authorize an official run, or
+by itself move `ADR-058`'s reopening condition (1) — `TASK-068` reaching a recorded success/kill
+determination against `ecommerce` — any closer than "implementation is now reviewable-against."
+`HANDOFF-070` is fully resolved by this entry; no new handoff is opened.
 
 ## ADR-060 — Dataset deletion (`TASK-055`): immediate tombstone + conditional physical purge, implemented against synthetic/test data under `ADR-058`'s pre-customer-safe scoping
 
