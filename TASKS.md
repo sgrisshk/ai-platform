@@ -2330,6 +2330,20 @@ blocker"), not reopened or implied-done by this closure.
   Pre-existing disclosed gaps (no persistent disk, no backup/PITR policy, no secret-manager
   decision) reconfirmed unchanged, not re-solved. `TASK-057`/`ADR-058` govern when this task's
   formal execution and `DONE` status happen — this entry only records the prep-review work done.
+- **Findings 1 and 2 fixed, 2026-08-23 (same day, on explicit instruction to apply the recommended
+  fix):** `GET /api/v1/datasets(/{id})` and `GET /api/v1/findings/{id}/feedback` now require
+  authentication (`Depends(get_current_user)`), extending `TASK-053`'s protected surface the same
+  way `TASK-055` extended it to deletion — option (a) from each finding's own recommended-fix list.
+  `GET /api/v1/findings`/`GET /api/v1/findings/{id}` are unchanged (believed non-PII, not
+  re-litigated). Every affected test updated to authenticate first (new shared `login_as_staff`
+  fixture, `tests/conftest.py`) plus three new tests asserting the 401 directly; full suite re-run
+  against a real ephemeral Postgres, 629 passed (was 626), `ruff`/project-scoped `pyright` clean.
+  Frontend: `DatasetsView.tsx` now shows a login prompt on a 401 instead of a generic error
+  (matching `ReviewSessionView.tsx`'s existing pattern); `tsc`/`eslint`/`vitest` (63 passed) all
+  clean. `SECURITY.md` updated to name the new protected surface. Full detail:
+  `docs/security/task-037-pre-customer-review-prep.md`'s "Findings 1 and 2: fixed" addendum. Neither
+  fix touches `TASK-037`'s own `BLOCKED` status/`Depends on` — that stays governed by `TASK-057`/
+  `ADR-058`, unaffected by closing these two findings early.
 
 ### TASK-038 — Customer dataset ingestion
 - **Owner:** DATA_ENGINEER

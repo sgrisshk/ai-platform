@@ -860,11 +860,13 @@ the separate domain-selection preregistration (`ecommerce`) `ADR-055` step 3 and
   **Condition (2) review-portion recorded 2026-08-23 (Code Reviewer):** the ingestion path plus
   `TASK-053`'s auth boundary reviewed against a real database, not just documentation — storage/
   logs/local-copies/deletion confirmed accurate; two new HIGH-severity findings (unauthenticated
-  reads exposing literal dataset content and real customer feedback names/comments) recorded, not
-  fixed here. `TASK-037` entry in `TASKS.md`,
+  reads exposing literal dataset content and real customer feedback names/comments) recorded, then
+  **fixed same day** on explicit instruction: `GET /api/v1/datasets(/{id})` and
+  `GET /api/v1/findings/{id}/feedback` now require authentication, verified against a real database
+  (629 passed) and the frontend (`tsc`/`eslint`/`vitest` clean). `TASK-037` entry in `TASKS.md`,
   `docs/security/task-037-pre-customer-review-prep.md`. Whether this satisfies `ADR-058` condition
-  (2) as written, given the two open must-fix findings, is left for Founder Strategy/Architect to
-  judge — not asserted here as met.
+  (2) as written is still left for Founder Strategy/Architect to judge — not asserted here as met —
+  but the two findings that were the only concretely-identified open must-fix items are now closed.
 
 **14-day go/no-go — technical half now PROMISING, not FAILED:**
 - Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG
