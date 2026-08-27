@@ -2871,3 +2871,79 @@ unaffected by this entry. `docs/benchmark/decision-gate.md` is not edited and tr
 *committed* to this experiment but not yet *spent*: no `ecommerce` ground truth has been opened, so
 the domain remains blind and the preregistration remains executable once `HANDOFF-073`'s blockers
 clear.
+
+## ADR-062 — `TASK-057` pause not lifted: `ADR-058` condition 2 is not satisfied as currently recorded, independent of `TASK-068`'s result
+
+**Date:** 2026-08-28
+**Status:** Accepted
+
+**Decision:** `TASK-057` stays paused. `ADR-058`'s two reopening conditions are checked against the
+actual current record, not assumed: **condition (1) is met** (`TASK-068` reached a recorded
+determination against `ecommerce` on 2026-08-27); **condition (2) is not met as currently
+recorded.** Since `ADR-058` requires both, conjunctively, before any reopening record is written,
+no reopening record is written here. This is itself the explicit "not now" record `ADR-058` and
+this review both require — not silence.
+
+**Condition (1) — verified met, with one disclosed caveat that does not defeat it:** `TASK-068`'s
+closing determination (`TASKS.md`, 2026-08-27) is **SUCCESS** against its own preregistered §5
+criteria: the structural kill gate passed (distinct anchor-feature identities 7→9), and the
+disjunctive success clause was met by unique scoreable-pattern candidate-match recall rising
+strictly (1/4→2/4) with Top-10 precision, direction accuracy, and trap rejection all not degraded.
+`ADR-058` condition (1) reads "reaches a recorded success **or** kill determination... either
+outcome satisfies this condition" — a determination exists and is recorded, so this condition is
+met on its own explicit terms, which do not require the underlying decision-gate verdict to be
+anything in particular. One caveat, disclosed in `TASK-068`'s own entry and not minimized here: a
+single session performed issuing, signing, custody-verification, and evaluation, so this run does
+not satisfy the four-distinct-actor-identity independence rule `ADR-051`/`ADR-052`/the
+preregistration's own §7 would otherwise require. That weakens how much *weight* this specific
+determination should carry as evidence, but it does not change the fact that `ADR-058` condition
+(1)'s literal bar — a recorded determination exists — is satisfied.
+
+**Condition (2) — verified NOT met, on the record, not on anyone's say-so:** `HANDOFF-072`
+(Code Reviewer, 2026-08-27) is `RESOLVED` but explicitly **DISPUTED**: its own verdict states
+`ADR-058` condition 2 is "**Not satisfied as currently recorded**," citing two findings (R1 HIGH,
+R2 MEDIUM) in `TASK-055`'s implementation. `HANDOFF-074` (Architect, same day) fixed both R1 and
+R2, verified with fresh regression tests and a clean full-suite run — but `HANDOFF-074`'s own
+resolution states, twice, in its own words: *"Explicitly not done here: re-deciding `ADR-058`
+condition 2 or `HANDOFF-072`'s dispute of it — that remains the named separate step."* No
+subsequent handoff (checked: `HANDOFF-074` is the highest-numbered entry in `memory/HANDOFFS.md` as
+of this ADR) performs that named separate confirmation step. A fix being made is not the same
+record as the fix being independently re-verified and condition 2 being re-affirmed — the second
+step is what `ADR-058` actually requires, and it has not happened.
+
+**Also observed, not corrected here, per this review's explicit instruction not to edit
+`HANDOFF-071`/`HANDOFF-072`:** `HANDOFF-071`'s header still reads `**Status:** OPEN` despite
+carrying a full, substantive Resolution — a bookkeeping inconsistency from when that Resolution was
+recorded, left exactly as found. It does not change this ADR's determination: `HANDOFF-071`'s
+Resolution (the deletion-timing question) is substantively answered and non-blocking either way,
+per its own text; the header mismatch is noted here so it is not mistaken for having been checked
+and silently ignored.
+
+**On the `TASK-068` nuance this review was asked to weigh — does mechanism-level SUCCESS on a
+domain still graded FAILED change readiness confidence:** Yes and no, and both halves matter.
+**No, for the specific decision this ADR governs:** `TASK-057`'s outreach targets travel agencies
+(`ADR-016`); travel's own decision-gate verdict is `PROMISING` (`ADR-025`) and is untouched by
+anything in `TASK-065` or `TASK-068` — neither non-travel result bears on the evidence that
+actually governs a travel conversation. **Yes, for the company's broader technical confidence:**
+`ecommerce` is the second non-travel domain in a row (after `b2b_sales`) where the mechanism
+produces structurally relevant candidates but zero validated, economic-weighted-recall-eligible
+findings — `0.0%→0.0%`, unchanged by the fix under test. Two-for-two FAILED-under-decision-gate on
+portability, even with a real, independently-reasoned methodological improvement (`TASK-068`)
+between them, is a real signal that the discovery mechanism's path to a *validated* (not just
+candidate) finding is more domain-sensitive than the travel benchmark alone would suggest. This
+does not change what `TASK-057` should do next, but it belongs in this company's honest running
+account of what is and is not proven (`docs/strategy/founder-narrative.md` §"What's proven so far"
+already scopes every number to travel and discloses generality as open — this ADR does not change
+that document, only confirms its caution remains warranted, not overtaken by good news).
+
+**Consequences:** `TASK-057` remains `BLOCKED` under `ADR-058`; no reopening record is created.
+`TASK-068`'s own determination stands as `ADR-058` condition (1)'s satisfaction and is not
+re-litigated by this entry. The concrete next step, named explicitly rather than left implicit: a
+new, dated Code Reviewer (or Architect, per `ADR-058`'s joint scope authority) record independently
+re-confirming that `ADR-058` condition 2 is satisfied now that R1/R2 are fixed — a continuation of
+`HANDOFF-072` or a fresh handoff, either is acceptable, but it must exist before this question is
+asked again. Once that record exists, both `ADR-058` conditions are met and Founder Strategy writes
+the actual reopening ADR at that time — not automatically, per `ADR-058`'s own express departure
+from `ADR-025`'s "no further ADR required" pattern. `docs/benchmark/decision-gate.md` and travel's
+`PROMISING` verdict are unaffected. `HANDOFF-071` and `HANDOFF-072` are read here, not edited, per
+this review's explicit instruction.

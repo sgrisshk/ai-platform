@@ -1502,6 +1502,13 @@ blocker"), not reopened or implied-done by this closure.
   automatically the way `ADR-025` reopened `ADR-022`'s earlier pause. Already-produced groundwork
   (`docs/customer/pipeline.md`, `docs/customer/prospect-target-list.md`,
   `docs/customer/data-acquisition-plan.md`) is unaffected and not undone.
+- **Re-checked 2026-08-28, still `BLOCKED` (`ADR-062`):** condition (1) is met — `TASK-068` closed
+  `SUCCESS` against its own criteria on `ecommerce` (2026-08-27), though both baseline and test runs
+  still grade `FAILED` under `docs/benchmark/decision-gate.md` (0.0% economic-weighted recall,
+  unchanged). Condition (2) is **not** met as currently recorded — `HANDOFF-072` disputed it
+  explicitly; `HANDOFF-074` fixed the two findings driving that dispute but explicitly did not
+  re-confirm condition 2, and no later handoff has. Next step is that specific re-confirmation, not
+  a Founder decision — see `ADR-062`.
 - **Depends on:** none
 - **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
 - **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.

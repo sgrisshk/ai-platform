@@ -922,6 +922,14 @@ byte-identical, so `HANDOFF-073` R4's false-null did not occur.
   confirming both conditions, and no such record has been written. `TASK-057`'s status is unchanged. Already-produced groundwork
   (`docs/customer/pipeline.md`, `docs/customer/prospect-target-list.md`) is unaffected and not
   undone.
+  **Condition (2) checked 2026-08-28 and found NOT met (`ADR-062`):** `HANDOFF-072` (Code Reviewer)
+  is `RESOLVED` but **DISPUTED** — its own text states `ADR-058` condition 2 is "not satisfied as
+  currently recorded," citing two findings (R1 HIGH, R2 MEDIUM) in `TASK-055`. `HANDOFF-074`
+  (Architect, same day) fixed both, but its own resolution explicitly declines to re-decide
+  condition 2, and no subsequent handoff performs that re-confirmation. Since `ADR-058` requires
+  both conditions met *and recorded* conjunctively, `TASK-057` stays `BLOCKED`; no reopening ADR is
+  written. Next step: an independent Code Reviewer/Architect re-confirmation that condition 2 is
+  satisfied post-fix — not a Founder decision, and not yet requested as its own handoff.
   **Condition (2) review-portion recorded 2026-08-23 (Code Reviewer):** the ingestion path plus
   `TASK-053`'s auth boundary reviewed against a real database, not just documentation — storage/
   logs/local-copies/deletion confirmed accurate; two new HIGH-severity findings (unauthenticated

@@ -4260,7 +4260,56 @@ requirement driving it.
 `ADR-058` condition 2 regardless of this answer; this only affects whether the design needs revision
 before real customer data flows through it.
 
-**Resolution:** Pending.
+**Resolution (2026-08-23, Founder Strategy): CONFIRMED as the standing default. No known
+requirement violates it; do not revisit on a hypothetical one.**
+
+Checked against the two concrete candidates the design itself names, not a speculative list:
+
+1. **GDPR Article 17, read with Article 12(3)'s "without undue delay and in any event within one
+   month" clock (the operative deadline "without undue delay" resolves to in practice).** This
+   design does not violate that bound — it exceeds it. Synchronous, immediate purge on request is
+   strictly faster than any "no later than N" deadline; there is no reading of Article 17 under
+   which deleting *sooner* than required is non-compliant. A mandatory grace/undo window is a
+   product-recoverability feature, not a regulatory floor — nothing in Article 17 requires
+   *delaying* erasure, so its absence is not a gap this article creates. If anything, the article
+   argues for keeping the current immediacy, not adding delay.
+2. **The audit row surviving the deleted dataset.** `dataset_deletions` retains
+   `dataset_id`/`requested_by_user_id`/`requested_at`/`reason`/disposition — administrative
+   metadata about the deletion event, not the erased content itself (the contract's own artifact
+   table confirms literal content is what gets purged/redacted; the audit row was never in that
+   set). Retaining a record that an erasure happened, who requested it, and why, after the erased
+   data itself is gone, is standard practice and affirmatively supported by GDPR's own Article 5(2)
+   accountability principle and the Article 17(3)(b)/(e) exceptions (legal-obligation and
+   legal-claims retention) — this is not in tension with Article 17, it is how compliance with
+   Article 17 gets demonstrated later. No violation.
+
+No other concrete, currently-known requirement exists to check against, because no real customer
+contract, DPA, or jurisdiction has been fixed yet (`TASK-057` is paused, `ADR-058`) — and per this
+handoff's own instruction, an uncontracted, unjurisdictioned hypothetical (some contract somewhere
+might require a grace window; some regime somewhere might require something stricter) is not a
+finding, it's a guess, and is explicitly not being invented here.
+
+**One adjacent, already-disclosed limitation worth restating precisely (not a timing defect, and
+not blocking this confirmation):** this design deletes at the *dataset* level, not the individual
+*data-subject* level. GDPR Article 17 rights belong to an individual data subject over their own
+personal data, not to a whole uploaded file. If a real contract or a real data subject's request
+ever requires erasing one customer's booking rows out of an otherwise-retained dataset, this
+implementation cannot currently do that — it can only delete the whole dataset. This is a real,
+verifiable, already-disclosed scope boundary (`docs/architecture/dataset-deletion-contract.md`
+implements dataset-granularity deletion by design, per `TASK-055`'s own goal text), not a defect in
+what was asked of `TASK-055`, and not the question this handoff raised — recorded here so it is not
+mistaken for having been checked and cleared by the confirmation above.
+
+**Reopening trigger, concrete and named, not categorical:** revisit this design when — not if some
+category of contract might exist, but when — either of these two facts becomes real: (a) a signed
+customer agreement or DPA contains an actual clause specifying deletion timing, retention-after-
+deletion, or per-data-subject erasure different from what's implemented here; or (b) the first real
+customer's jurisdiction/applicable regime is confirmed and its authority has published a specific,
+binding deadline or retention rule this design's numbers (immediate purge; indefinite audit-row
+retention) fail to meet. Neither has occurred. `ADR-058`'s own reopening condition (`TASK-068`
+result + this task's pre-customer-safe scope) is unaffected — this resolution does not modify or
+gate that condition; the pre-customer-safe portion of `TASK-055` was already complete before this
+question was asked, and remains so.
 
 ## HANDOFF-072
 
