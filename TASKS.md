@@ -2791,9 +2791,28 @@ Do not overbuild before demand.
   `TASK-060`/`TASK-064`'s ownership split
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P2
-- **Status:** BLOCKED — `TASK-067` now concurs that a general selection-stage fix is justified,
-  but this task still requires a revised implementation contract and Code Reviewer approval.
-  Neither implementation nor an official run is authorized by `ADR-056`.
+- **Status:** READY — **all five `HANDOFF-073` readiness items (R1–R5) are now cleared, and the two
+  preregistered runs may be issued.** Was `BLOCKED` from `ADR-056` through 2026-08-26; unblocked
+  2026-08-27 by the independent CODE_REVIEWER review recorded at the end of `HANDOFF-073`, which
+  approved R4's implementation contract (`APPROVE_TASK_068_R4_IMPLEMENTATION_CONTRACT`, `0caab2f`
+  re-executed rather than re-read) and issued the pre-issuance readiness verdict
+  (`APPROVE_TASK_068_READINESS`, `HANDOFF-067`'s `TASK-065` block being the precedent). Sequence of
+  clearances: implementation contract approved `ADR-059`; domain and both run configurations
+  preregistered `ADR-061`; R1 (`ecommerce/comparable` allowlist selector) ARCHITECT `def1bae`;
+  R2/R3 (temporal-split contract + `validation_roles`) DATA_ENGINEER `bbb2161`; R4 (signed
+  `max_feature_identity_fraction` path into the blind executor) ML_DISCOVERY `0caab2f`; R5 (custody
+  chain + `EVALUATOR_SLOT_APPROVED: TASK-068-INDEPENDENT-EVALUATOR`) ARCHITECT `def1bae` plus this
+  review. **Still not done, and nothing here has been run:** no blind run has been issued, no
+  official run ID consumed, and no `ecommerce` hidden ground truth opened. The next step is
+  preregistration §7's fixed sequence — baseline issue→freeze→sign→custody-verify, then test,
+  then both `TASK-019`s, then both `TASK-028`s — owned by the STATISTICS/ML_DISCOVERY issuing
+  coordinator, explicitly **not** by CODE_REVIEWER. Two carried conditions: the executor SHA-256s
+  recorded in `HANDOFF-073` must still match at issuance time, and
+  `docs/benchmark/task-068-ecommerce-preregistration.md` must stay unedited except its §10 post-run
+  record — any change to its fixed parameters voids both runs and costs another untouched domain.
+  One non-blocking MEDIUM finding (the freeze-time cap guard is narrower than its comments claim;
+  `engine.py:770`'s `result["search"]` is the stronger, already-available source) is returned to
+  ML_DISCOVERY as follow-up and does not gate issuance.
 - **Depends on:** `TASK-067`
 - **Goal:** `docs/benchmark/task-065-b2b-portability-postmortem.md` §4.3/§6 (`ADR-055`) found that
   every one of `task-065-b2b-comparable-20260822-001`'s 15 committed candidates anchors on
@@ -2987,6 +3006,21 @@ Do not overbuild before demand.
   `transformation_version` and widened `_config_summary()`. That drift is **pre-existing**, affects
   all six domains, does not block `TASK-068`, and is recorded in `HANDOFF-073` for
   ARCHITECT/CODE_REVIEWER. No blind run was issued. Full detail: `HANDOFF-073` Resolution.
+- **R1, R4 and R5 CLEARED (2026-08-27) — `TASK-068` is no longer blocked; no run has been issued.**
+  (R1) `ecommerce/comparable` registered in `blind/allowlist.yaml` pinned to
+  `ecommerce-analytical-v1.0.0` (ARCHITECT, `def1bae`); bare `ecommerce` and unregistered keys still
+  fail closed. (R4) The signed `max_feature_identity_fraction` path from the acceptance contract
+  into `DiscoveryConfig` implemented (ML_DISCOVERY, `0caab2f`) and **independently approved** by
+  CODE_REVIEWER, who re-executed the falsification rather than reading the report: reverting only
+  `run_discovery.py`'s `DiscoveryConfig(...)` call reproduces `1 failed, 8 passed` with two
+  byte-identical candidate lists, and `engine.py` is byte-identical to `dd81ea9`, the commit
+  `ADR-059` approved. (R5) `ADR-051` custody chain instantiated and
+  `EVALUATOR_SLOT_APPROVED: TASK-068-INDEPENDENT-EVALUATOR` registered (ARCHITECT, `def1bae`),
+  closed by CODE_REVIEWER's `APPROVE_TASK_068_READINESS` — `make blind-rehearsal
+  BLIND_DATASET=ecommerce/comparable` re-run on merged `main` printing `BLIND_REHEARSAL_VALID`
+  against the pinned image digest, all six `DATASET_FILES` partitions hashed, R2's 4,981/2,431/2,588
+  split and R3's `validation_roles` reproduced by loading them, and both preregistered run ID stems
+  confirmed absent. Full detail and all recorded hashes: `HANDOFF-073`'s CODE_REVIEWER section.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 
