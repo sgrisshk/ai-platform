@@ -4268,7 +4268,7 @@ before real customer data flows through it.
 **From:** ARCHITECT
 **To:** CODE_REVIEWER
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-08-27, Code Reviewer) — DISPUTED, see Resolution
 
 **Task:** Review `TASK-055`'s implementation (`ADR-060`) and confirm — or dispute — that it,
 together with `docs/security/task-037-pre-customer-review-prep.md`'s gap list, satisfies `ADR-058`
@@ -4306,7 +4306,62 @@ agent's own claim.
 **Blocking:** YES — `ADR-058` condition 2 is not satisfied on Architect's say-so alone; a reopening
 record for `TASK-057` cannot cite this as met without Code Reviewer's confirmation here.
 
-**Resolution:** Pending.
+**Resolution:** **DISPUTED — `ADR-058` condition 2 is NOT satisfied as currently recorded.**
+
+This handoff was answered in two passes. An earlier pass (already recorded in
+`docs/security/task-037-pre-customer-review-prep.md`'s "Code Reviewer pre-customer-safe review"
+section) independently re-verified storage/logs/access/backups/local-copies/deletion, found two
+real HIGH access-control gaps (unauthenticated reads of literal dataset content and finding
+feedback), and confirmed them fixed after the fact — verdict at that point: `SHIP`. This resolution
+is a *second*, independent, non-rubber-stamp pass over the same surface (explicitly requested, not
+assuming the first pass caught everything), and it found more:
+
+**Independently re-verified and confirmed accurate, not taken on faith:** re-read
+`apps/api/app/datasets/service.py`/`routes.py`, `apps/api/app/ingestion/storage.py`,
+`apps/api/app/findings/routes.py`, the schema profiler, and the discovery engine's atom logic
+myself. Spun up a fresh real ephemeral Postgres, ran `alembic upgrade head` on empty, `alembic
+check`, a full `downgrade base`/`upgrade head` round-trip, and the full repo suite — 647 passed —
+plus `pnpm --filter web typecheck`/`lint`/`test` (63 passed) and project `ruff check .`/`uv run
+pyright` (both clean). Live-reproduced the Finding 1/2 fix actually holding (unauthenticated `GET
+/api/v1/datasets` and `/api/v1/datasets/{id}` return `401`, not data). Every "what already exists"
+claim in the prep document checked out against the real code, not the document's own prose.
+
+**Two new findings this pass found that the first review missed — full detail and reproduction
+steps in `docs/security/task-037-pre-customer-review-prep.md`'s newest section:**
+
+- **Finding R1 (HIGH, `apps/api/app/datasets/service.py:63-68`):** Deleting a dataset permanently
+  blocks re-uploading identical content under the same name afterward — the upload path's
+  adjacency-dedup check does not exclude tombstoned rows, so a deleted dataset's checksum still
+  triggers a `409 "identical content already exists as version N"` forever. Fully deterministic,
+  100% reproduced live (not a theoretical concern), zero test coverage anywhere in the suite,
+  undisclosed in `docs/architecture/dataset-deletion-contract.md` and missed by the first review
+  pass. This directly undermines `TASK-055`'s own purpose for the single most likely real
+  post-deletion action a customer takes.
+- **Finding R2 (MEDIUM, `apps/api/app/datasets/service.py:181-199`):** The dedup-sibling check
+  before a physical byte purge has no row lock (`READ COMMITTED`, no `FOR UPDATE`, no advisory
+  lock — confirmed by grep, no isolation-level override anywhere in the app). Concurrent deletion of
+  two datasets sharing content-addressed bytes can leave the underlying file permanently orphaned
+  (never purged, no sweep exists to reclaim it). Narrow race, safe-direction failure (no exposure or
+  corruption, each dataset's own deletion is still correct) — a disclosure gap, not a live danger.
+
+**Verdict on `TASK-055`'s implementation:** `SHIP_WITH_FIXES` (revised from the first pass's `SHIP`
+now that R1/R2 are found) — the core deletion mechanism (tombstone, audit trail, purge-when-safe,
+literal-content redaction) is real, correct, and independently re-verified; R1 is a genuine
+correctness defect that must be fixed (or explicitly accepted with an updated, dated decision) before
+this can be called done; R2 should be recorded as an accepted limitation or fixed, but does not by
+itself block.
+
+**Verdict on the `ADR-058` condition-2 question this handoff actually asks:** **Not satisfied as
+currently recorded.** The pre-customer-safe portion of `TASK-037`/`TASK-055` is substantially real —
+most of it holds up under independent, adversarial re-verification, and the first review's two HIGH
+findings were genuinely fixed, not merely claimed fixed. But "completed and recorded" is not yet
+accurate while `TASK-055`'s own delete-then-reupload path has an undisclosed, deterministic,
+100%-reproducible defect (R1) with zero test coverage, and the gap list that was supposed to be
+`TASK-037`'s exhaustive pre-customer starting point omitted both R1 and R2. Per this review's
+independence rule, the fix is not applied here — routed to Architect, `HANDOFF-074`. Condition 2
+should be re-checked once R1 is resolved (fixed-and-tested, or explicitly accepted with the
+contract doc and gap list updated to say so) and R2 is at minimum recorded. This dispute does not
+touch `TASK-057`'s own status or condition 1 — outside this handoff's and this role's scope.
 
 ## HANDOFF-073
 
@@ -5064,3 +5119,51 @@ cap variable and the test adds `BLIND_MAX_FEATURE_IDENTITY_FRACTION=0.34`, nothi
 `docs/benchmark/task-068-ecommerce-preregistration.md` stays unedited except its §10 post-run
 record; and no ground truth opens until both `TASK-019` reports are frozen. **This review issued no
 run, reserved no run ID, created no workspace or actor, and opened no hidden ground truth.**
+
+## HANDOFF-074
+
+**Created:** 2026-08-27
+**From:** CODE_REVIEWER
+**To:** ARCHITECT
+
+**Status:** OPEN
+
+**Task:** Fix Finding R1 (HIGH) from the `HANDOFF-072` independent re-verification, and decide on
+Finding R2 (MEDIUM) — either fix it or explicitly accept it as a disclosed limitation.
+
+**Context:** `HANDOFF-072`'s resolution disputes `ADR-058` condition 2 for `TASK-055` specifically
+because of these two findings, found by an independent, non-rubber-stamp second review pass
+(neither the original `TASK-055` implementation nor the first Code Reviewer pass caught them). Full
+evidence, reproduction, and reasoning: `docs/security/task-037-pre-customer-review-prep.md`'s
+"Independent re-verification, per `memory/HANDOFFS.md` HANDOFF-072" section.
+
+- **R1 (HIGH):** `create_dataset_from_upload`'s adjacency-dedup query
+  (`apps/api/app/datasets/service.py:63-68`) does not filter `DatasetModel.deleted_at.is_(None)`,
+  so a deleted dataset's checksum permanently blocks re-uploading identical content under the same
+  name — a `409` that never clears. Deterministic, 100% reproduced live, zero test coverage.
+- **R2 (MEDIUM):** `delete_dataset`'s dedup-sibling check
+  (`apps/api/app/datasets/service.py:181-199`) has no row lock; concurrent deletion of two datasets
+  sharing content-addressed bytes can leave the file permanently orphaned (safe-direction failure,
+  no exposure/corruption, narrow race).
+
+**Question:** Fix R1 (the narrow, low-risk shape: exclude tombstoned rows from the adjacency check)
+and add a regression test for the delete-then-reupload-identical-content path. For R2, either add
+a locking mechanism (`SELECT ... FOR UPDATE` or a Postgres advisory lock keyed by checksum) or
+record an explicit, dated decision accepting it as a limitation — update
+`docs/architecture/dataset-deletion-contract.md`'s "Known limitations" and
+`docs/security/task-037-pre-customer-review-prep.md`'s gap list either way, so the record reflects
+whichever choice is made rather than staying silent.
+
+**Files:** `apps/api/app/datasets/service.py`, `tests/api/test_dataset_deletion.py`,
+`tests/api/test_datasets_upload.py`, `docs/architecture/dataset-deletion-contract.md`,
+`docs/security/task-037-pre-customer-review-prep.md`, `ADR-060` (`DECISIONS.md`), `TASKS.md`
+`TASK-055`.
+
+**Expected output:** R1 fixed and tested; R2 fixed or explicitly accepted and recorded; then a new,
+dated confirmation (a continuation of `HANDOFF-072` or a fresh Code Reviewer pass) that `ADR-058`
+condition 2 is satisfied — this handoff does not itself re-open or re-decide that question.
+
+**Blocking:** YES — per `HANDOFF-072`'s resolution, `ADR-058` condition 2 remains unsatisfied for
+`TASK-055` until this is resolved.
+
+**Resolution:** Pending.
