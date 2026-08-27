@@ -855,6 +855,43 @@ a config bug as a null result); and no `ADR-051` custody actors or `ADR-052` eva
 for this task. `ADR-058` reopening condition (1) is therefore **not** met — no success or kill
 determination exists because no run has happened.
 
+**`TASK-068` RAN AND IS DONE (2026-08-27): determination is SUCCESS against its preregistered §5
+criteria; `ecommerce` is now spent.** Both preregistered runs executed under `ADR-061`'s custody
+order — `task-068-ecommerce-baseline-20260827-001` (cap `1.0`) and
+`task-068-ecommerce-cap-20260827-001` (cap `0.34`) — with all five `HANDOFF-073` executor SHA-256s
+re-verified as unchanged at issuance and the preregistration edited only in its §10 post-run record.
+Both candidate sets were signed and custody-verified, and both `TASK-019` reports frozen
+(`hidden_ground_truth_opened=false`), **before** any ground truth opened. The two evaluator-signed
+acceptance contracts differ in exactly one field — the cap — and the candidate sets are not
+byte-identical, so `HANDOFF-073` R4's false-null did not occur.
+
+- **Structural kill gate (truth-free, decided first): PASSED** — distinct anchor-feature identities
+  in the committed Top-K **7 → 9**, with no identity exceeding the preregistered `floor(0.34 × 15)
+  = 5` slots, against a baseline where `discount_pct` alone held **11 of 15**.
+- **`TASK-028`, baseline → test:** Top-10 precision **50% → 50%**; **unique scoreable-pattern
+  candidate-match recall 1/4 → 2/4 (strictly higher)**; economic-weighted recall **0.0% → 0.0%**;
+  direction accuracy **not estimable in both** (so per §5a not a degradation); trap rejection
+  **5/5 → 5/5**, none promoted; 0 leakage violations. No kill condition fires → **SUCCESS**.
+- **Read this narrowly.** It is a success of the *mechanism test* — the cap broke the single-identity
+  crowding `ADR-055` diagnosed and surfaced two scoreable patterns where the baseline surfaced one,
+  at no cost to precision, direction or trap rejection. It is **not** a decision-gate pass: under
+  §6's retained bands **both** arms grade **FAILED** on economic-weighted recall < 5%, unchanged
+  between them and the same absolute outcome `TASK-065` recorded. Nothing reached
+  `predictive_association` (G13/G14 cap every candidate), so candidate-level matches did not convert
+  into economic-weighted recall. `decision-gate.md` is unedited; travel's `PROMISING` verdict stands.
+- **Disclosed limitation:** one session held the issuing, signing, custody-verification and
+  evaluation roles, so preregistration §7's four-distinct-identity requirement is **not** satisfied.
+  The structural protections independent of actor identity all held and every binding is
+  recomputable from the frozen bytes, but the independence of the judgment is absent — the same
+  disclosure `ADR-051`/`ADR-052` already make.
+- **`ADR-058` reopening condition (1) is now MET** (success and kill count identically for it).
+  Condition (2) is untouched by this work. **`TASK-057` has deliberately not been changed and no
+  reopening ADR has been written** — `ADR-058` reserves that to a new dated FOUNDER_STRATEGY record
+  confirming both conditions.
+- Frozen artifacts and all hashes: preregistration §10 and `TASKS.md`'s `TASK-068` closing
+  determination. Four untouched `TASK-061` domains remain: `healthcare`, `insurance`,
+  `manufacturing`, `saas`.
+
 ## Next milestone
 
 **14-day window (2026-08-14 → 2026-08-28), two tracked milestones, set by Founder Strategy 2026-08-14:**
@@ -877,7 +914,12 @@ determination exists because no run has happened.
   `ecommerce`, and (2) the pre-customer-safe portion of `TASK-037`/`TASK-055`. Unlike `ADR-025`,
   meeting those conditions does not reopen `TASK-057` automatically — a new dated Founder Strategy
   record is required. `TASK-057` is `BLOCKED` (reason: `ADR-058`, not a technical dependency). Zero
-  real conversations logged to date under any state of this task. Already-produced groundwork
+  real conversations logged to date under any state of this task.
+  **Condition (1) is now MET (2026-08-27):** `TASK-068` reached a recorded determination against
+  `ecommerce` — SUCCESS against its preregistered §5 criteria (see the `TASK-068` block above).
+  `ADR-058` treats success and kill identically here, so the condition is satisfied either way.
+  This does **not** reopen `TASK-057`: reopening still requires a new dated FOUNDER_STRATEGY record
+  confirming both conditions, and no such record has been written. `TASK-057`'s status is unchanged. Already-produced groundwork
   (`docs/customer/pipeline.md`, `docs/customer/prospect-target-list.md`) is unaffected and not
   undone.
   **Condition (2) review-portion recorded 2026-08-23 (Code Reviewer):** the ingestion path plus

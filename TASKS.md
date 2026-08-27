@@ -2791,8 +2791,12 @@ Do not overbuild before demand.
   `TASK-060`/`TASK-064`'s ownership split
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P2
-- **Status:** READY — **all five `HANDOFF-073` readiness items (R1–R5) are now cleared, and the two
-  preregistered runs may be issued.** Was `BLOCKED` from `ADR-056` through 2026-08-26; unblocked
+- **Status:** DONE (2026-08-27) — **both preregistered runs executed under the `ADR-061` custody
+  order; determination is SUCCESS against §5's criteria.** See "Closing determination" at the end of
+  this entry for the numbers, the frozen artifact paths/hashes, and what the success does and does
+  not claim. The domain is now spent. Prior status history: `READY` on 2026-08-27 — all five
+  `HANDOFF-073` readiness items (R1–R5) cleared, both preregistered runs issuable; `BLOCKED` from
+  `ADR-056` through 2026-08-26; unblocked
   2026-08-27 by the independent CODE_REVIEWER review recorded at the end of `HANDOFF-073`, which
   approved R4's implementation contract (`APPROVE_TASK_068_R4_IMPLEMENTATION_CONTRACT`, `0caab2f`
   re-executed rather than re-read) and issued the pre-issuance readiness verdict
@@ -2802,15 +2806,12 @@ Do not overbuild before demand.
   R2/R3 (temporal-split contract + `validation_roles`) DATA_ENGINEER `bbb2161`; R4 (signed
   `max_feature_identity_fraction` path into the blind executor) ML_DISCOVERY `0caab2f`; R5 (custody
   chain + `EVALUATOR_SLOT_APPROVED: TASK-068-INDEPENDENT-EVALUATOR`) ARCHITECT `def1bae` plus this
-  review. **Still not done, and nothing here has been run:** no blind run has been issued, no
-  official run ID consumed, and no `ecommerce` hidden ground truth opened. The next step is
-  preregistration §7's fixed sequence — baseline issue→freeze→sign→custody-verify, then test,
-  then both `TASK-019`s, then both `TASK-028`s — owned by the STATISTICS/ML_DISCOVERY issuing
-  coordinator, explicitly **not** by CODE_REVIEWER. Two carried conditions: the executor SHA-256s
-  recorded in `HANDOFF-073` must still match at issuance time, and
-  `docs/benchmark/task-068-ecommerce-preregistration.md` must stay unedited except its §10 post-run
-  record — any change to its fixed parameters voids both runs and costs another untouched domain.
-  One non-blocking MEDIUM finding (the freeze-time cap guard is narrower than its comments claim;
+  review. As of that readiness verdict nothing had been run; preregistration §7's fixed sequence
+  then executed on 2026-08-27 as recorded below. Both carried conditions were re-checked at
+  issuance time and held: all five executor SHA-256s recorded in `HANDOFF-073` still matched
+  byte-for-byte, and `docs/benchmark/task-068-ecommerce-preregistration.md` was unedited
+  (`git diff d2f1d2f` empty on that file) before issuance — its §10 post-run record is the only
+  section this task changed. One non-blocking MEDIUM finding (the freeze-time cap guard is narrower than its comments claim;
   `engine.py:770`'s `result["search"]` is the stronger, already-available source) is returned to
   ML_DISCOVERY as follow-up and does not gate issuance.
 - **Depends on:** `TASK-067`
@@ -3021,6 +3022,78 @@ Do not overbuild before demand.
   against the pinned image digest, all six `DATASET_FILES` partitions hashed, R2's 4,981/2,431/2,588
   split and R3's `validation_roles` reproduced by loading them, and both preregistered run ID stems
   confirmed absent. Full detail and all recorded hashes: `HANDOFF-073`'s CODE_REVIEWER section.
+- **Closing determination (2026-08-27, STATISTICS as preregistration-bound evaluator with
+  ML_DISCOVERY as issuing coordinator) — SUCCESS against §5, on a domain that still grades FAILED
+  in absolute terms.** Both preregistered runs executed under `ADR-061`'s custody order, in the
+  fixed sequence, with no parameter, threshold or criterion adjusted at any point. Full record,
+  including every hash and the custody-check list: preregistration §10.
+  - **Pre-issuance conditions re-checked, both held.** All five executor SHA-256s `HANDOFF-073`
+    pinned still matched byte-for-byte (`run_discovery.py` `5548ebd2…`, `core.py` `e5d3fb60…`,
+    `models.py` `8d315cb9…`, `cli.py` `d156e8f3…`, `engine.py` `192b8970…`), as did
+    `blind/allowlist.yaml` `f35da4a8…`; the preregistration was unedited before issuance and only
+    its §10 was appended afterwards. `make blind-rehearsal BLIND_DATASET=ecommerce/comparable`
+    re-printed `BLIND_REHEARSAL_VALID`; both run ID stems were confirmed absent first.
+  - **Runs.** `task-068-ecommerce-baseline-20260827-001`
+    (`max_feature_identity_fraction = 1.0`, candidates `ae45e637053978acd248ecf28913c5fc30c31871a251664d62de657cda6edaf8`)
+    and `task-068-ecommerce-cap-20260827-001` (`0.34`, candidates
+    `57b9100a45102898d0d28a724674d615432fd29bb589962fdd5e13128dac6a0d`). Deterministic actor,
+    network `none`, `seed=1729`, `discovery-engine-v0.6.0`, 17,523 evaluated hypotheses and 15
+    `PERSISTED` candidates each. Field-by-field diff of the two evaluator-signed acceptance
+    contracts shows **exactly one** difference — the cap — confirming §4b against the machinery.
+    The `HANDOFF-073` R4 false-null did not occur: the candidate sets are not byte-identical and
+    each `discovery_metrics.json` declares its own signed fraction.
+  - **Custody.** Both candidate sets were signed (receipts
+    `ce83b815…` / `5a9426de…`) and custody-verified — 43 recomputed checks each, all PASS —
+    **before any ground truth was opened**, and both `TASK-019`s ran before any `TASK-028`.
+  - **`TASK-019` (no truth opened, `0444`, `FROZEN`, `hidden_ground_truth_opened=false`):**
+    `artifacts/validation/task-019-task-068-ecommerce-baseline-20260827-001.json`
+    (`8fdaa7edd3e9b9863a1a089470c2242a5c3343d11dddb2d144ee301f78222752`) and
+    `…-cap-20260827-001.json`
+    (`f85393b302186ea78d06fa2b25a29f48096062767526254aa9765b571a993479`). 15 `DOWNGRADE` /
+    `descriptive_observation` in both, capped by G13/G14. Unlike `TASK-065`, G06 passes 14/15
+    (baseline) and 13/15 (test) — the `TASK-067` G06 defect is **not** what limits this domain.
+    G09 is `NOT_EVALUATED` 15/15 in both, the ceiling `HANDOFF-073` R3 disclosed in advance;
+    identical across arms, so it cannot bias the comparison.
+  - **Structural kill gate, decided truth-free before any `TASK-028`: PASSED.** Distinct anchor-
+    feature identities in the committed Top-K rose **7 → 9**, strictly higher. The quota held
+    exactly: no identity exceeds `floor(0.34 × 15) = 5` slots in the test run, against a baseline
+    where `discount_pct` alone claimed **11 of 15**. `product_category` and `days_since_last_visit`
+    appear that the baseline never surfaced; none is lost.
+  - **`TASK-028`** (`artifacts/evaluation/task-028-task-068-ecommerce-baseline-20260827-001.json`
+    `79e511ec29fdbb03a804ebcc51117eda03fb55b93f68ebc097b7a6bebc52cc02`;
+    `…-cap-20260827-001.json` `47b240d384f75c581dda02054f2ff4e796b13429f818eed20dab4fbfff3b424e`;
+    ground truth `07731b6de0168c8fc9f43ad8f09c3be78168bf916514a9e22ab27e950de004f6`), baseline →
+    test: Top-10 precision **50% → 50%** (not degraded); **unique scoreable-pattern candidate-match
+    recall 1/4 → 2/4 (strictly higher)**; economic-weighted recall **0.0% → 0.0%**; direction
+    accuracy **not estimable in both** (zero eligible denominator, so per §5a not a degradation);
+    trap rejection **5/5 → 5/5**, no trap promoted in either; leakage violations 0 in both.
+  - **Determination: SUCCESS.** The structural gate passed and the disjunctive success clause is
+    met by unique scoreable-pattern candidate-match recall rising strictly, with Top-10 precision,
+    direction accuracy and trap rejection all not degraded. No kill condition fires. The recall
+    computation used is the same one that reproduces `TASK-065`'s published `1/6` on `b2b_sales`
+    from its frozen artifact, checked before being applied here.
+  - **What it does not claim.** Graded under §6's retained `docs/benchmark/decision-gate.md` bands,
+    **both** arms are **FAILED**, driven by economic-weighted recall < 5% under the weakest-band
+    rule with no hard disqualifier — the same absolute outcome as `TASK-065`, unchanged between
+    baseline and test. The cap recovered candidate-level matches, but nothing reached
+    `predictive_association`, so no match converted into economic-weighted recall. `TASK-068`'s
+    preregistered criteria and the decision gate answer different questions; both answers are
+    recorded as they came out. `decision-gate.md` is not edited and travel's `PROMISING` verdict
+    (`ADR-025`) is unaffected.
+  - **Disclosed limitation.** A single session performed the issuing, signing, custody-verification
+    and evaluation steps, so this run does **not** satisfy preregistration §7's four-distinct-
+    identity rule. The structural protections that do not depend on actor independence all held
+    (isolated network-less digest-pinned container; candidates signed and frozen before truth
+    opened; every binding recomputable from frozen bytes), but the independence of the *judgment*
+    is absent. Same disclosure `ADR-051`/`ADR-052` and this task's evaluator-slot record make.
+  - **`ADR-058` reopening condition (1) is now met** — a recorded determination against `ecommerce`
+    exists, and `ADR-058` treats success and kill identically for this purpose. Condition (2) is
+    untouched by this work. **`TASK-057`'s status is deliberately not changed here and no Founder
+    Strategy ADR reopening it is written**: `ADR-058` reserves that to a new dated FOUNDER_STRATEGY
+    record confirming both conditions, which is not this role's call.
+  - **Domain spent.** `ecommerce`/`comparable`'s hidden ground truth is now open; it can never again
+    serve as independent portability evidence (`ADR-054`). Four untouched `TASK-061` domains remain:
+    `healthcare`, `insurance`, `manufacturing`, `saas`.
 
 ### TASK-066 — Generalize `apply.py`'s remaining travel-hardcoded gate inputs (`DECISION_TIME_FEATURES`, `HETEROGENEITY_COLUMN`, G11 seasonality)
 
