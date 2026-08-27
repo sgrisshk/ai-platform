@@ -2578,6 +2578,27 @@ Do not overbuild before demand.
   a real customer relationship — whether this design's grace-period-free, no-invented-retention-
   window semantics actually satisfy a real contractual/legal deletion deadline — remain open and are
   flagged to Founder Strategy (`memory/HANDOFFS.md`), not guessed at.
+- **Correction (2026-08-27, Architect, `HANDOFF-074`):** an independent re-verification pass
+  (`HANDOFF-072`) found two defects the evidence above missed. Both now fixed: **R1 (HIGH)** —
+  `create_dataset_from_upload`'s adjacency-dedup check counted a *tombstoned* latest version as a
+  conflict, permanently blocking re-upload of identical content under the same name after a
+  delete; now requires the matched row to be active. **R2 (MEDIUM)** — `delete_dataset`'s
+  dedup-sibling check ran unlocked, so two concurrent deletes of dedup-sharing datasets could each
+  independently retain and permanently orphan the file; now row-locks the checksum group
+  (ordinary Postgres locking, no new infrastructure) before deciding. Both have regression tests
+  each confirmed to fail/not-trigger against the pre-fix code first, then pass against the fix —
+  `test_delete_then_reupload_identical_content_succeeds` and
+  `test_concurrent_delete_of_dedup_siblings_serializes_instead_of_orphaning_bytes`
+  (`tests/api/test_dataset_deletion.py`). Re-verified end to end against a fresh ephemeral
+  Postgres (`postgres:16.4-alpine`): `alembic check`, a full `downgrade base`/`upgrade head`
+  round-trip, full repo suite (649 passed, `TEST_DATABASE_URL` set so every integration test ran
+  rather than skipped), `ruff check`, `pyright` all clean. Full
+  mechanism: `docs/architecture/dataset-deletion-contract.md`'s "Re-upload and concurrent-deletion
+  interactions" section;
+  `docs/security/task-037-pre-customer-review-prep.md`'s "Architect resolution of R1/R2" section.
+  Still `BLOCKED` — unchanged by this entry. Does **not** re-open or re-decide `HANDOFF-072`'s
+  dispute of `ADR-058` condition 2; that determination is deliberately left to a separate step (a
+  new Code Reviewer pass or a continuation of `HANDOFF-072`), not taken here.
 
 ### TASK-056 — Audit trail
 - **Owner:** ARCHITECT

@@ -5126,7 +5126,9 @@ run, reserved no run ID, created no workspace or actor, and opened no hidden gro
 **From:** CODE_REVIEWER
 **To:** ARCHITECT
 
-**Status:** OPEN
+**Status:** RESOLVED (2026-08-27) — this handoff's own fix/decide task is done; see Resolution
+below. Does **not** itself resolve `HANDOFF-072`'s `ADR-058` condition-2 dispute — that
+confirmation is a separate, not-yet-taken step per this handoff's own "Expected output".
 
 **Task:** Fix Finding R1 (HIGH) from the `HANDOFF-072` independent re-verification, and decide on
 Finding R2 (MEDIUM) — either fix it or explicitly accept it as a disclosed limitation.
@@ -5163,7 +5165,35 @@ whichever choice is made rather than staying silent.
 dated confirmation (a continuation of `HANDOFF-072` or a fresh Code Reviewer pass) that `ADR-058`
 condition 2 is satisfied — this handoff does not itself re-open or re-decide that question.
 
-**Blocking:** YES — per `HANDOFF-072`'s resolution, `ADR-058` condition 2 remains unsatisfied for
-`TASK-055` until this is resolved.
+**Blocking:** NO (was YES) for this handoff's own scope. `ADR-058` condition 2's own status is
+unchanged by this entry — it is not re-evaluated here, per this handoff's own instruction not to
+re-open or pre-judge it; a separate confirmation step (new Code Reviewer pass or `HANDOFF-072`
+continuation) still owns that question.
 
-**Resolution:** Pending.
+**Resolution (2026-08-27, Architect):** Both findings resolved, not just one:
+
+- **R1 — fixed.** `create_dataset_from_upload`'s adjacency-dedup check
+  (`apps/api/app/datasets/service.py`) now requires the matched "latest" row to be active
+  (`deleted_at IS NULL`) before it counts as a conflict. Version numbering is untouched — it still
+  derives from the true latest row regardless of `deleted_at`, exactly as it already correctly did
+  for *differing*-content re-uploads after a delete. Regression test
+  `test_delete_then_reupload_identical_content_succeeds`
+  (`tests/api/test_dataset_deletion.py`) confirmed to fail against the pre-fix code first
+  (live-reproduced the permanent `409`), then confirmed to pass against the fix.
+- **R2 — fixed** (chosen over recording it as an accepted limitation): cheap, ordinary Postgres
+  row locking, no new infrastructure. `delete_dataset` now row-locks every dataset sharing the
+  content hash (itself included, `ORDER BY id` for a consistent lock-acquisition order across
+  overlapping concurrent deletes) before deciding whether to purge. Regression test
+  `test_concurrent_delete_of_dedup_siblings_serializes_instead_of_orphaning_bytes` confirmed to
+  *not* block against the pre-fix code first (proving it exercises this specific mechanism, not
+  some unrelated collision), then confirmed to block-then-correctly-resolve against the fix.
+- **Verification:** fresh ephemeral Postgres (`postgres:16.4-alpine`, not reused from any prior
+  session), `alembic upgrade head` on an empty database, full repo suite, `ruff check`, `pyright`
+  — all clean. Full record: `TASKS.md` `TASK-055`.
+- **Docs updated to reflect the actual decision, not silence:**
+  `docs/architecture/dataset-deletion-contract.md`'s new "Re-upload and concurrent-deletion
+  interactions" section and `docs/security/task-037-pre-customer-review-prep.md`'s new "Architect
+  resolution of R1/R2" section (both dated, append-only — the original review/gap-list text is left
+  as written, superseded rather than rewritten).
+- **Explicitly not done here:** re-deciding `ADR-058` condition 2 or `HANDOFF-072`'s dispute of it
+  — that remains the named separate step.
