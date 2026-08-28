@@ -3195,15 +3195,13 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** ML_DISCOVERY
 - **Support:** STATISTICS
 - **Priority:** P0
-- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark)**, the
-  reprioritization's **item 1 (validation power autopsy)**, and the reformulation's **item 1
-  (benchmark-semantics reporting convention — achievable denominator recorded as `3/7` under
-  contract `v1.3.0`, raw `2/7` reported alongside) and item 2 (`G12` form investigation — verdict:
-  form-mismatched, fixed and independently reviewed under `TASK-070`)** are complete. Items 3–4
-  (`P03` excluded from selector-tuning until `T03`/`G06` risk closes; search-side local-correctness
-  fixes) remain the only open reformulation items; no mechanism, search objective, expansion policy,
-  or eligibility-gate change has been proposed or scoped by any of the above — this task still has no
-  authorized design work.
+- **Status:** **CLOSED (2026-08-28, founder determination)** — see closure entry at the end of this
+  task. Not superseded by a new task; `TASK-071` (P02 local-correctness fix) and `TASK-072`
+  (production-readiness question) are follow-ons this closure opens, not continuations of this
+  task's own scope. This task's own goal (calibrate the benchmark, isolate validation-contract
+  failures from discovery failures, determine whether `G12` was statistically aligned) is judged
+  achieved by the four established facts recorded below — not by a recall number reaching any
+  particular value.
 - **Depends on:** none
 - **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
   further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
@@ -3659,6 +3657,135 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   mechanism's actual scoring/expansion/eligibility/validation logic. This rule now explicitly
   covers `G12`: the question is whether the gate's *form* fits threshold-rule hypotheses in
   general, never whether `P01`/`P03` specifically should pass it.
+
+- **Closure (2026-08-28, founder determination, after `TASK-070` landed and was independently
+  reviewed `APPROVED`).** The diagnostic uncertainty that originally justified scoping a
+  fundamentally different discovery mechanism (`ADR-063`) has been resolved by decomposition, not
+  by a recall number improving — the chain closes in a materially stronger position than the
+  starting "recall 2/7," with four separately established facts, each load-bearing on its own:
+  1. **Raw ground-truth recall: `2/7` (29%).** The committed `task-064-beam-20260822-001` run's
+     actual outcome. This number is not revised or replaced by any of the following — it stays the
+     honest, unreduced figure and must be reported alongside any denominator-adjusted one.
+  2. **Evidence-achievable recall under contract `v1.3.0`: `2/3` (66.7%)**, where the achievable set
+     is `{P01, P03, P06}` — measured directly against the corrected gate (`TASK-070`'s
+     re-measurement), not inferred from the form-mismatch diagnosis alone.
+  3. **Validation correctness, independently confirmed.** The pre-`v1.3.0` `G12` genuinely
+     contained a contract/implementation defect (fixed absolute perturbation quantiles vs. the
+     contract's own documented one-bin-relative semantics, plus a `decomposition_of`
+     magnitude-parity refit that was structurally unwinnable for most patterns). The fix passed
+     independent `CODE_REVIEWER` re-derivation from scratch, and — critically — did **not** convert
+     `P04`/`P08`/`P09` into evidence. `P09` fails the corrected `G12` by *more* (93.7% vs. prior
+     93.2%); `P04`/`P08` now additionally fail `G12`'s untouched leave-one-cluster-out check. A
+     validation fix that fixes a real defect and simultaneously *reconfirms* other patterns as
+     genuinely unreachable is strong evidence the fix corrected form, not standards.
+  4. **Actionable optimization ceiling is narrower than `3/3`.** `P03` is evidence-achievable but
+     deliberately excluded from selector-targeting until the `T03`/`G06` confounding-safety risk is
+     closed (item 3 above) — reachable and chaseable are different claims. The near-term optimization
+     target is honestly **at most `2/2`** of the currently-safe-to-chase achievable set, both of
+     which the committed run already recovers.
+  - **Decision: do not open discovery-mechanism design work.** The diagnostic uncertainty that
+    `ADR-063` opened this task to resolve has been resolved — not by discovering the mechanism was
+    fine all along, but by decomposing "weak recall" into representability, eligibility, search/
+    selection, and validation layers, proving one of them (`G12`) was a real, now-fixed defect, and
+    finding the remaining three ceilings (`P04`, `P08`, `P09`) hold under a corrected gate. A new
+    beam/scoring/search mechanism's potential upside no longer justifies its architectural cost:
+    the honest ceiling it could move is one already-excluded pattern (`P02`, validation-capped
+    regardless — see `TASK-071`) plus, at best, restoring `P03` to selector-eligibility, which is a
+    confounding-safety question (`T03`/`G06`), not a search-mechanism question. This is a closure
+    of the *research direction* `ADR-063` opened, not a reversal of any fact `ADR-063` recorded —
+    `TASK-057` (customer outreach) stays paused per `ADR-063`'s own terms; its reopening condition is
+    unrelated to this closure and is not evaluated here (see `TASK-072`, opened by this closure, for
+    the actual next question this raises).
+  - **`P02` downgraded from research-thread item to a local correctness defect, scoped narrowly as
+    `TASK-071`** — the exposure-identical-parent redundancy-pruning bug, fixed on its own merits,
+    not sold as a recall initiative. `TASK-069`'s own validation-power autopsy already established
+    `P02`'s ceiling is `G05` (multiple-comparisons), independent of this bug — so a passing fix is
+    expected to leave the final evidence-recall number unchanged; that non-movement is not evidence
+    the fix failed. See `TASK-071` below.
+  - **Next product question, opened by this closure as `TASK-072`:** not "how to raise the synthetic
+    benchmark to `7/7`," but whether the current evidence-achievable profile (`2/2` of the
+    currently-chaseable set, 90% Top-10 precision, structural trap/confounder rejection) is
+    sufficient to justify moving from synthetic-benchmark optimization to a first real customer
+    dataset — a readiness question, not an outreach decision, and explicitly distinct from
+    `TASK-057`'s paused status. See `TASK-072` below.
+  - **`ADR-065` records this closure and the decision not to pursue discovery-mechanism design.**
+
+### TASK-071 — Fix P02's exposure-identical-parent redundancy-pruning bug (local correctness fix, not a recall initiative)
+
+- **Owner:** ML_DISCOVERY
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P2
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-069` (closed; this task consumes its diagnosis, does not reopen its scope)
+- **Origin:** `TASK-069` item 7 (oracle decomposition) found `P02`'s tightest representable rule is
+  discarded during search as exposure-identical to its own depth-2 parent, which then loses
+  selection on its own; `TASK-069`'s validation-power autopsy separately established `P02`'s
+  evidence ceiling is `G05` (multiple-comparisons dilution), independent of this search-side bug.
+- **Goal:** Fix the redundancy heuristic in `discovery.engine` that treats a child rule as
+  exposure-identical to its parent when it should not be — a local correctness defect, not a
+  discovery-mechanism redesign. Framing discipline, binding on this task: this is not a recall
+  initiative, and success is not measured by whether `P02` (or any other pattern) reaches a higher
+  evidence grade afterward.
+- **Expected result, stated up front so it cannot be silently redefined as failure after the fact:**
+  because `P02`'s ceiling is `G05`, independent of this bug, a correct fix is expected to leave
+  `TASK-069`'s recall numbers (`2/7` raw, `2/2` currently-chaseable-achievable) **unchanged**. Report
+  the actual outcome; a null recall effect confirming the pre-existing diagnosis is a *pass*, not an
+  inconclusive result.
+- **Verification, in order of priority (correctness first, recall effect last and least
+  important):**
+  1. The redundancy heuristic's own invariants: exposure-identical means *identical*, not
+     "similar" or "highly overlapping" — define and test the exact equivalence condition being
+     checked, and confirm the fix doesn't newly under-prune (letting genuinely redundant candidates
+     through, which would be a regression in a different direction).
+  2. Candidate-stage behavior on the committed `task-064-beam-20260822-001` search and at least one
+     other domain's committed search: does `P02`'s branch now survive to the candidate pool where it
+     previously didn't? Report generated/survives-expansion/selected stage-of-death per `TASK-069`
+     item 7's own methodology, not just a pass/fail.
+  3. Only then, final evidence-recall effect — expected null, per the note above.
+- **Hard rule (same force as `TASK-069`'s):** no change may be designed or tuned by reference to
+  travel's specific 7 pattern identities or feature values; fix the general heuristic, verify its
+  effect on travel (and at least one other domain) as a downstream check, not as the design target.
+- **Done when:** the heuristic's exact equivalence condition is fixed and documented, both
+  invariant checks above pass, candidate-stage behavior is reported for at least two domains, the
+  expected-null evidence-recall result is confirmed or a genuine surprise is disclosed, and
+  `CODE_REVIEWER` independently approves.
+
+### TASK-072 — Is the current evidence-achievable profile sufficient to move from synthetic optimization to a first real customer dataset?
+
+- **Owner:** FOUNDER_STRATEGY
+- **Support:** ARCHITECT, STATISTICS
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-069` (closed — this task's premise is `TASK-069`'s closure)
+- **Explicitly not `TASK-057`:** this is a pipeline-readiness question, not an outreach decision.
+  `TASK-057` stays paused per `ADR-063`'s own terms regardless of this task's outcome; a "yes" here
+  does not itself lift that pause, and this task must not be conflated with or silently used to
+  reopen it. If this task's answer bears on `TASK-057`'s reopening condition, that must be stated
+  explicitly and separately, not assumed.
+- **Goal:** Determine whether the pipeline's current, honestly-measured profile — evidence-achievable
+  recall `2/2` of the currently-safe-to-chase set (`P01`, `P06`; `P03` excluded pending `T03`/`G06`),
+  raw ground-truth recall `2/7`, 90% Top-10 precision, and the trap/confounder-rejection properties
+  already validated elsewhere in this project — is sufficient to justify running the pipeline against
+  a first real (non-synthetic) customer dataset, as opposed to continuing to optimize against the
+  synthetic benchmark before doing so.
+- **Scope questions to answer, not assumed:**
+  1. What decision-relevant properties does a first real customer dataset run actually require that
+     the synthetic benchmark cannot itself validate (e.g. real-world confounding structure, true
+     effect sizes, data quality/completeness patterns, feature availability at decision time)?
+  2. What is genuinely at risk in running against real customer data now vs. continuing synthetic
+     optimization — data handling/privacy readiness (cross-check `TASK-054`/`TASK-055`/`TASK-056`'s
+     status), risk of a low-precision or misleading result reaching a real stakeholder, reputational
+     cost of a bad first impression vs. cost of further delay.
+  3. Whether "sufficient" should be judged against this project's own `docs/benchmark/decision-gate.md`
+     bands, a different real-data-specific bar, or no formal gate at all for a first exploratory run.
+  4. What would make the answer "no, not yet" — name the condition explicitly, not just the "yes"
+     path, matching this project's own discipline of disclosing negative results as real answers.
+- **Explicitly not in scope:** any code, mechanism, or validation-contract change — this is a
+  strategy/readiness determination, not an implementation task. If it concludes further engineering
+  is a precondition, name that as a distinct follow-on task rather than doing it here.
+- **Done when:** a disclosed, reasoned determination is recorded — "ready," "not yet, because X," or
+  "ready with conditions Y" — with its relationship to `TASK-057`'s paused status made explicit either
+  way.
 
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 
