@@ -3338,14 +3338,84 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   order is backwards for three of the six missing patterns, where a vocabulary stage is upstream of
   (and for one, strictly prerequisite to) any expansion-policy change. **This is diagnosis only —
   no mechanism is proposed, scoped, or authorized by it.**
-- **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition):**
-  no new search objective, scoring term, or expansion policy may be designed, scoped, or justified
-  by reference to travel's 7 specific known patterns' identities or feature values. The benchmark
-  evaluates a search policy; it must not implicitly train one. A mechanism achieving 7/7 recall by
-  fitting to the known answers is a worse outcome than the current honest 2/7 — it would be
-  invisible overfitting presented as success. The oracle decomposition benchmark above is
-  diagnostic tooling and reads pattern identities to explain failures; it must not feed back into
-  designing the replacement mechanism's actual scoring/expansion logic.
+- **Reprioritization (2026-08-28, founder analysis of the item-7 results) — the task's own framing
+  was too narrow, not just its ordering.** The oracle decomposition benchmark's finding (d) —
+  every one of the six missing patterns caps at `descriptive_observation` even under oracle
+  candidate injection — means "recall" was never one number produced by one mechanism. It is the
+  composition of (at least) four independent, sequential layers, each capable of killing a pattern
+  on its own regardless of what any other layer does:
+  | Layer | Question | Known failure instance |
+  |---|---|---|
+  | Representability | Can the current hypothesis language express the true condition set at all? | P04: missing calendar atom **and** a numeric-threshold grid too coarse to place its true bound (relaxation flips the measured harm sign) |
+  | Eligibility | Is the true rule even permitted to exist as a candidate? | P08: true rule `n=33 < min_n=40` — no eligible ancestor chain at any depth, under any vocabulary |
+  | Search / selection | Is the right branch generated, does it survive expansion, does it get selected? | P01/P03/P09 (selection only); P02 (redundancy-pruned, then selection) — the six directions items 1–6 originally targeted |
+  | Validation | Does the selected candidate clear enough evidence to reach `predictive_association`? | All six missing patterns' oracle branches: `descriptive_observation`, unconditionally |
+  A single scalar `validated recall` conflates all four; improving the search/selection layer
+  (items 1–6) provably cannot move it while the validation layer caps every candidate first — that
+  layer must be understood before search work is prioritized, not after.
+  - **New task ordering, superseding the "(a) expansion policy, (b) vocabulary" sequencing above:**
+    1. **Validation power autopsy (highest priority, not yet started):** for each of the 7
+       ground-truth patterns, decompose *why* its oracle branch caps at `descriptive_observation`
+       into the specific validation gate responsible (sample/effective-sample size, uncertainty
+       width, adjusted-effect attenuation, stability, multiple-testing correction, or whichever
+       gate is the actual binding one) — not just that it caps. Distinguish explicitly: "genuinely
+       insufficient data at this `n`" (an honest ceiling to disclose, not engineer around) versus
+       "the validation test itself is statistically inefficient for this effect/sample shape" (an
+       estimator/test question, not a data-volume question) — these imply different, non-overlapping
+       fixes and must not be conflated.
+    2. **Define benchmark semantics:** given the autopsy's result, which of the 7 ground-truth
+       patterns should even be considered achievable at `predictive_association` at travel's actual
+       `n` — a `recall` denominator that includes patterns no honest validation test could ever
+       promote at this sample size is itself a benchmark-design defect, not a discovery-mechanism
+       one.
+    3. **Split "discovery eligibility" from "evidence eligibility"** (P08 is the test case): today
+       `n < min_n` means the candidate does not exist at all. Consider instead letting a
+       small-`n` rule exist as a candidate (reaching at most `descriptive_observation`, an evidence
+       *ceiling*, not a search cutoff) while a separate, still-conservative floor governs whether it
+       can ever reach a higher grade. **Explicitly not to be treated as a parameter-tuning move**
+       (`min_n: 40 → 30` is exactly the reactive tuning this project's two-strikes discipline
+       exists to prevent) — this is a semantic split in what the gate represents, to be designed
+       once, not iterated by threshold.
+    4. **Fix representability** (P04): the calendar atom (`HANDOFF-059`) plus a predicate-generation
+       question beyond the fixed 0.2/0.4/0.6/0.8 quantile grid — adaptive/supervised cutpoints,
+       change-point-style split candidates, or local threshold refinement near promising regions,
+       generated without leakage relative to what's permitted at that stage of analysis. Item 6's
+       "vocabulary-generation stage with lineage" already scoped this; this reprioritization adds
+       that predicate thresholds are part of that same vocabulary problem, not a separate concern.
+    5. **Fix the already-diagnosed local search/selection defects** (P02's redundancy heuristic;
+       `_greedy_diverse_select`'s starvation of P01/P03/P09-shaped candidates) — items 1–2 in their
+       narrowest, already-evidenced form.
+    6. **Only then, if the stage-of-death picture still shows a search bottleneck after 1–5:**
+       reconsider lookahead / Pareto-beam / a new search algorithm (items 3–5's original scope).
+       **Demoted from where item 3 (lookahead) sat before** — real and correctly diagnosed for
+       P04/P08's *symptom*, but their actual binding constraints are representability and
+       eligibility respectively, which lookahead cannot address on its own.
+  - **New engineering metrics proposed, distinct from the product-facing `validated recall`:**
+    `representability_recall`, `eligibility_recall`, `candidate_recall` (generated+survives
+    expansion), `selection_recall`, `validation_upgrade_rate` (descriptive → predictive). A search
+    improvement that raises `candidate_recall`/`selection_recall` with zero change in
+    `validation_upgrade_rate` is real, disclosed progress, not a failed experiment — the current
+    single-number recall cannot represent that distinction and risks an honest search improvement
+    being read as a null result.
+  - **Durable project finding to carry forward, not re-derive:** the synthetic benchmark does not
+    test one discovery algorithm — it tests the bundled combination of hypothesis language +
+    eligibility policy + search + selection + the statistical evidence contract. Stating "discovery
+    recall = 2/7" without this four-layer decomposition is misleading about which component, if any,
+    a given engineering change actually addresses.
+  - **The single most useful next number, per this reprioritization:** for each of the 7 patterns,
+    the maximum evidence grade achievable under oracle candidate injection, and the exact validation
+    gate responsible for its ceiling — item 1 above, not a new search result.
+
+- **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition,
+  now extended to the validation/eligibility layers this reprioritization opened up):** no new
+  search objective, scoring term, expansion policy, eligibility-gate redesign, or validation-gate
+  change may be designed, scoped, or justified by reference to travel's 7 specific known patterns'
+  identities or feature values. The benchmark evaluates a search/validation policy; it must not
+  implicitly train one. A mechanism achieving 7/7 recall by fitting to the known answers is a worse
+  outcome than the current honest 2/7 — it would be invisible overfitting presented as success. The
+  oracle decomposition benchmark and any validation-power autopsy are diagnostic tooling and read
+  pattern identities to explain failures; neither may feed back into designing the replacement
+  mechanism's actual scoring/expansion/eligibility/validation logic.
 
 ## Sprint plan
 
