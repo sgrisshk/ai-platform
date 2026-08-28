@@ -3632,8 +3632,8 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** IMPLEMENTED — awaiting `CODE_REVIEWER` review (Statistics does not mark its own
-  correctness fix reviewed or approved)
+- **Status:** IMPLEMENTED — reviewed and **APPROVED** by `CODE_REVIEWER` (2026-08-28, see review
+  entry below)
 - **Depends on:** none (item 2's investigation, `docs/benchmark/task-069-g12-form-investigation.md`,
   is already complete and frozen; this task implements exactly what that investigation proved and
   deliberately declined to fix)
@@ -3883,6 +3883,84 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Not done here, by design:** this task is **not** marked reviewed or approved — `CODE_REVIEWER`
   is the named reviewer and that is a separate, later step. No `TASK-069` entry was edited; the only
   reference to it is this entry noting that item 2's investigation is what this implements.
+- **CODE_REVIEWER independent review (2026-08-28) — APPROVED.** Reviewed as an independent party
+  (did not write this code, did not defer to Statistics' own report). Verdict: the implementation
+  matches the preregistered scope and success criteria, both required regression families genuinely
+  hold, non-regression is real, and the re-measured `3/7` ceiling is correct. Specifics actually
+  reproduced from scratch, not taken on trust:
+  - **Threshold-perturbation semantics.** Read `_one_bin_threshold_refit`/`_robustness_battery` in
+    `apply.py` directly. `PERTURBATION_PERCENTILE_STEP` is computed in code as
+    `(max(PERTURBATION_QUANTILES) - min(PERTURBATION_QUANTILES)) / 2.0` = 0.05 — genuinely derived
+    from the legacy pair, not a fresh literal. Direction logic has no per-operator branching at all
+    (both directions `-1, +1` are always tried against the raw threshold value); this is correct by
+    construction for both `ge` and `lt` — no sign bug — because perturbing the threshold value
+    itself, not a per-operator rule, is what makes exactly one refit narrow and one broaden
+    regardless of operator. Coarse-column snapping (`_adjacent_level`) walks the column's own
+    sorted distinct values and returns a real adjacent level, never an interpolated one; confirmed
+    both by reading the code and by the coarse-integer regression test.
+  - **Refit-outcome admissibility.** Re-derived `alternative_outcome_admissibility` against the real
+    `OutcomeDefinition` registry (`packages/analytics/src/policy_analytics/outcomes/contract.py`):
+    `gross_profit_eur` is genuinely `decomposition_of="contribution_margin_eur"` there, so the rule
+    correctly makes it inadmissible in production — confirmed by an independent re-run (below) where
+    `P01`'s and `P09`'s binding G12 checks are threshold perturbations, not the alternative outcome.
+    `grep` across `contract.py`/`apply.py` for pattern identities, magic thresholds, or travel-only
+    literals inside the new logic found none — the only hits were pre-existing G06 docstring
+    mentions (`T03`, `acquisition_channel`) explicitly disclaiming their use, unrelated to this fix.
+    All five `AlternativeOutcomeAdmissibility` states and both symmetric/shared-parent decomposition
+    cases are unit-tested directly (`test_admissibility_is_a_property_of_the_outcome_contract_alone`).
+  - **Named states.** All four `RobustnessRefitState` values are exhaustively produced by
+    `_one_bin_threshold_refit` (verified by reading every return path) and only `ESTIMATED` refits
+    reach `_record`/the aggregates — confirmed in code, not just by test. `NOT_EVALUATED` is an
+    explicit branch in `_validate_one`, never a silent pass or coercion to 0.
+  - **Versioning.** `CONTRACT_VERSION == "1.3.0"` confirmed. The pre-v1.3.0 `GATE_SPECS[G12].rule`
+    text is quoted verbatim and marked superseded in `validation-contract.md` §4c (checked
+    word-for-word against the pre-fix `bd6e89b` diff). Re-ran
+    `scripts/diagnose_g12_perturbation_form.py` myself (not trusted from the report): its output is
+    **byte-for-byte identical** (`diff`, 1,745,482 bytes) to the committed
+    `docs/benchmark/task-069-g12-form-investigation-raw.json`.
+  - **Regression families, actually re-run.** `uv run pytest tests/analytics/test_g12_robustness_fix.py
+    tests/analytics/test_validation_apply.py -q` → **59 passed** (30 + 29, matching the report). Wrote
+    an independent script re-computing the stable-effect deviation curve directly from the fixture
+    functions (not the tests) and got old-semantics min/max **0.121 → 0.884** and new-semantics
+    **0.092 → 0.335**, matching the claimed "0.12 → 0.88" / "0.09 → 0.34" exactly, plus pairwise
+    symmetry in the new curve. The outcome-semantics family (0% vs 90% component share) was
+    re-executed and gives identical verdicts, identical `checks_run`, identical max deviation, as
+    claimed.
+  - **G06/other-G12-checks non-regression.** Re-ran the synthetic leave-one-cluster-out/winsorisation
+    comparison test directly; passed. Independently re-implemented the real-data, 3-domain,
+    4-run, 60-candidate comparison from scratch (own script, not the implementer's) calling
+    `run_validation` under both semantics on `task-015-candidates` (travel), `task-065-b2b-comparable`
+    (b2b_sales), and both `task-068-ecommerce-*` runs: **G12 was the only gate whose outcome moved**
+    in every run, `b2b_sales` moved nothing, and final verdicts changed only for travel (8/15 —
+    exactly the intended effect of the fix), 0/15 for all three other runs. Refit-state totals
+    matched exactly: 182 `estimated`, 4 `degenerate_no_contrast`, 0/0 for the other two. Max
+    magnitude deviation across the 60 candidates: min 0.0026, median 0.109, max **0.4953** — confirms
+    the "0.495 vs 0.50 ceiling" claim; the gate still has teeth, it did not become toothless. (My
+    own p90 came out 0.374 by linear interpolation vs the report's 0.389 by nearest-rank — the value
+    0.3894 is genuinely present in the sorted 60-value list at the 90th-percentile rank; this is a
+    percentile-convention difference, not a data discrepancy, and does not affect any conclusion.)
+  - **Full verification, actually run.** `uv run ruff check .` clean. `uv run pyright` clean (0
+    errors). Full `uv run pytest -q` (artifacts/ restored into this worktree first, since it is
+    gitignored and worktrees don't share it): **607 passed, 74 skipped** — matches the report exactly;
+    all skips are pre-existing `TEST_DATABASE_URL`-gated PostgreSQL integration tests, unrelated to
+    this change.
+  - **Re-measured oracle ceiling.** Ran `scripts/diagnose_validation_power.py
+    --robustness-semantics one_bin_relative_v2` myself; output is byte-for-byte identical to the
+    committed `docs/benchmark/task-070-validation-power-remeasurement-raw.json`. Spot-checked `P01`
+    (max deviation 39%, sign 100%, blocked only by `G11`) and `P09` (max deviation 93.69% ≈ 93.7%,
+    still failing `G12`, up from the documented 93.2% pre-fix) directly against both the raw JSON and
+    `docs/benchmark/task-070-g12-fix-remeasurement.md` — both match.
+  - **Scope discipline.** `git diff bd6e89b..28086cb --stat` touches exactly the declared file list
+    plus `memory/CURRENT_STATE.md` (additive summary) and the new raw-JSON artifact; no hunk touches
+    `discovery/engine.py` or any beam-search code; `GATE_SPECS` for every gate other than G12 is
+    byte-identical; `TASK-069`'s own `TASKS.md` entry is untouched (only referenced); no new
+    follow-on task was opened.
+  - **What was taken on trust, and why:** the internal arithmetic of `split_stats`/bootstrap
+    machinery outside the G12 diff (pre-existing, unchanged by this task, already covered by the
+    pre-existing test suite that also passed). Nothing load-bearing to this review's verdict rests
+    on that trust.
+  - **No defects found.** No sign bug, no unhandled enum case, no reproduced number that failed to
+    match, no pattern-identity leak, no gate that got weaker. APPROVED.
 
 ### Sprint 1 — Benchmark and ingestion foundation
 
