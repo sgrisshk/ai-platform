@@ -3755,7 +3755,9 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** FOUNDER_STRATEGY
 - **Support:** ARCHITECT, STATISTICS
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** **DETERMINED — not yet, because X (see determination below, 2026-08-28,
+  FOUNDER_STRATEGY; recorded as `ADR-066`).** Explicit condition X and the flip-conditions for
+  "yes" are stated in the determination; `TASK-057` is unaffected either way.
 - **Depends on:** `TASK-069` (closed — this task's premise is `TASK-069`'s closure)
 - **Explicitly not `TASK-057`:** this is a pipeline-readiness question, not an outreach decision.
   `TASK-057` stays paused per `ADR-063`'s own terms regardless of this task's outcome; a "yes" here
@@ -3786,6 +3788,108 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Done when:** a disclosed, reasoned determination is recorded — "ready," "not yet, because X," or
   "ready with conditions Y" — with its relationship to `TASK-057`'s paused status made explicit either
   way.
+- **Determination (2026-08-28, FOUNDER_STRATEGY): NOT YET.** Full reasoning: `ADR-066`. Verified the
+  "current profile" numbers against primary sources first — one correction to the framing this task
+  opened with: the `2/2`/`2/3` figures are `TASK-070`'s **diagnostic** re-measurement (oracle
+  projections and a counterfactual re-grade of already-frozen candidates under v1.3.0), not a new
+  *official* `TASK-015`/`TASK-019`/`TASK-028` cycle — `docs/benchmark/decision-gate.md` has **not**
+  been re-graded since its 2026-08-17 `PROMISING` entry (`task-058-remediation-20260817-001`), and
+  that entry's own bound action reads "Do not advance to real customer data until re-graded at
+  STRONG or PROMISING-with-the-same-metric-improved" — mechanically unmet as of this determination,
+  on top of `ADR-063`'s already-higher founder bar.
+  - **Condition X, stated explicitly:** none of `TASK-069`/`TASK-070`'s work has moved the pipeline's
+    *actually validated* economic yield since `ADR-063` judged it insufficient for real customer
+    contact on this exact substantive profile (travel 45.2% economic-weighted / 29% unique-pattern
+    recall; `b2b_sales` and `ecommerce` both 0.0% economic-weighted recall in all four tested arms).
+    The `G12` fix is real and independently reviewed, and it raises the *diagnostic* achievable
+    ceiling on travel (1/7 → 3/7 patterns able to reach `predictive_association`), but it has not yet
+    been converted into a single new officially-graded promoted candidate, a re-run `TASK-028`
+    scoring, or a new `decision-gate.md` entry — so the number a founder would actually be risking a
+    stakeholder relationship on is unchanged from `ADR-063`'s own verdict. Both non-travel domains
+    genuinely tested remain at a proven 0% floor, untouched by the `G12` fix (`b2b_sales`/`ecommerce`
+    are capped by `G05`/`G06`/`G13`/`G14`, gates `TASK-070` did not modify). If the first real dataset
+    is not travel, the honestly-disclosed track record says the plausible outcome is zero validated
+    findings.
+  - **Scope question 1 (what a real run tests that synthetic cannot):** real, unmeasured confounding
+    structure (as opposed to a synthetic generator's known-by-construction confounding — `TASK-067`'s
+    `b2b_sales` diagnosis found a genuinely new defect class, `_adjustment_pool`'s correlation-blind
+    circularity exclusion, that no amount of further synthetic-domain iteration was designed to
+    surface, and it was only found because real-shaped ground truth existed to score against);
+    real data quality/completeness and manifest/`DECISION_TIME` feature-timing classification on a
+    messy, non-synthetic schema (every synthetic domain ships a clean, already-reviewed manifest;
+    no such process has ever been exercised on a real export — `TASK-037`/`TASK-038`, the ingestion
+    steps this would require, are unstarted); and true effect sizes/base rates, which by definition
+    cannot be checked against any oracle on real data — the entire `validated recall`/`economic-
+    weighted recall` metric family this task's own "current profile" is stated in terms of is
+    **uncomputable on a real customer dataset** (no hidden ground truth exists), so a real run
+    answers a different question (does the mechanism produce plausible, defensible, correctly-signed
+    candidates a human would trust) than the one the synthetic numbers measure.
+  - **Scope question 2 (what's at risk now vs. continuing synthetic optimization):**
+    data-handling/privacy readiness is partial, not absent — `TASK-055`'s pre-customer-achievable
+    deletion contract is done and independently re-verified (R1/R2 fixed, full suite green), but its
+    own record explicitly leaves open, unresolved, whether the design satisfies a real contractual/
+    legal deletion deadline; `TASK-056` (general audit trail) is not built at all and was
+    deliberately deferred to "real customer usage" by its own scoping, so it is a known, named,
+    not-yet-closed gap rather than a hidden one; `TASK-054` (tenant isolation) is irrelevant for a
+    single first dataset (its own `Depends on` is "multiple customer accounts"). Risk of a
+    low-precision or misleading result reaching a real stakeholder is real but partially mitigated:
+    trap/confounder rejection is a genuinely strong, cross-domain-validated property (5/5 rejected,
+    0 promoted, in every one of travel/`b2b_sales`/`ecommerce`'s tested runs — 15/15 total across
+    three domains, `docs/benchmark/task-029-benchmark-report-v1.md`, `TASK-065`, `TASK-068`'s closing
+    determination), and effect-direction accuracy on validated findings has been 100% historically —
+    but "validated findings" is exactly what the non-travel evidence says will likely be empty on a
+    first non-travel dataset, so the live risk is an underwhelming null result, not a wrong-direction
+    one. Reputational cost is contained only if any such run is explicitly scoped and communicated as
+    internal diagnostic/calibration work, never as a value-promising product deliverable — which is
+    not yet a decided, written posture anywhere in this project.
+  - **Scope question 3 (which bar governs "sufficient"):** `docs/benchmark/decision-gate.md`'s bands
+    score known-ground-truth metrics (Top-K true-pattern precision, economic-weighted recall against
+    a known scoreable-exposure denominator) that are structurally uncomputable on real data — they
+    cannot be the bar for grading a real run's *own* output. But they remain the right bar for the
+    *entry decision* — whether to point the mechanism at something unscoreable in the first place —
+    because the synthetic evidence is the only evidence that exists yet, and the gate's own text
+    already says exactly this ("Sufficient to proceed toward real customer data... once `TASK-057`
+    delivers a customer" under `STRONG`; explicitly not yet at `PROMISING`). No bar exists anywhere in
+    this project for judging a first real run's *own* results once obtained (there is no ground truth
+    to score against) — that gap is real and is named below as a follow-on, not answered here.
+  - **Scope question 4 (what would flip this to "yes"), named explicitly, not just asserted as
+    possible:**
+    1. A fresh **official** `TASK-015`/`TASK-019`/`TASK-028` cycle that actually applies the v1.3.0
+       `G12` fix to a real (not oracle-projected, not diagnostic) candidate set, converting the
+       diagnostic 3/7 ceiling into officially promoted candidates, and a corresponding new
+       `docs/benchmark/decision-gate.md` entry — re-graded at `STRONG`, or `PROMISING` with the
+       specific weak metric (economic-weighted recall or trap-rejection-caveat clarity) materially
+       improved, per that document's own still-standing, unmet rule.
+    2. Either the first real dataset is travel (the only vertical with any non-zero validated
+       track record), or the company has explicitly and in advance accepted a plausible near-zero-
+       validated-findings outcome as a legitimate, disclosed result of a diagnostic-framed run — not
+       discovered as a surprise after the fact.
+    3. `TASK-055`'s flagged open question (real contractual/legal deletion-deadline adequacy)
+       resolved, or explicitly accepted as a disclosed residual risk by `FOUNDER_STRATEGY`/`ARCHITECT`
+       before any real data is ingested.
+    4. A demonstrated, not merely assumed, real-data intake and manifest/`DECISION_TIME`-
+       classification process — `TASK-037`/`TASK-038` currently do not exist in any executed form,
+       and every leakage (`G01`) and confounding-adjustment (`G06`) guarantee this project has
+       depends entirely on that classification being done correctly on whatever schema arrives.
+  - **Proposed follow-on task (named, not opened, not implemented here — a decision for
+    `FOUNDER_STRATEGY`/`ARCHITECT` to take up separately):** pre-register a success/kill bar for a
+    first real-data run's *own* output, analogous to what `docs/benchmark/decision-gate.md` did for
+    the synthetic benchmark, before any real dataset is ingested — since no ground truth exists to
+    score a real run against, "sufficient result" must be defined in terms that don't require an
+    oracle (e.g., a human/domain-expert plausibility review protocol, a minimum bar for what counts
+    as a defensible finding worth surfacing vs. worth suppressing, explicit language capping any
+    claim at the evidence grade actually reached). Defining this after seeing a real run's results
+    would repeat exactly the premature-precision mistake `ADR-007`/`ADR-012` exist to avoid.
+  - **Relationship to `TASK-057`, stated explicitly per this task's own scoping rule:** this
+    determination does not lift, shorten, or bear toward lifting `TASK-057`'s pause, which stays in
+    effect on `ADR-063`'s own terms regardless. It also does not itself satisfy `ADR-063`'s stated
+    reopening condition for `TASK-057` ("a new dated Founder Strategy record citing a materially
+    improved discovery result") — nothing in this determination reports an improved *validated*
+    result, only an unrealized diagnostic ceiling — so this record must not be read, cited, or later
+    mistaken as contributing toward that reopening. Separately and only incidentally: this
+    determination's own reasoning corroborates that `ADR-063`'s bar is still unmet on the same
+    substantive numbers, but that corroboration is a side effect of answering `TASK-072`'s own
+    question, not a re-evaluation of `TASK-057` undertaken here.
 
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 
