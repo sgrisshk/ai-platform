@@ -3465,6 +3465,72 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     and `descriptive_observation` for the other six; binding gates are `G12` (`P01`, `P03`), `G05`
     (`P02`), and `G03` (`P04`, `P08`, `P09`).
 
+- **Task reformulation (2026-08-28, founder, after the validation power autopsy) — the task's own
+  goal, not just its ordering, was wrong.** "Raise discovery recall" optimizes against a denominator
+  the autopsy just showed is mostly unachievable: at most 3 of 7 patterns (`P01`, `P03`, `P06`) can
+  reach `predictive_association` at travel's actual sample size under the current, unmodified
+  validation contract, and the committed run already recovers 2 of those 3 (`P01`, `P06`). Perfect
+  search/selection can move at most one more pattern (`P03`) — a real but small ceiling that does
+  not justify a large discovery-engine redesign. **`TASK-069` is retitled in substance (registry
+  entry title kept for continuity, content redefined):** *"Calibrate the synthetic discovery
+  benchmark against oracle evidence achievability; isolate validation-contract failures from
+  discovery failures; determine whether `G12` robustness is statistically aligned with localized
+  rule discovery."* Its success criterion is no longer a recall number — it is proving the
+  benchmark can distinguish four categorically different outcomes for any given ground-truth
+  pattern: **true discovery miss** (search/selection failed to find or keep a reachable rule),
+  **representability miss** (the hypothesis language cannot express the rule, or only a diluted
+  surrogate), **evidence-ineligible ground truth** (the true rule is real but this sample size can
+  never support `predictive_association` for it, regardless of mechanism), and **validation-method
+  miss** (a real, adequately-powered signal is capped by a gate that may itself be miscalibrated for
+  this rule shape, not by the data).
+  - **Revised priority order, superseding the item-1–6 ordering above (only step 2 is new work; the
+    rest re-sequences already-identified items):**
+    1. **Record the achievable denominator as the benchmark's own reporting convention** (mostly
+       mechanical after the autopsy — do not treat this as a separate research effort): for
+       algorithmic comparison, report recall against the evidence-achievable set (currently ≤3 of
+       7); always report raw `2/7` alongside, unreduced, so the dataset's own intrinsic ceiling is
+       never hidden by the denominator choice. This is item 2 ("define benchmark semantics") from
+       the prior reprioritization, now scoped precisely instead of open-ended.
+    2. **Investigate `G12` as a standalone statistical question on `P01`/`P03` — the actual next
+       experiment, ahead of any benchmark-semantics write-up.** Both patterns pass every other gate
+       with enormous margin (raw `p` as low as `9.96e-15`) and are capped only by
+       threshold-perturbation sensitivity (66% / 71% deviation vs. a 50% ceiling). Determine
+       whether `G12` measures genuine economic-phenomenon instability, or instability of a
+       *discrete representation* of a continuous decision boundary — i.e. whether the perturbation
+       grid's fixed steps systematically cross the rule's true boundary and therefore
+       mechanically penalize a genuinely localized threshold effect for being localized. This is a
+       validation-methodology question about whether `G12`'s form fits this hypothesis shape, not
+       a request to weaken robustness standards for recall's sake. Two possible outcomes, both
+       real answers: `G12` is correctly calibrated and `P01`/`P03` are genuinely fragile (the
+       achievable denominator may be **smaller than 3**, not larger); or `G12` is form-mismatched
+       for threshold rules, which opens a distinct, justified follow-on task — fixing robustness
+       semantics without reducing confounder safety — never framed as "raise recall."
+    3. **`P03` is explicitly not a selector-tuning target until the `T03`/`G06` risk is closed**
+       (per item 7's own flag: `P03`'s exactly-representable rule shares trap `T03`'s apparent
+       feature). Improving benchmark recall by a route that degrades the confounding-safety property
+       validation exists to protect is a worse outcome than not improving it.
+    4. **Search-side fixes are local correctness work, not the research thread.** `P02`'s
+       redundancy-pruning bug is still worth fixing on its own merits; `_greedy_diverse_select`'s
+       starvation of `P01`/`P03`/`P09`-shaped candidates is still worth understanding. Neither is a
+       justification for a large search/selection redesign — the achievable ceiling they can reach
+       is one pattern, not seven.
+  - **Two classification nuances the autopsy's binary insufficient-data/inefficient-test split
+    collapsed, to be disentangled rather than asserted:**
+    - **`P02`** likely mixes an **intrinsic evidence ceiling** (the exact oracle rule may carry a
+      materially stronger signal — its exact form's `p`-value was ≤4.6e-22 in the autopsy's own
+      check) with **representation-induced power loss** (representability gaps force a ~3.34×-wider
+      surrogate rule, which is what `G05` then fails) — these need separate accounting, not one
+      "insufficient data" label.
+    - **`P04`** likely carries the same split, compounded by its representable branch's effect
+      *sign* being wrong — a representability defect masquerading as a power defect.
+    - **`P08`/`P09`** are not implicated in this ambiguity — the autopsy's direct check (BH's most
+      lenient bar missed by ~143,000× and ~3,450× respectively, on the exact true rule with an
+      optimistic unclustered SE) reads as a genuine hard power ceiling for both.
+  - **Consequence for sequencing:** formalizing benchmark semantics (step 1) will be close to
+    mechanical once step 2 lands — its content is already mostly known from the autopsy; writing it
+    down now, before `G12`'s methodological status is resolved, risks recording `denominator = 3` as
+    settled when the autopsy's own numbers leave it genuinely open in either direction.
+
 - **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition,
   now extended to the validation/eligibility layers this reprioritization opened up):** no new
   search objective, scoring term, expansion policy, eligibility-gate redesign, or validation-gate
@@ -3474,7 +3540,9 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   outcome than the current honest 2/7 — it would be invisible overfitting presented as success. The
   oracle decomposition benchmark and any validation-power autopsy are diagnostic tooling and read
   pattern identities to explain failures; neither may feed back into designing the replacement
-  mechanism's actual scoring/expansion/eligibility/validation logic.
+  mechanism's actual scoring/expansion/eligibility/validation logic. This rule now explicitly
+  covers `G12`: the question is whether the gate's *form* fits threshold-rule hypotheses in
+  general, never whether `P01`/`P03` specifically should pass it.
 
 ## Sprint plan
 
