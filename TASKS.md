@@ -3253,6 +3253,69 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   3. A real, disclosed result on multiple domains — success or a documented negative result is
      both an acceptable outcome of this task; the goal is a real cross-domain answer, not a
      travel-only win presented as if it generalizes.
+- **Research plan (2026-08-28, founder-proposed direction, recorded verbatim in substance so it
+  isn't re-derived from scratch by whoever picks this up):**
+  1. **Separate exploration score from economic ranking.** One score currently both steers beam
+     expansion and ranks final candidates — these are different jobs. Expansion needs "how
+     promising is continuing this branch" (incremental uplift vs. parent, local contrast,
+     stability, novelty); `harm_per_booking × n_exposed^0.5`-style ranking stays for scoring
+     already-found candidates only. Directly targets `P02`/`P08`/`P09`: a weak depth-1 ancestor no
+     longer has to be economically top-80 for its strong depth-2 descendant to get a chance to
+     exist.
+  2. **Multi-objective/Pareto beam instead of scalar top-N.** Don't collapse effect size, support,
+     incremental effect, stability, complexity, and novelty into one formula; keep a Pareto
+     frontier or quotas across regimes (high-effect, high-contrast, rare-but-strong,
+     novel-feature-combination). Different in kind from `TASK-060`'s existing diversity-selection,
+     which runs *after* good branches are already gone — this runs *during* expansion. Real
+     implementation cost, not just a formula swap: bounding beam width against a growing Pareto
+     frontier needs explicit quota management.
+  3. **Lookahead instead of scoring only the current node.** For each depth-1 rule, cheaply
+     evaluate its best possible depth-2 refinements and rank the parent near `max(child
+     potential)`, not its own value alone — the classic greedy-search failure mode for
+     interactions (mediocre marginal effects, strong joint effect). Cheap and controllable at this
+     system's rule depth (2–3); likely the highest-leverage, lowest-implementation-risk of the
+     search-side changes.
+  4. **Interaction-first discovery.** Stop requiring an interaction to be found via a successful
+     singleton parent — cheaply screen atom pairs (feature×feature) deterministically first, then
+     send only promising pairs to the more expensive search/validation path. Realistic at this
+     system's vocabulary size (full pairwise scan is cheap with ~15–20 `DECISION_TIME` features
+     per domain).
+  5. **Look to subgroup discovery / exceptional model mining literature** (WRAcc-family quality
+     functions, MDL-based approaches) as a source of search objectives and algorithms rather than
+     inventing everything around the existing beam score from scratch — research direction, not a
+     production dependency to adopt wholesale.
+  6. **Separate vocabulary-generation stage with lineage.** `travel_month` (`HANDOFF-059`)
+     demonstrates feature engineering is part of discovery, not a precondition supplied externally.
+     Before rule search: deterministically generate candidate atoms by type (calendar
+     decomposition, duration/lead-time buckets, ratios, deltas, categorical groupings, threshold
+     candidates, domain-safe transformations), each carrying lineage (source fields, transform,
+     decision-time eligibility) — preserves this project's "numerical truth only in deterministic
+     code" boundary (`PROJECT_CONTEXT.md`).
+  7. **Oracle decomposition benchmark — the recommended starting point, before touching the search
+     algorithm itself.** For each of travel's 7 scoreable ground-truth patterns, decompose "was it
+     found" into stages: representable in the current vocabulary? → generated anywhere during
+     search? → survives expansion at each depth (not just present in the final pool —
+     `diagnose_candidate_pool_recall.py`'s existing diagnostic only checked the final pool,
+     post-search, which conflates "pruned before reaching depth 2" with "present but low-ranked at
+     the end")? → rank before selection? → selected? → survives validation? Record the first stage
+     of death and the correct branch's rank/score at each depth for every lost pattern. Turns
+     "recall = 2/7" into a diagnosable metric and determines which of directions 1–6 actually
+     matters for which specific pattern, before any redesign work starts. Zero new domain cost —
+     runs against travel's already-open ground truth.
+  - **Recommended sequencing after the oracle benchmark:** one experiment at a time, not combined —
+    (a) replace only the expansion policy (Pareto/multi-objective + one-step lookahead), production
+    validation and final economic ranking held constant; (b) separately, rerun the existing
+    unmodified baseline after adding `travel_month` to the vocabulary. Mixing both in one result
+    makes it impossible to tell whether a recall improvement came from fixing search or fixing
+    vocabulary.
+- **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition):**
+  no new search objective, scoring term, or expansion policy may be designed, scoped, or justified
+  by reference to travel's 7 specific known patterns' identities or feature values. The benchmark
+  evaluates a search policy; it must not implicitly train one. A mechanism achieving 7/7 recall by
+  fitting to the known answers is a worse outcome than the current honest 2/7 — it would be
+  invisible overfitting presented as success. The oracle decomposition benchmark above is
+  diagnostic tooling and reads pattern identities to explain failures; it must not feed back into
+  designing the replacement mechanism's actual scoring/expansion logic.
 
 ## Sprint plan
 
