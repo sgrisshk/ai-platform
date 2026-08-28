@@ -3195,10 +3195,12 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** ML_DISCOVERY
 - **Support:** STATISTICS
 - **Priority:** P0
-- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark) is complete**,
-  and the reprioritization's **item 1 (validation power autopsy) is complete**; no design work has
-  started and none is authorized by either completion. Reprioritization items 2–6 remain untouched,
-  and no mechanism, gate, threshold, or estimator change has been proposed or scoped.
+- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark)**, the
+  reprioritization's **item 1 (validation power autopsy)**, and the reformulation's **item 2 (`G12`
+  form investigation — verdict: form-mismatched)** are complete; no design work has started and none
+  is authorized by any of the three. The reformulation's item 1 (benchmark-semantics reporting
+  convention) and items 3–4 remain untouched, and no mechanism, gate, threshold, estimator, or
+  perturbation-rule change has been proposed or scoped.
 - **Depends on:** none
 - **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
   further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
@@ -3492,7 +3494,9 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
        never hidden by the denominator choice. This is item 2 ("define benchmark semantics") from
        the prior reprioritization, now scoped precisely instead of open-ended.
     2. **Investigate `G12` as a standalone statistical question on `P01`/`P03` — the actual next
-       experiment, ahead of any benchmark-semantics write-up.** Both patterns pass every other gate
+       experiment, ahead of any benchmark-semantics write-up. DONE (2026-08-28, STATISTICS):
+       `G12` is form-mismatched; result and consequences recorded immediately below this item's
+       original text.** Both patterns pass every other gate
        with enormous margin (raw `p` as low as `9.96e-15`) and are capped only by
        threshold-perturbation sensitivity (66% / 71% deviation vs. a 50% ceiling). Determine
        whether `G12` measures genuine economic-phenomenon instability, or instability of a
@@ -3505,6 +3509,85 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
        achievable denominator may be **smaller than 3**, not larger); or `G12` is form-mismatched
        for threshold rules, which opens a distinct, justified follow-on task — fixing robustness
        semantics without reducing confounder safety — never framed as "raise recall."
+       **Executed — `docs/benchmark/task-069-g12-form-investigation.md`, raw output
+       `docs/benchmark/task-069-g12-form-investigation-raw.json`, tool
+       `scripts/diagnose_g12_perturbation_form.py`** (post-hoc diagnostic, not part of any official
+       pipeline; `validation/apply.py` imported unmodified and untouched; the real
+       `_robustness_battery` computes every real number, and the script refuses to report unless
+       its `G12` aggregates reproduce item 1's committed raw output for all nine oracle
+       projections). **The verdict is established entirely on neutrally-constructed synthetic data
+       — invented columns, invented distributions, thresholds swept across the whole percentile
+       range, and data-generating processes whose stability is known by construction — and no
+       per-pattern counterfactual `G12` verdict is computed or claimed anywhere**, per this task's
+       hard rule.
+       **Result: `G12` is form-mismatched for numeric-threshold rules, in two independent ways.**
+       Its first branch — "`G12` is correctly calibrated and `P01`/`P03` are genuinely fragile" —
+       is rejected:
+       (a) **The threshold-perturbation check measures threshold position, not stability.** On an
+       effect that is *maximally stable by construction* (uniform across its own exposed side), the
+       measured deviation matches a closed form in the two thresholds' percentiles to a mean
+       absolute residual of **0.0008** over **516** refits. Solved from that closed form, the
+       production grid `PERTURBATION_QUANTILES = (0.15, 0.25)` clears the 50% ceiling only for
+       thresholds in **[0.125, 0.575]** of the atom's own column — identical for `ge` and `lt`.
+       `discovery.engine._atoms` places every numeric atom on the **0.2/0.4/0.6/0.8** grid, so
+       **two of the engine's own four numeric grid points cannot pass `G12`'s threshold check
+       however stable the effect**. The deviation is minimised at ≈q0.20, which is the only atom
+       position at which `(0.15, 0.25)` actually is the "one bin below/above each threshold" the
+       contract and `GATE_SPECS[G12].rule` specify.
+       (b) **The mismatch is bidirectional, not conservative.** Over 68 continuous-column cells per
+       process, the production grid flags **32/68 (47%)** of maximally stable effects and *misses*
+       **16/68** genuinely cutoff-dependent ones (an effect existing only within 2 percentile
+       points of the cut — exactly what the gate exists to catch), the misses concentrated in the
+       same mid-percentile band where it also passes stable effects. A minimal diagnostic
+       counterfactual that changes only the grid's *reference point* (same step size, same check
+       count, constants read off the production constant itself) separates the two processes in
+       **136/136** cells — so the observed verdicts are not forced by the data.
+       (c) **On a coarse integer column the production grid fails 24/24 cells for every process**,
+       because its 0.15/0.25 quantiles collapse onto the column minimum and the refits produce no
+       estimate at all; `_record` counts each as a check that ran and disagreed.
+       (d) **`gross_profit_eur` as an equal-footing robustness refit is a second, independent form
+       problem, and it is quantified exactly.** The check's measured deviation reproduces the
+       ground truth's own primary-vs-alternative realised-effect ratio to within **1.6 percentage
+       points** wherever that alternative effect is non-zero (P01 45.3% vs 46.9% attainable, P03
+       70.1% vs 70.5%, P06 31.8% vs 31.8%). **For five of the seven scoreable patterns the
+       attainable deviation is exactly 100%** — their configured harm runs only through channels
+       gross profit structurally cannot see — so no candidate recovering them can pass that
+       sub-check at any `n`, with any estimator. A truth-free synthetic case (a stable effect
+       acting only through a channel the decomposition outcome omits) reports **99.9%** deviation
+       against the 50% ceiling by outcome algebra alone. Per-pattern, the two sub-checks bind
+       independently: for `P01` only the threshold grid exceeds the ceiling; for `P03` **both** do,
+       so a change addressing only one would leave `P03` capped.
+       (e) **No relative-step alternative was ever considered and rejected.** The contract text
+       (`validation-contract.md` §5 and `GATE_SPECS[G12].rule`) already *specifies* a relative
+       step ("one-bin perturbation of every numeric threshold"), the implementation uses fixed
+       absolute quantiles, and both `PERTURBATION_QUANTILES` and
+       `DiscoveryConfig.numeric_quantiles` landed in the same initial commit with no `ADR` or
+       task entry discussing the grid's form. Per `AGENTS.md` this documented-vs-implemented
+       divergence is **reported, not resolved** — resolving it is a validation-contract change this
+       task forbids.
+       **What it does and does not authorize.** It does **not** kill the "denominator = 3" hope,
+       and it does not confirm it either: it moves the question off the data. `P01`/`P03`'s cap is
+       now known to be a property of `G12`'s form, not of their effects — but under the **current,
+       unmodified contract** both still cap at `descriptive_observation`, and that stays the honest
+       recorded outcome. **Consequence for step 1 (benchmark semantics): the achievable denominator
+       must name the contract version it is computed under and must never be recorded as a property
+       of the dataset alone** — it is a joint property of the dataset and the robustness gate's
+       form. A real, distinct follow-on task **is justified and is deliberately not opened here**;
+       it would have to cover: (1) reconciling the contract's "one-bin" wording with the
+       implementation; (2) defining what the perturbation tests — direction, step semantics when
+       the hypothesis language's own bin width is a parameter, behaviour when a column's resolution
+       cannot express the step; (3) accounting for degenerate and vacuous refits; (4) whether a
+       `decomposition_of` outcome may serve as a magnitude-parity refit at all, and whether
+       `validation_roles.alternative_outcome` should be constrained by outcome role; (5) inherited
+       constraints — specified before being measured against any benchmark, versioned under
+       validation-contract §2 (which requires re-grading every finding graded under the previous
+       version), no reduction in `G06` confounder safety or in `G12`'s other three check families
+       (which behave correctly throughout: winsorisation 0.2–15.3% for every scoreable pattern),
+       validated on more than one domain since the atom grid and perturbation constant are
+       domain-generic, and motivated generically rather than by travel's pattern identities.
+       **This is diagnosis only — no gate, threshold, estimator, perturbation rule, or eligibility
+       change is proposed, scoped, or authorized by it, and `P03` remains trap-`T03`-unsafe to
+       chase per item 3 below regardless.**
     3. **`P03` is explicitly not a selector-tuning target until the `T03`/`G06` risk is closed**
        (per item 7's own flag: `P03`'s exactly-representable rule shares trap `T03`'s apparent
        feature). Improving benchmark recall by a route that degrades the confounding-safety property
