@@ -3195,7 +3195,8 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** ML_DISCOVERY
 - **Support:** STATISTICS
 - **Priority:** P0
-- **Status:** TODO
+- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark) is complete**;
+  no design work has started and none is authorized by that completion. Items 1–6 remain untouched.
 - **Depends on:** none
 - **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
   further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
@@ -3308,6 +3309,35 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     unmodified baseline after adding `travel_month` to the vocabulary. Mixing both in one result
     makes it impossible to tell whether a recall improvement came from fixing search or fixing
     vocabulary.
+- **Item 7 executed (2026-08-28, ML_DISCOVERY) — `docs/benchmark/task-069-oracle-decomposition.md`,
+  raw output `docs/benchmark/task-069-oracle-decomposition-raw.json`, tool
+  `scripts/diagnose_oracle_decomposition.py` (post-hoc diagnostic, not part of any official
+  pipeline, contains no hardcoded pattern id/feature/threshold — every true rule is parsed
+  generically from `hidden_ground_truth.json` at runtime).** Traced the committed
+  `task-064-beam-20260822-001` search per depth; fidelity asserted, not assumed (reproduced
+  `evaluated_hypotheses=26,213` and all 15 committed candidates condition-for-condition). Stage of
+  death for the 7 scoreable patterns' own tightest representable rules: **P01** selection (pattern
+  itself already recovered), **P02** discarded as exposure-identical to its depth-2 parent, which
+  then loses selection, **P03** selection only (exactly representable, exact recall, pool rank
+  835/17,381, above the relevance floor), **P04** never generated — both depth-1 ancestors fail
+  `_eligible`'s `harm > 0`, **P06** reaches `predictive_association` (its projection *is* committed
+  `CAND-007`), **P08** depth-2 ancestor pruned at beam rank 1,047/1,201 (beam 418) and the depth-3
+  rule would have been ineligible anyway (`n_exposed=35 < min_n=40`), **P09** selection.
+  Four findings that change what items 1–6 should assume, recorded here so they are not re-derived:
+  (a) the vocabulary gap is wider than `ADR-045` recorded — besides the missing calendar atom, the
+  0.2/0.4/0.6/0.8 quantile grid cannot place two patterns' true numeric bounds at all, and for one
+  the relaxation flips the measured harm sign; (b) `_eligible`'s `harm_per_booking > 0` is an
+  unnamed monotonicity assumption that prunes branches whose effect is interaction-only-positive;
+  (c) one scoreable pattern has **no eligible ancestor chain at any depth under any vocabulary**
+  and its exact true rule sits below `min_n`, so no direction in 1–6 as currently scoped can reach
+  it — the eligibility gate itself is the constraint; (d) **counterfactually validating all six
+  missing patterns' oracle branches through the real, unmodified contract yields
+  `descriptive_observation` for every one** — so a search-side fix alone would move `TASK-028`'s
+  unique-pattern recall by zero, and search work is necessary but demonstrably not sufficient.
+  Consequence for sequencing: the plan's own "(a) expansion policy first, (b) vocabulary second"
+  order is backwards for three of the six missing patterns, where a vocabulary stage is upstream of
+  (and for one, strictly prerequisite to) any expansion-policy change. **This is diagnosis only —
+  no mechanism is proposed, scoped, or authorized by it.**
 - **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition):**
   no new search objective, scoring term, or expansion policy may be designed, scoped, or justified
   by reference to travel's 7 specific known patterns' identities or feature values. The benchmark
