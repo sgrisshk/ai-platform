@@ -956,6 +956,36 @@ byte-identical, so `HANDOFF-073` R4's false-null did not occur.
   independent attempts (`TASK-058`/`TASK-060`/`TASK-064`) already targeted and each closed at the
   same 29% ceiling under this project's own two-strikes discipline.
 
+**`TASK-070` (G12 robustness correctness fix) `IMPLEMENTED` 2026-08-28, awaiting `CODE_REVIEWER`
+(Statistics, `ADR-064`, validation contract **v1.3.0**).** `TASK-069` item 2 proved, on neutrally-
+constructed synthetic data, that G12's two binding sub-checks reported quantities determined by
+something other than the effect's stability: the numeric-threshold perturbation used a fixed
+absolute quantile pair rather than the "one-bin perturbation of every numeric threshold" the
+contract itself preregistered, and the alternative-outcome refit demanded magnitude parity against
+an outcome declared `decomposition_of` the primary — an accounting identity. Both are fixed and
+versioned. The perturbation now steps 0.05 percentile points either side of **each candidate's own
+threshold** (the legacy pair's own half-width — the step size is inherited, not chosen), snaps to a
+coarse column's adjacent level, and gives every unusable refit a named, counted, disclosed state
+instead of silent failure; an alternative outcome binds the gate only when it is a commensurable
+measurement of the same construct, with a declared-but-inadmissible one still estimated and
+reported as a disclosed diagnostic. `RobustnessSemantics.FIXED_QUANTILE_V1` keeps the superseded
+behaviour **executable**, so older frozen runs are reproducible on demand rather than merely
+un-re-graded; verified for real — `docs/benchmark/task-069-g12-form-investigation-raw.json`
+regenerates byte-for-byte. Non-regression proven three ways, including 60 frozen candidates across
+**three domains and four runs** where G12 is the only gate whose outcome moves anywhere and
+`b2b_sales` does not move at all. **Consequence for the benchmark denominator: the re-measured
+oracle evidence ceiling is `3 of 7` travel patterns (`P01`, `P03`, `P06`) at
+`predictive_association` or better, up from `1 of 7`** — the same number `TASK-069` item 1 named as
+an upper bound, now realised rather than inferred, and it must always be quoted **with its contract
+version** (`3/7 under v1.3.0`) because it is a joint property of the dataset and the gate's form.
+The result is not uniformly favourable and was recorded as measured: `P09` still fails G12 on the
+threshold perturbation *by slightly more* than before, `P04`/`P08` now fail it on
+leave-one-cluster-out (the family the fix did not touch — genuine single-cluster dependence), and
+the gate is stricter on both non-scoreable patterns. No finding is promoted, no frozen artifact is
+re-graded, and no follow-on task is opened: what a `3/7 under v1.3.0` denominator means for
+`TASK-069`'s benchmark-semantics step is `TASK-069`'s decision.
+`docs/benchmark/task-070-g12-fix-remeasurement.md`, `docs/analytics/validation-contract.md` §4c.
+
 **14-day go/no-go — moot, superseded by `ADR-063`:**
 - Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG
   *and* ≥1 real serious conversation logged. The technical half of that condition is met; the

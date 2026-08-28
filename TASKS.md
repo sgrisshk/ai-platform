@@ -3632,9 +3632,11 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** TODO
+- **Status:** IMPLEMENTED — awaiting `CODE_REVIEWER` review (Statistics does not mark its own
+  correctness fix reviewed or approved)
 - **Depends on:** none (item 2's investigation, `docs/benchmark/task-069-g12-form-investigation.md`,
-  is already complete and frozen)
+  is already complete and frozen; this task implements exactly what that investigation proved and
+  deliberately declined to fix)
 - **Why this is its own task, not folded into `TASK-069`:** `TASK-069` item 2 proved a real
   contract/implementation divergence — `docs/analytics/validation-contract.md` already specifies
   "one-bin perturbation of every numeric threshold" and `apply.py`'s own `GATE_SPECS[G12].rule`
@@ -3706,6 +3708,181 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   `P01`/`P03`/travel's other specific pattern identities or feature values. The two regression
   families above exist precisely so the fix can be validated without ever looking at travel's own
   patterns until the design is already fixed.
+- **Implementation evidence (2026-08-28, Statistics, `ADR-064`, validation contract v1.3.0).**
+  Sequencing was the discipline `TASK-058`/`TASK-059` set and this task's hard rule requires: both
+  fixes were designed, implemented, versioned, and passing both required regression families on
+  entirely invented data **before** the corrected gate was pointed at travel even once. The
+  re-measurement in item 7 below is measurement of an already-frozen design; nothing in it fed back
+  into any rule.
+  1. **Threshold-perturbation step brought to the contract's own documented semantics.**
+     `PERTURBATION_PERCENTILE_STEP` (0.05) below and above **each candidate's own threshold
+     percentile**, replacing the fixed `PERTURBATION_QUANTILES = (0.15, 0.25)` grid. **The step size
+     is inherited, not chosen:** 0.05 is the legacy pair's own half-width about its own q0.20
+     anchor, so the fix changed the perturbation's *reference point* and never its magnitude — no
+     new tunable constant entered the contract, and none could have been fitted to a result
+     (`test_the_one_bin_step_is_the_legacy_grids_own_half_width`,
+     `test_the_legacy_grid_is_the_new_grid_at_exactly_one_threshold_position`, which pins that the
+     two semantics coincide at q0.20 and nowhere else). **Direction semantics are explicit:**
+     exactly one refit narrows the exposed group and one broadens it, under either operator,
+     wherever the threshold sits — the old grid's "two independent perturbations" were sometimes
+     the same rule twice. **Coarse/discrete columns:** when a column's own resolution cannot express
+     the step, the perturbation **snaps to the adjacent distinct level**, which *is* one bin for
+     that column. Item 2 found all 144 production refits on integer columns produced no estimate at
+     all; a coarse integer column now yields two real estimates where the old grid yielded none
+     (`test_coarse_integer_column_produces_estimates_instead_of_silent_no_estimate_failure`).
+  2. **Refit-outcome question, decided as a design decision and preregistered before measurement.**
+     `decomposition_of_outcome` was **not** assumed correct going in. Chosen rule: an alternative
+     outcome binds G12's magnitude-parity check only when it is a **commensurable measurement of the
+     same construct** — not a `decomposition_of` either way nor of a shared parent, same reviewed
+     `unit`, same complete-data missingness policy (`alternative_outcome_admissibility`). Reasoning:
+     magnitude parity between a total and one of its own accounting components requires the
+     remaining components to be exactly zero, so the deviation such a refit reports is the
+     component's share of the effect — an identity about outcome algebra with no stability content,
+     which item 2 quantified both on the benchmark (±1.6 points of the ground truth's own component
+     ratio) and truth-free (99.9% deviation on a maximally stable two-channel synthetic effect).
+     Four alternatives were considered and rejected with reasons recorded in
+     `docs/analytics/validation-contract.md` §4c and `ADR-064` — keeping decomposition refits;
+     direction-only comparison; making the manifest the sole authority; and deleting the family
+     entirely. The manifest's `validation_roles.alternative_outcome_id` **is** the per-dataset
+     declaration; what was missing is that nothing checked its role compatibility, which is now
+     mechanical and dataset-independent. The function reads only the reviewed `OutcomeDefinition`
+     registry — never a candidate, effect, dataset value, or pattern identity.
+  3. **Admissibility and the no-admissible-refit state formally specified, both evidence-level
+     visible.** Four named `RobustnessRefitState`s (`estimated`, `vacuous_identical_rule`,
+     `degenerate_no_contrast`, `unrepresentable_step`) and five named
+     `AlternativeOutcomeAdmissibility` states. Non-estimated refits are **disclosed non-checks** —
+     counted, reported, and excluded from the aggregates — where through v1.2.0 a degenerate refit
+     silently arrived as a check that ran and did not agree and a vacuous one as a free pass. When a
+     numeric condition yields no estimated refit in either direction the gate is **`NOT_EVALUATED`
+     with the reason stated in its own detail string** (`test_a_threshold_with_no_usable_
+     perturbation_at_all_is_not_evaluated`), which `§3` treats exactly like `FAIL` for grading but
+     which a reader can tell apart from real instability. A declared-but-inadmissible alternative
+     outcome is **still estimated and still reported** as `robustness_alternative_outcome_
+     diagnostic`, and is named `..._not_gate_binding_<state>` in the frozen report's own
+     `robustness_tests` list. Never a silent pass, never a silent fail.
+  4. **Versioning — `ADR-015`'s precedent, plus one step further.** `CONTRACT_VERSION` bumped
+     `"1.2.0"` → `"1.3.0"` (exactly as `ADR-015` bumped `"1.0.0"` → `"1.1.0"` for the G05 defect),
+     `GATE_SPECS[G12].rule` rewritten, and the superseded rule text **quoted verbatim and marked
+     superseded** in the new appended `§4c` rather than being silently replaced. Where `ADR-015`
+     left the old artifact alone but not runnable, `RobustnessSemantics.FIXED_QUANTILE_V1` keeps the
+     **superseded behaviour executable**: `ROBUSTNESS_SEMANTICS_BY_CONTRACT_VERSION` maps each
+     contract version to the semantics that shipped with it, every run records
+     `robustness_semantics_version` in its manifest, and
+     `test_pre_v1_3_0_semantics_reproduce_the_previous_contract_versions_verdicts` re-derives the
+     previous verdicts for all 15 frozen candidates as an executable check — so "only new runs get
+     the corrected semantics" is verified rather than asserted. **Byte-reproducibility of frozen
+     records, verified for real:** no artifact under `artifacts/validation/` is rewritten (each
+     keeps its own recorded `validation_contract_version`; `scripts/validate_candidates.py` still
+     refuses to overwrite without `--force`), and re-running
+     `scripts/diagnose_g12_perturbation_form.py` — now pinning the pre-fix semantics and stamping
+     the contract version those semantics governed — reproduces
+     `docs/benchmark/task-069-g12-form-investigation-raw.json` **byte-for-byte** (`diff` clean,
+     1.7 MB). `scripts/diagnose_validation_power.py` defaults to the pre-fix semantics for the same
+     reason, so item 1's committed autopsy still reproduces on a plain re-run.
+  5. **Regression family 1 — threshold-perturbation geometry. PASSES.**
+     `tests/analytics/test_g12_robustness_fix.py`, neutral throughout in the posture
+     `test_g05_multiplicity_fix.py` set for `ADR-015`: invented columns (`signal_metric`,
+     `value_metric`, `component_metric`), invented distributions, invented outcome definitions, and
+     processes whose stability is known *by construction*. Reads no dataset, no candidate artifact,
+     no ground truth, no real outcome definition. **A maximally stable effect passes at all 17
+     swept percentile positions × 2 distributions × 2 operators (68/68 cells), and a knife-edge
+     cutoff-dependent effect is rejected at all 68** — the fix is not a blanket relaxation. The old
+     semantics **fail this same regression in both directions**, and their missed detections fall
+     inside the band where they pass stable effects (asserted as a set containment, not asserted by
+     eye). The measured quantity itself stops tracking position: a maximally stable effect's
+     deviation runs **0.12 → 0.88 monotone in threshold percentile, crossing the ceiling, under
+     v1.2.0** versus **a symmetric 0.09 (middle) → 0.34 (10th/90th percentile) curve that never
+     reaches the ceiling under v1.3.0**; symmetry about the column midpoint is asserted pairwise to
+     ±0.02.
+  6. **Regression family 2 — outcome semantics. PASSES.** Two synthetic patterns with a
+     **byte-identical primary outcome column** (asserted, so primary-harm stability is identical by
+     construction) differing only in how much harm reaches a `decomposition_of` refit outcome — 0%
+     versus 90%. Under v1.3.0 they receive **identical verdicts, identical check counts, and
+     identical max deviations**; under v1.2.0 they differ, the 0% case reporting a ~100% deviation
+     for an effect that is stable by construction. A *commensurable* alternative outcome still binds
+     the gate and still adds its check (`test_a_commensurable_alternative_outcome_still_binds_the_
+     gate`), so the family was corrected rather than removed. 30 tests total in the file.
+  7. **`G06` and `G12`'s other three families proven unchanged — three independent ways.**
+     (a) *Synthetic:* leave-one-cluster-out and winsorisation refits are recomputed independently
+     and compared refit-for-refit across both semantics, including their treatment of a refit that
+     produces no estimate — deliberately left exactly as it was, because for those families it is a
+     genuine fragility signal rather than an artifact of a perturbation grid. G06's
+     `_select_adjustment_columns`/`_stratified_adjustment` still recover an invented confound.
+     (b) *Real data, one domain:*
+     `test_no_gate_other_than_g12_moved_between_v1_2_0_and_v1_3_0` grades the 15 frozen travel
+     candidates under both semantics and asserts the set of gates whose outcome differs is exactly
+     `{G12_ROBUSTNESS}`, with `adjustment_columns_used`, `e_value`,
+     `confounder_stratum_coverage` and the normal-approximation p-value identical candidate for
+     candidate. (c) *Real data, three domains:* the same comparison over **60 frozen candidates
+     across 4 runs and 3 domains** — travel, `b2b_sales` (`task-065-b2b-comparable-20260822-001`),
+     and `ecommerce` (`task-068-ecommerce-baseline`/`-cap-20260827-001`). **G12 is the only gate
+     whose outcome moves anywhere**; G09's `segment_reversal_exposure_share`, G10's
+     `holdout_retention` and G11's `seasonal_concentration_index` are also identical for all 60.
+     `b2b_sales` moves *not at all* (15/15 G12 pass under both), and both `ecommerce` runs move
+     8–9 G12 outcomes while changing **zero** final verdicts. Full table:
+     `docs/benchmark/task-070-g12-fix-remeasurement.md` §2.
+  - **The named states fire on real data, not only in tests:** across the four runs the v1.3.0
+    threshold family produced 182 `estimated`, 4 `degenerate_no_contrast` (two per `ecommerce`
+    run), 0 `vacuous_identical_rule`, 0 `unrepresentable_step`; every affected candidate retained at
+    least one estimated refit, so none reached `NOT_EVALUATED`.
+  - **The gate keeps its teeth afterwards:** over all 60 candidates graded under v1.3.0 the max
+    magnitude deviation runs **min 0.003, median 0.113, p90 0.389, max 0.495 against the 0.50
+    ceiling** — the worst real candidate clears it by half a percentage point.
+  - **Files:** `packages/analytics/src/policy_analytics/validation/contract.py` (version,
+    `RobustnessSemantics`, `RobustnessRefitState`, `AlternativeOutcomeAdmissibility`, G12 rule
+    text), `.../validation/apply.py` (`PERTURBATION_PERCENTILE_STEP`,
+    `alternative_outcome_admissibility`, `_one_bin_threshold_refit`, `RobustnessBattery`,
+    `_robustness_test_names`, threaded `robustness_semantics`),
+    `tests/analytics/test_g12_robustness_fix.py` (new, 30 tests),
+    `tests/analytics/test_validation_apply.py` (+2 non-regression/versioning tests, current-version
+    pin updated), `docs/analytics/validation-contract.md` (§4c appended, v1.3.0 change note, §5 and
+    §11 notes), `DECISIONS.md` (`ADR-064`), `scripts/diagnose_validation_power.py` (successor form:
+    `--robustness-semantics`, per-pattern `contract_version_changes` in place of the fidelity
+    assertion when the contract version differs, counted-vs-recorded refit separation),
+    `scripts/diagnose_g12_perturbation_form.py` (pinned to the gate it measured),
+    `docs/benchmark/task-070-g12-fix-remeasurement.md` and its raw JSON (new).
+  - **Checks:** full `uv run pytest` green (607 passed, 74 skipped — the two pre-existing failures
+    on this checkout were missing gitignored `artifacts/`, not code), `uv run ruff check .` clean,
+    `uv run pyright` clean (0 errors).
+- **Re-measured oracle evidence ceiling (2026-08-28, Statistics) — the real result, run only after
+  items 1–6 were done and tested.** `scripts/diagnose_validation_power.py
+  --robustness-semantics one_bin_relative_v2` against the same committed run
+  (`task-064-beam-20260822-001`), the same oracle projections (re-derived and asserted equal to
+  `TASK-069` item 7's committed rules condition-for-condition), the same BH family (26,213). Raw:
+  `docs/benchmark/task-070-validation-power-remeasurement-raw.json`; narrative:
+  `docs/benchmark/task-070-g12-fix-remeasurement.md`.
+  - **The achievable evidence ceiling is `3 of 7` scoreable patterns — `P01`, `P03`, `P06` —
+    reaching at least `predictive_association`, up from `1 of 7` under v1.2.0.** `P03` reaches
+    `adjusted_observational_association` (level 3); `P01` reaches level 2 and is held below level 3
+    by `G11` seasonality; `P06` (the control) is unchanged.
+  - **This is the same number item 1 named as an upper bound, now realised rather than inferred.**
+    `P01` and `P03` clear `G12` on their own merits (max deviation **39%** and **35%** against a
+    50% ceiling, sign agreement 100%). Per item 2's own requirement the denominator **names its
+    contract version**: `3 / 7 under validation contract v1.3.0`, a joint property of the dataset
+    *and* the robustness gate's form — never of the dataset alone.
+  - **Level-2 blocking gates, v1.2.0 → v1.3.0:** `P01` `G12` → **none**; `P02` `G05`+`G12` →
+    `G05`; `P03` `G12` → **none**; `P04` unchanged (`G03`,`G04`,`G05`,`G10`,`G12`); `P06` none →
+    none; `P08` unchanged (`G03`,`G04`,`G05`,`G12`); `P09` unchanged (`G03`,`G05`,`G12`).
+  - **The result is not uniformly favourable, and is recorded as measured, not as hoped:**
+    - **`P09` still fails `G12`, on the threshold perturbation itself, by slightly *more* than
+      before (93.7% vs 93.2%).** Its atom sits at percentile 0.789 — the same region as `P03`'s —
+      and under a step measured from its own threshold, moving `party_size ge 4` to `ge 3` still
+      collapses the estimate to 6% of its magnitude. Item 2 predicted exactly this from its own
+      sweep before any fix existed, and independently established `P09` as data-limited regardless.
+    - **`P04` and `P08` now fail `G12` on leave-one-cluster-out** — the family this change
+      deliberately did not touch. Dropping one manager collapses `P04` to 9% of its magnitude and
+      flips its sign, and halves `P08`. Genuine single-cluster dependence, surfacing once the two
+      malfunctioning sub-checks stopped drowning it out.
+    - **Non-scoreable `P05`'s deviation rises 81.6% → 143.6%, and `P07`'s sign agreement falls
+      from 90.0% to 88.9%, below the floor** — the corrected gate is *stricter* on both, which is
+      the opposite of what a relaxation produces. Recorded as-is; neither was adjusted.
+  - **What this does not do:** it promotes no finding (these are counterfactual gradings of oracle
+    projections no blind run ever selected), it re-grades no frozen artifact, and it opens no
+    follow-on task. What a `3 / 7 under v1.3.0` denominator implies for `TASK-069`'s
+    benchmark-semantics step 1 is `TASK-069`'s decision, deliberately not made here.
+- **Not done here, by design:** this task is **not** marked reviewed or approved — `CODE_REVIEWER`
+  is the named reviewer and that is a separate, later step. No `TASK-069` entry was edited; the only
+  reference to it is this entry noting that item 2's investigation is what this implements.
 
 ### Sprint 1 — Benchmark and ingestion foundation
 
