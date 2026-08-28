@@ -2947,3 +2947,84 @@ the actual reopening ADR at that time — not automatically, per `ADR-058`'s own
 from `ADR-025`'s "no further ADR required" pattern. `docs/benchmark/decision-gate.md` and travel's
 `PROMISING` verdict are unaffected. `HANDOFF-071` and `HANDOFF-072` are read here, not edited, per
 this review's explicit instruction.
+
+## ADR-063 — `TASK-057` stays paused indefinitely: the founder sets a materially higher bar than `ADR-058`'s mechanical conditions, and redirects effort to a fundamentally new discovery mechanism rather than reopening outreach
+
+**Date:** 2026-08-28
+**Status:** Accepted
+
+**Decision:** `TASK-057` outreach does **not** reopen, notwithstanding that both `ADR-058` conditions
+are independently verified met (condition 1 by `TASK-068`'s 2026-08-27 determination; condition 2
+by `HANDOFF-072`'s 2026-08-28 continuation). This is a direct founder override of `ADR-058`'s own
+mechanical reopening test, exercised on the authority `ADR-058` itself reserves for exactly this
+kind of judgment call ("a further dated Founder Strategy record... is required before `TASK-057`
+resumes"). All company effort toward customer-facing readiness is paused. The next priority,
+unscheduled and explicitly not deadline-pressured, is finding a genuinely different discovery
+mechanism — not another tuning pass on the existing one.
+
+**A reopening ADR was prepared and is explicitly not adopted.** A Founder-Strategy-role session
+independently verified both conditions and drafted a full reopening record (worktree
+`agent-a5723de89345cee20`, commit `628fb9e`, never merged to `main`) with three binding conditions
+(no overclaiming generality, founder-only send channel, a named re-pause trigger). That draft's
+factual verification work is sound and is cited here rather than redone: `TASK-068` SUCCESS is real,
+`HANDOFF-072`'s re-confirmation is real and independently re-verified by that session. What changed
+is not any fact in that draft — it is the bar being applied to the same facts, applied here by the
+founder directly, not by an agent session interpreting `ADR-058`'s pre-registered conditions.
+
+**Why the mechanically-satisfied conditions are not sufficient, stated in plain terms rather than
+banded verdicts:** `docs/benchmark/decision-gate.md`'s own PROMISING band (25–49% economic-weighted
+recall) is a pre-registered research checkpoint — "worth continuing to iterate" — not an
+independent judgment that the numbers it describes are good enough to put in front of a real
+customer. Read plainly, without the banding: on travel, the only vertical with a working pipeline,
+the system finds real, correctly-signed, high-precision candidates (90% Top-10 precision, 0
+leakage, 5/5 traps rejected) but recovers well under half of what a customer would actually want —
+**45.2% of economically material effect, and only 2 of 7 (29%) of the known true patterns in the
+benchmark, a ceiling three separate, independent remediation attempts (`TASK-058`, `TASK-060`,
+`TASK-064`) each targeted and each failed to move, closed under this project's own two-strikes
+discipline rather than iterated further.** Outside travel, the picture is worse, not better: two
+non-travel domains (`b2b_sales`, `ecommerce`) both graded `FAILED` under the same decision gate —
+**0.0% economic-weighted recall in all four arms run across both**, despite `TASK-068`'s genuine,
+independently-reasoned mechanism improvement. No tested domain, travel included, clears a bar a
+reasonable customer-facing product would set for itself. The system's own pre-registered PROMISING
+label describes "worth continuing to iterate," and that is exactly what this decision does — it is
+not evidence of "ready."
+
+**What this does and does not decide about vertical scope.** The founder separately observed that
+`TASK-057`'s travel-only framing (`ADR-016`) may itself be the wrong question right now — that
+picking *a* vertical to declare ready is premature when the underlying discovery mechanism has not
+demonstrated capability at a level worth productizing in *any* vertical. This ADR does not resolve
+that scope question (travel-first vs. domain-agnostic) — it is moot until the mechanism clears a
+materially higher bar somewhere, at which point vertical scope becomes a real decision again, not a
+theoretical one. `ADR-016`'s travel-only reasoning (learning speed, avoid horizontal-platform
+positioning before proof) is not disputed here; it is simply not the live question.
+
+**Relationship to `ADR-054`'s Option A / Option D framing.** `ADR-054` chose Option A (fix a
+specific, general defect, retest once) over Option D (reopen the core discovery thesis) when the
+portability track first failed. This decision does not retroactively relitigate that choice —
+Option A was executed as designed, `TASK-068` is a genuine, disciplined result under it. But this
+decision does move the company's posture closer to Option D's territory going forward: the
+instruction now is not "tune the existing search/selection mechanism again" (three attempts on
+travel already did that and hit a wall) but "find a fundamentally different discovery mechanism" —
+a different search strategy, a different modeling approach, more or different data, or a different
+framing of what "candidate pattern" means, not a fourth parameter sweep of `discovery.engine`.
+
+**What is explicitly NOT being said:** that the discovery mechanism is worthless, that `TASK-068`'s
+result was invalid, or that the existing engine should be discarded wholesale — none of that is
+established or claimed. Nor is this a claim that 85% (or any other specific number the founder
+named in conversation, not yet formally re-registered as a threshold) is the right target — that
+number has not been validated as the right bar either; it is the founder's stated instinct for "good
+enough to sell," not a derived requirement, and should be treated as a working target to test
+against, not a magic constant.
+
+**Consequences:** `TASK-057`'s `TASKS.md` entry is updated to `BLOCKED`, reason: paused indefinitely
+by direct founder decision (`ADR-063`), not by unmet `ADR-058` conditions — those are met and stay
+met; the block is a deliberate choice, not a technical gate. `ADR-058`'s conditions, its
+circularity-resolution logic, and its "what's not paused" list (already-produced groundwork stays
+intact, not undone) remain the record of how this pause was mechanically evaluated, superseded only
+as to whether meeting them reopens outreach. A new task, `TASK-069`, is opened to scope this
+research direction — deliberately unscheduled, no deadline, no preregistered success band yet
+defined, because setting a new pre-registered bar before any exploratory work has happened would
+repeat exactly the premature-precision mistake this project's own discipline exists to avoid.
+`docs/benchmark/decision-gate.md`, `docs/strategy/founder-narrative.md`, and `docs/customer/*` are
+not rewritten by this entry — travel's `PROMISING` verdict stands as the accurate record of what was
+measured, this decision only changes what the company does in response to it.

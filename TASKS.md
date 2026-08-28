@@ -1509,6 +1509,16 @@ blocker"), not reopened or implied-done by this closure.
   explicitly; `HANDOFF-074` fixed the two findings driving that dispute but explicitly did not
   re-confirm condition 2, and no later handoff has. Next step is that specific re-confirmation, not
   a Founder decision — see `ADR-062`.
+- **Both `ADR-058` conditions independently verified MET the same day (2026-08-28)** — `HANDOFF-072`'s
+  continuation entry re-confirmed condition (2). A full reopening record was drafted and its facts
+  hold up, but is **not adopted** — see `ADR-063`.
+- **Status held `BLOCKED` — paused indefinitely by direct founder decision (`ADR-063`,
+  2026-08-28), not by any unmet technical condition.** Both `ADR-058` conditions are met and stay
+  met; the founder judged the underlying numbers themselves (travel: 45.2% economic-weighted
+  recall, 29% unique-pattern recall; two non-travel domains: 0% each) insufficient to put in front
+  of a real customer, independent of whether they clear this project's own pre-registered
+  PROMISING band. Reopening now requires a new, dated Founder Strategy record citing a materially
+  improved discovery result — not another `ADR-058`-style mechanical checklist. See `TASK-069`.
 - **Depends on:** none
 - **Goal:** Obtain a real travel-agency customer agreement (LOI or equivalent commitment) and a real booking-export dataset, sufficient to unblock `TASK-037`.
 - **Context (2026-08-13):** `HANDOFF-014` (Founder Strategy → Customer Discovery, resolved) confirmed no real customer agreement, dataset, or interview exists anywhere in this repository. This was previously an implicit, unowned precondition on `TASK-037` ("Real customer agreement") rather than tracked work — it is the actual critical-path bottleneck ahead of `MILESTONE-M3`, independent of and equally urgent to the ingestion-contract work blocking `TASK-006`–`TASK-029`. See `ADR-010`.
@@ -3177,6 +3187,50 @@ TASK-003 + TASK-005 + TASK-018
 ```
 
 TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners must respect handoffs and hidden-ground-truth separation.
+
+## Phase 18 — Discovery mechanism research (opened by `ADR-063`)
+
+### TASK-069 — Scope a fundamentally different discovery mechanism
+
+- **Owner:** ML_DISCOVERY
+- **Support:** STATISTICS
+- **Priority:** P0
+- **Status:** TODO
+- **Depends on:** none
+- **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
+  further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
+  which three independent, disciplined remediation attempts (`TASK-058`, `TASK-060`, `TASK-064`)
+  already targeted and each closed under this project's own two-strikes rule without moving
+  travel's unique-pattern recall past 2/7 (29%). Candidates for a genuinely different mechanism:
+  a different search strategy (e.g. not beam search), a different statistical/modeling approach to
+  candidate generation, incorporating more or different data (temporal, external, or richer
+  feature engineering beyond what `discovery.engine`'s vocabulary currently expresses — `P04`'s
+  known unrepresentable-pattern gap, `HANDOFF-059`, is one concrete lead), or a different framing
+  of what a "candidate pattern" is. Read `docs/analytics/discovery-engine-v0.md` and the full
+  `TASK-058`/`TASK-060`/`TASK-064` history first so this does not re-derive already-closed
+  knowledge.
+- **Context (`ADR-063`, 2026-08-28):** Founder judged the current mechanism's ceiling — on travel,
+  the only vertical with a working pipeline: 90% Top-10 precision but 45.2% economic-weighted
+  recall and 29% unique-pattern recall; on two non-travel domains, 0% economic-weighted recall in
+  all four tested arms — insufficient for real customer contact, independent of whether these
+  numbers clear `docs/benchmark/decision-gate.md`'s own PROMISING band. `TASK-057` (customer
+  outreach) stays paused until this produces a materially improved result.
+- **Deliberately not preregistered with a numeric target yet.** Setting a specific success band
+  (e.g. "85% recall") before any exploratory work has happened would repeat the premature-precision
+  mistake this project's own discipline (`ADR-007`, `ADR-012`) exists to avoid. The founder's own
+  stated instinct in conversation — around 85% — is recorded here as a working reference point to
+  test candidate approaches against, not yet a validated or binding threshold; a real preregistered
+  success criterion should be set once at least one candidate mechanism exists to test it against.
+- **Explicitly not in scope:** further parameter tuning of the existing `discovery.engine`
+  mechanism (`_greedy_diverse_select`, beam width, diversity/relevance-floor knobs, or any
+  successor of `max_feature_identity_fraction`) as the *sole* intervention — that path is closed
+  per the two-strikes precedent above. A genuinely new mechanism may still reuse existing
+  infrastructure (validation contract, blind-custody protocol, benchmark datasets) where that
+  infrastructure itself isn't the bottleneck.
+- **Done when:** at least one candidate mechanism is prototyped and tested against the existing
+  travel benchmark (synthetic, already-open ground truth — no new domain spend required for this
+  exploratory phase) with a real, disclosed result — success or a documented negative result is
+  both an acceptable outcome of this task; the goal is a real answer, not a guaranteed win.
 
 ## Sprint plan
 

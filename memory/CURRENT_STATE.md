@@ -940,8 +940,23 @@ byte-identical, so `HANDOFF-073` R4's false-null did not occur.
   `docs/security/task-037-pre-customer-review-prep.md`. Whether this satisfies `ADR-058` condition
   (2) as written is still left for Founder Strategy/Architect to judge — not asserted here as met —
   but the two findings that were the only concretely-identified open must-fix items are now closed.
+  **Condition (2) independently re-confirmed satisfied 2026-08-28** (`HANDOFF-072` continuation,
+  Code Reviewer): both `ADR-058` conditions are now verified met on the current record.
+  **`TASK-057` stays paused anyway — `ADR-063` (2026-08-28, founder decision), overriding
+  `ADR-058`'s own mechanical test.** A full reopening record was independently drafted and its
+  facts hold up (worktree `agent-a5723de89345cee20`, commit `628fb9e`, never merged) but is not
+  adopted: presented with the plain numbers behind the PROMISING banding — travel 45.2%
+  economic-weighted recall / 29% (2 of 7) unique-pattern recall, both non-travel domains (`b2b_sales`,
+  `ecommerce`) at 0% economic-weighted recall in all four tested arms — the founder judged this
+  insufficient for real customer contact regardless of whether it clears this project's own
+  pre-registered band, and regardless of vertical framing (travel-first vs. domain-agnostic is now
+  moot until the mechanism itself clears a materially higher bar somewhere). Outreach stays fully
+  paused, no deadline. Priority redirected to `TASK-069`: find a fundamentally different discovery
+  mechanism — not a fourth tuning pass of the existing search/selection engine, which three
+  independent attempts (`TASK-058`/`TASK-060`/`TASK-064`) already targeted and each closed at the
+  same 29% ceiling under this project's own two-strikes discipline.
 
-**14-day go/no-go — technical half now PROMISING, not FAILED:**
+**14-day go/no-go — moot, superseded by `ADR-063`:**
 - Per the pre-registered logic: **GO requires both** the technical milestone at PROMISING/STRONG
   *and* ≥1 real serious conversation logged. The technical half of that condition is met; the
   commercial half is not yet, and `TASK-057` is deliberately paused again (`ADR-058`) rather than
