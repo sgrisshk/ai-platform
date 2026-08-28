@@ -4317,7 +4317,9 @@ question was asked, and remains so.
 **From:** ARCHITECT
 **To:** CODE_REVIEWER
 
-**Status:** RESOLVED (2026-08-27, Code Reviewer) — DISPUTED, see Resolution
+**Status:** RESOLVED (2026-08-27, Code Reviewer, DISPUTED) — then RECONFIRMED (2026-08-28, Code
+Reviewer, `ADR-058` condition 2 now satisfied) after `HANDOFF-074`'s fix; see the two dated entries
+in Resolution below
 
 **Task:** Review `TASK-055`'s implementation (`ADR-060`) and confirm — or dispute — that it,
 together with `docs/security/task-037-pre-customer-review-prep.md`'s gap list, satisfies `ADR-058`
@@ -4411,6 +4413,52 @@ independence rule, the fix is not applied here — routed to Architect, `HANDOFF
 should be re-checked once R1 is resolved (fixed-and-tested, or explicitly accepted with the
 contract doc and gap list updated to say so) and R2 is at minimum recorded. This dispute does not
 touch `TASK-057`'s own status or condition 1 — outside this handoff's and this role's scope.
+
+**Continuation (2026-08-28, Code Reviewer) — `ADR-062`'s named next step, performed:** `ADR-062`
+(Founder Strategy, 2026-08-27) checked `ADR-058`'s two reopening conditions against the record and
+found condition (1) met (`TASK-068` SUCCESS against `ecommerce`) but condition (2) still open —
+`HANDOFF-074` fixed R1/R2 but explicitly declined to re-decide condition 2 itself, and no handoff
+had yet performed that re-confirmation. This entry is that re-confirmation, independently, not on
+`HANDOFF-074`'s own say-so.
+
+**Re-verified, this pass, not assumed from `HANDOFF-074`'s text:**
+- Read `apps/api/app/datasets/service.py` directly: R1's fix (the adjacency-dedup conflict check
+  now requires `latest.deleted_at is None`) and R2's fix (`with_for_update()` row-locking every
+  dataset sharing the checksum, `ORDER BY id`, before the "anyone else still active" check) are
+  both present exactly as `HANDOFF-074` and `docs/architecture/dataset-deletion-contract.md`
+  describe them.
+- Re-ran the pre-fix regression check myself, safely this time: an isolated `git worktree` at
+  `d1d1501^` (pre-fix) with `HANDOFF-074`'s two new tests overlaid from `d1d1501` — both
+  `test_delete_then_reupload_identical_content_succeeds` and
+  `test_concurrent_delete_of_dedup_siblings_serializes_instead_of_orphaning_bytes` fail against the
+  pre-fix code, confirming they are real regression tests and not tautological.
+- Fresh ephemeral Postgres (`postgres:16.4-alpine`, this session's own container): `alembic upgrade
+  head` on empty, `alembic check`, a full `downgrade base`/`upgrade head` round-trip, and the full
+  repo suite — 649 passed — all clean, matching `HANDOFF-074`'s own figures exactly.
+- `ruff check .` and `uv run pyright`: both clean, whole repo.
+
+**Incident during this verification, disclosed rather than hidden:** the first attempt at the
+pre-fix regression re-check temporarily overwrote `apps/api/app/datasets/service.py` in the shared
+main working tree (not yet aware another concurrent session was about to commit `ADR-062`'s
+docs-only change). That session's own broad commit swept up the temporarily-reverted file, so
+`e8b0639` silently un-fixed R1/R2 on `main` for a short window despite its commit message never
+mentioning that file. Caught immediately by re-diffing against `d1d1501`'s known-good blob and
+fixed in `4054abf` (pushed immediately, byte-identical restore, confirmed via `git diff`). The
+second, correct attempt at this re-check used an isolated `git worktree` (`git worktree add
+--detach`) instead of mutating the shared working tree — the pattern this repo's own concurrent
+`.claude/worktrees/agent-*` sessions already use for exactly this reason — and was not repeated.
+
+**Verdict: `ADR-058` condition 2 IS satisfied as now recorded.** R1 (HIGH) and R2 (MEDIUM) are both
+genuinely fixed — independently re-verified twice now (once by Architect in `HANDOFF-074`, once
+here, by a different pass using a different method), not merely claimed. Combined with the
+already-confirmed storage/logs/access/backups/local-copies findings and the two originally-disputed
+HIGH access-control gaps (Findings 1/2) closed earlier, the pre-customer-safe portion of
+`TASK-037`/`TASK-055` is now genuinely **completed and recorded**, per `ADR-058` condition 2's own
+wording. Both `ADR-058` reopening conditions are therefore met as of this entry. This does **not**
+itself reopen `TASK-057` — `ADR-058` is explicit that meeting both conditions requires a further,
+separate, dated Founder Strategy record to actually reopen it, "not automatically." That record is
+Founder Strategy's to write, not this role's — not written here, and `TASK-057`'s own status is not
+touched by this entry.
 
 ## HANDOFF-073
 
