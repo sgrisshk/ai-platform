@@ -3210,11 +3210,21 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   `TASK-058`/`TASK-060`/`TASK-064` history first so this does not re-derive already-closed
   knowledge.
 - **Context (`ADR-063`, 2026-08-28):** Founder judged the current mechanism's ceiling — on travel,
-  the only vertical with a working pipeline: 90% Top-10 precision but 45.2% economic-weighted
-  recall and 29% unique-pattern recall; on two non-travel domains, 0% economic-weighted recall in
-  all four tested arms — insufficient for real customer contact, independent of whether these
-  numbers clear `docs/benchmark/decision-gate.md`'s own PROMISING band. `TASK-057` (customer
-  outreach) stays paused until this produces a materially improved result.
+  the only vertical with real evidence of anything working (not the only vertical the *code*
+  supports — `discover_candidates(frame, feature_columns, outcome, config)` is domain-generic and
+  has been run against two other domains already): 90% Top-10 precision but 45.2%
+  economic-weighted recall and 29% unique-pattern recall; on two non-travel domains
+  (`b2b_sales`, `ecommerce`), 0% economic-weighted recall in all four tested arms — insufficient
+  for real customer contact, independent of whether these numbers clear
+  `docs/benchmark/decision-gate.md`'s own PROMISING band. `TASK-057` (customer outreach) stays
+  paused until this produces a materially improved result.
+- **Correction, 2026-08-28 (same day, founder pushback):** an earlier draft of this task scoped
+  its own "done when" bar to the travel benchmark alone, which reads as re-committing to a
+  travel-first sequencing this task never needed — `discovery.engine`'s code was already
+  domain-generic before this task was opened (`TASK-061`/`TASK-062`, six synthetic domains built:
+  `b2b_sales`, `ecommerce`, `healthcare`, `insurance`, `manufacturing`, `saas`, alongside travel).
+  Fixed below: a new mechanism must clear its bar on more than one domain before being credited,
+  not validated once on travel and assumed to generalize.
 - **Deliberately not preregistered with a numeric target yet.** Setting a specific success band
   (e.g. "85% recall") before any exploratory work has happened would repeat the premature-precision
   mistake this project's own discipline (`ADR-007`, `ADR-012`) exists to avoid. The founder's own
@@ -3227,10 +3237,22 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   per the two-strikes precedent above. A genuinely new mechanism may still reuse existing
   infrastructure (validation contract, blind-custody protocol, benchmark datasets) where that
   infrastructure itself isn't the bottleneck.
-- **Done when:** at least one candidate mechanism is prototyped and tested against the existing
-  travel benchmark (synthetic, already-open ground truth — no new domain spend required for this
-  exploratory phase) with a real, disclosed result — success or a documented negative result is
-  both an acceptable outcome of this task; the goal is a real answer, not a guaranteed win.
+- **Done when:** at least one candidate mechanism is prototyped and tested against **more than one**
+  domain, not travel alone — a mechanism validated once on travel and assumed to generalize is
+  exactly the untested assumption `TASK-065`/`TASK-068` already found doesn't hold for the
+  existing engine. Concretely:
+  1. Iterate freely against travel and the two domains whose ground truth is already open and can
+     never again serve as blind evidence (`b2b_sales`, `ecommerce`) — all three have real,
+     already-available true-pattern data to engineer against, at zero additional domain cost.
+  2. Before spending any of the four still-untouched `TASK-061` domains (`healthcare`, `insurance`,
+     `manufacturing`, `saas`) on an official blind confirmatory run: explicitly resolve, and
+     record the resolution rather than assuming either answer, whether `ADR-054`'s restriction on
+     tuning *to* `b2b_sales`'s specific patterns/traps extends to a genuinely new, generically-
+     designed mechanism validated across all three open domains at once (not fit to any one's
+     specifics) — this task does not prejudge that boundary question.
+  3. A real, disclosed result on multiple domains — success or a documented negative result is
+     both an acceptable outcome of this task; the goal is a real cross-domain answer, not a
+     travel-only win presented as if it generalizes.
 
 ## Sprint plan
 
