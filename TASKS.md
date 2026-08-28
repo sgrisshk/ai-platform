@@ -3196,11 +3196,14 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Priority:** P0
 - **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark)**, the
-  reprioritization's **item 1 (validation power autopsy)**, and the reformulation's **item 2 (`G12`
-  form investigation — verdict: form-mismatched)** are complete; no design work has started and none
-  is authorized by any of the three. The reformulation's item 1 (benchmark-semantics reporting
-  convention) and items 3–4 remain untouched, and no mechanism, gate, threshold, estimator, or
-  perturbation-rule change has been proposed or scoped.
+  reprioritization's **item 1 (validation power autopsy)**, and the reformulation's **item 1
+  (benchmark-semantics reporting convention — achievable denominator recorded as `3/7` under
+  contract `v1.3.0`, raw `2/7` reported alongside) and item 2 (`G12` form investigation — verdict:
+  form-mismatched, fixed and independently reviewed under `TASK-070`)** are complete. Items 3–4
+  (`P03` excluded from selector-tuning until `T03`/`G06` risk closes; search-side local-correctness
+  fixes) remain the only open reformulation items; no mechanism, search objective, expansion policy,
+  or eligibility-gate change has been proposed or scoped by any of the above — this task still has no
+  authorized design work.
 - **Depends on:** none
 - **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
   further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
@@ -3613,6 +3616,36 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     mechanical once step 2 lands — its content is already mostly known from the autopsy; writing it
     down now, before `G12`'s methodological status is resolved, risks recording `denominator = 3` as
     settled when the autopsy's own numbers leave it genuinely open in either direction.
+  - **Step 1 executed (2026-08-28, after `TASK-070` landed and was independently reviewed
+    `APPROVED`) — the achievable denominator is now a measured fact under a corrected gate, not an
+    inference held open pending `G12`'s status.** Per this item's own spec: report against the
+    evidence-achievable set, name the contract version, and always carry the raw, unreduced count
+    alongside so the dataset's intrinsic ceiling is never hidden by denominator choice.
+    - **Achievable denominator: `3 / 7` under validation-contract `v1.3.0`** (`P01`, `P03`, `P06`) —
+      re-measured directly against the corrected gate (`docs/benchmark/task-070-g12-fix-remeasurement.md`,
+      raw `docs/benchmark/task-070-validation-power-remeasurement-raw.json`), not projected from the
+      form-mismatch diagnosis. `P01` and `P06` are already recovered by the committed run; `P03` is
+      newly reachable at `predictive_association` under `v1.3.0` but remains explicitly excluded from
+      any selector-tuning target by item 3 above (`T03`/`G06` risk not yet closed) — reachable and
+      chaseable are different claims, and only the first is being recorded here.
+    - **Raw, unreduced recall stays `2 / 7` (29%)** — the committed `task-064-beam-20260822-001` run's
+      actual outcome, reported alongside per this item's own rule, never replaced by the
+      denominator-adjusted figure.
+    - **The denominator did not simply confirm the pre-`TASK-070` hope; it moved in both directions,
+      which is why this had to be measured, not inferred:** `P09` — already known `descriptive_observation`
+      before this fix — now fails `G12`'s corrected threshold-perturbation check by *more*, not less
+      (93.7% vs. the prior 93.2% deviation against the 50% ceiling), confirming it as a genuine ceiling
+      rather than an artifact of the old grid's form. `P04` and `P08` — already known
+      `descriptive_observation`, capped by `G03` per the autopsy — now *also* fail `G12` on
+      leave-one-cluster-out, a check family `TASK-070` did not modify and independently confirmed
+      unweakened; this does not change their classification (`G03` was already sufficient to cap
+      both) but forecloses any future argument that a `G03`-only fix could reach them. None of `P02`,
+      `P04`, `P05`, `P07`, `P08`, `P09` moves into the achievable set.
+    - **This denominator is provisional on the validation contract, by construction, not a final
+      answer:** it is `3/7` under `v1.3.0` specifically; a future contract version (e.g. resolving
+      `G05`'s dilution treatment for `P02`, item 3.a) could move it again, in either direction, and
+      any future report citing this number must cite the contract version with it, per this item's
+      own rule.
 
 - **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition,
   now extended to the validation/eligibility layers this reprioritization opened up):** no new
