@@ -3627,7 +3627,85 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   covers `G12`: the question is whether the gate's *form* fits threshold-rule hypotheses in
   general, never whether `P01`/`P03` specifically should pass it.
 
-## Sprint plan
+### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
+
+- **Owner:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** TODO
+- **Depends on:** none (item 2's investigation, `docs/benchmark/task-069-g12-form-investigation.md`,
+  is already complete and frozen)
+- **Why this is its own task, not folded into `TASK-069`:** `TASK-069` item 2 proved a real
+  contract/implementation divergence — `docs/analytics/validation-contract.md` already specifies
+  "one-bin perturbation of every numeric threshold" and `apply.py`'s own `GATE_SPECS[G12].rule`
+  text says the same, but the shipped `_robustness_battery` implements a fixed absolute-quantile
+  step instead. This is a correctness bug in the validation layer, not a benchmark-calibration
+  hypothesis. Keeping it inside `TASK-069` risks conflating three different kinds of work —
+  diagnosing achievability, changing a statistical contract, and fixing an implementation — that
+  should each be reviewable and revertible on their own.
+- **Goal:** Bring `G12`'s threshold-perturbation check into line with the contract's own already-
+  written semantics, and separately resolve the `gross_profit_eur`-as-robustness-refit problem
+  item 2 quantified (exactly 100% attainable deviation for 5 of 7 scoreable patterns, because their
+  harm runs through channels that outcome structurally cannot see). Scope, as specified:
+  1. Bring the threshold-perturbation step to the documented one-bin semantics — direction, step
+     size, and explicit, tested behavior on coarse/discrete columns (item 2 found all 144 production
+     refits on integer columns produce no estimate at all; sign agreement collapses and the gate
+     fails regardless of content — this must become a deliberate, disclosed rule, not silent
+     failure).
+  2. Determine what outcome is admissible for a robustness refit when the primary economic-harm
+     channel is not visible to a `decomposition_of` alternative outcome. **This determination is a
+     design decision to be made and preregistered before looking at its effect on `P01`/`P03`/any
+     specific travel pattern, as far as practically possible** — mirroring the discipline
+     `TASK-058`/`TASK-059` already applied to travel's own earlier remediation. Do not assume
+     `decomposition_of_outcome` is the right refit source going in; item 2 proved the current default
+     is wrong, not what should replace it.
+  3. Formally specify when a `decomposition_of`/magnitude-parity refit is admissible at all, and the
+     disclosed behavior when no admissible refit outcome exists for a given candidate (never a
+     silent pass or a silent fail — a named, evidence-level-visible state).
+  4. Version the changed semantics (`G12`/robustness-check version, distinct from
+     `validation_contract_version` if the contract's own versioning scheme requires it — follow
+     `ADR-015`'s G05 precedent for how a gate fix was versioned before). Old frozen runs' verdicts
+     must remain reproducible and unchanged; only new runs use the corrected semantics.
+  5. Test on synthetic form tests (neutrally constructed, not travel-specific) and across all
+     currently-built `TASK-061` synthetic domains, not travel alone.
+  6. **Independently prove the change does not weaken `G06` or `G12`'s other three working check
+     families** (item 2 found only the threshold-perturbation sub-check and the outcome-refit
+     sub-check broken; the rest of `G12`'s battery was not implicated) — a regression suite showing
+     every other check's pass/fail behavior is unchanged on the same inputs.
+- **Success criterion — stated as mechanism properties, deliberately not as `P01`/`P03` passing or
+  any recall number:**
+  - A stable synthetic effect (constructed with known-by-design stability) passes the threshold
+    check regardless of where its threshold sits in the column's percentile range — not just in
+    the current grid's accidental [0.125, 0.575] window.
+  - A genuinely unstable synthetic effect is still rejected — the fix must not simply widen the
+    passing window to the point of losing discriminating power (item 2's own counterfactual, which
+    separated stable from unstable in 136/136 cells, is the existence proof this is achievable).
+  - A robustness refit measures the same economic construct as the primary outcome, or an
+    explicitly pre-specified, disclosed, admissible decomposition of it — never an outcome chosen
+    for convenience that happens to be `decomposition_of`-tagged.
+  - The gate's verdict does not depend on which surrogate/refit outcome happens to be available —
+    two candidates with equally stable primary-harm effects must not receive different `G12`
+    verdicts solely because of how much of their harm routes through whatever refit outcome exists.
+- **Required regression families, both independent of any specific pattern's identity:**
+  1. **Threshold-perturbation geometry:** the identical effect shape, shifted along the percentile
+     axis of an invented column, must yield an equivalent robustness verdict at every tested
+     position — proving the fix, not a specific pattern, is what changed.
+  2. **Outcome semantics:** synthetic patterns with identical primary-harm stability but differing
+     shares of that harm routed through a `decomposition_of` refit outcome must not receive
+     different `G12` verdicts due to that share alone.
+- **Done when:** both regression families pass, `G06` and `G12`'s other checks are proven unchanged,
+  the semantics are versioned and old runs remain reproducible, and — only then — **a fresh oracle
+  evidence-ceiling computation is re-run for all 7 travel patterns** (re-invoking
+  `scripts/diagnose_validation_power.py` against the corrected gate). This is what finally settles
+  `TASK-069`'s achievable-denominator question: the current `≤3/7` cannot be treated as stable
+  benchmark semantics while two of those three pass through a proven-incorrect gate. Whatever the
+  re-run finds — larger, smaller, or unchanged — is recorded as the real number, not assumed in
+  advance.
+- **Hard rule, identical in force to `TASK-069`'s own:** no threshold-perturbation step, refit-
+  outcome rule, or admissibility criterion may be designed, scoped, or tuned by reference to
+  `P01`/`P03`/travel's other specific pattern identities or feature values. The two regression
+  families above exist precisely so the fix can be validated without ever looking at travel's own
+  patterns until the design is already fixed.
 
 ### Sprint 1 — Benchmark and ingestion foundation
 
