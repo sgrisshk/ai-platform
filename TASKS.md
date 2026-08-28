@@ -3195,8 +3195,10 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** ML_DISCOVERY
 - **Support:** STATISTICS
 - **Priority:** P0
-- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark) is complete**;
-  no design work has started and none is authorized by that completion. Items 1–6 remain untouched.
+- **Status:** IN_PROGRESS — research-plan **item 7 (oracle decomposition benchmark) is complete**,
+  and the reprioritization's **item 1 (validation power autopsy) is complete**; no design work has
+  started and none is authorized by either completion. Reprioritization items 2–6 remain untouched,
+  and no mechanism, gate, threshold, or estimator change has been proposed or scoped.
 - **Depends on:** none
 - **Goal:** Identify and prototype a genuinely different approach to candidate discovery — not a
   further tuning pass of `discovery.engine`'s existing beam-search/diversity-selection mechanism,
@@ -3354,7 +3356,7 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   (items 1–6) provably cannot move it while the validation layer caps every candidate first — that
   layer must be understood before search work is prioritized, not after.
   - **New task ordering, superseding the "(a) expansion policy, (b) vocabulary" sequencing above:**
-    1. **Validation power autopsy (highest priority, not yet started):** for each of the 7
+    1. **Validation power autopsy — DONE (2026-08-28, STATISTICS).** For each of the 7
        ground-truth patterns, decompose *why* its oracle branch caps at `descriptive_observation`
        into the specific validation gate responsible (sample/effective-sample size, uncertainty
        width, adjusted-effect attenuation, stability, multiple-testing correction, or whichever
@@ -3363,6 +3365,60 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
        "the validation test itself is statistically inefficient for this effect/sample shape" (an
        estimator/test question, not a data-volume question) — these imply different, non-overlapping
        fixes and must not be conflated.
+       **Executed — `docs/benchmark/task-069-validation-power-autopsy.md`, raw output
+       `docs/benchmark/task-069-validation-power-autopsy-raw.json`, tool
+       `scripts/diagnose_validation_power.py`** (post-hoc diagnostic, not part of any official
+       pipeline, contains no hardcoded pattern id/feature/threshold; four fidelity assertions
+       before it reports anything — frozen candidate SHA-256, all 9 oracle projections reproduce
+       item 7 condition-for-condition, the counterfactual verdicts reproduce item 7's committed
+       evidence levels and failed-gate sets exactly, and the per-check `G12` decomposition
+       reproduces `_robustness_battery`'s own aggregates to 1e-12; output byte-reproducible across
+       runs). Only `G03`/`G04`/`G05`/`G10`/`G12` can hold a candidate at `descriptive_observation`
+       (`LEVEL_REQUIREMENTS`); filtering item 7's failed-gate lists to those five is what makes the
+       binding gate visible. `P06` is the control — its oracle branch *was* selected (`CAND-007`),
+       so its numbers are read from the frozen `TASK-019` report, not counterfactually.
+       | Pattern | Binding gate | Actual vs. real preregistered threshold | Classification |
+       |---|---|---|---|
+       | `P01` | **`G12`** | max magnitude deviation **66.2%** vs ceiling **50%**; every other level-2 gate passes hugely (MDE80 236.0 € vs harm 938.8 €; raw p 9.96e-15 vs BH requirement 3.81e-6) | **estimator/test** |
+       | `P02` | **`G05`** | raw p **8.553e-4** vs **1.144e-5** required at rank 3 of family 26,213 → **74.7× short**; `G03`/`G04`/`G10` pass | **insufficient data** (dilution-induced) |
+       | `P03` | **`G12`** | max magnitude deviation **71.3%** vs **50%**; raw p 6.86e-8 vs 7.63e-6 required (111× headroom); MDE80 172.8 € vs harm 396.1 € | **estimator/test** |
+       | `P04` | **`G03`** | MDE80 **105.7 €** vs \|harm\| **41.6 €** → 2.54× underpowered, and the representable branch's sign is *negative*; CI [−105.6, 34.6] € straddles zero; needs 5,878 exposed in a 4,999-row split | **insufficient data** |
+       | `P06` | *none* | reaches `predictive_association`; capped at level 2 by `G11` (1.84 vs 1.50), `G13`, `G14` | **control** |
+       | `P08` | **`G03`** | n_exposed **35** < `min_exposed_records` **50**; MDE80 **357.3 €** vs harm **158.4 €** → 2.26×; needs 183 | **insufficient data** |
+       | `P09` | **`G03`** | MDE80 **142.4 €** vs harm **124.3 €** → 1.15×; needs 305 vs 229 available; `G05` raw p 0.0476 vs 1.526e-5 → 3,122× short | **insufficient data** |
+       Five findings that change what items 2–6 should assume, recorded here so they are not
+       re-derived: (a) **they do not all cap for the same reason** — `G12` is the only gate all six
+       missing patterns fail (and **11 of the committed run's 15 official candidates**; all four
+       candidates that reached ≥ `predictive_association` passed it), but for only **two of seven**
+       is it the sole thing standing between the pattern and `predictive_association`; (b) `P04`,
+       `P08`, `P09` are **conclusively unpromotable at travel's `n`** — applying `G03`'s and `G05`'s
+       own formulas to their **exact true rules** with a deliberately optimistic *unclustered* SE
+       still misses BH's most lenient requirement (0.10/26,213 = 3.815e-6) by **514×**, **~143,000×**
+       and **3,450×** respectively; (c) `P02` is the one dilution case — its exact true rule clears
+       that bar at p ≤ 4.6e-22, its 3.34×-broader representable branch does not, so its ceiling is
+       **representability (item 4), not data volume and not the estimator**; (d) `P01` and `P03`'s
+       data is decisive (raw p six and five orders of magnitude past requirement; 79 and 152 exposed
+       where 4.9 and 28.2 sufficed for 80% power) and their only level-2 failure is `G12`, whose two
+       binding sub-checks are the numeric-threshold perturbation and the `gross_profit_eur`
+       alternative outcome; (e) within the committed run, `discount_rate ge 0.05` / `ge 0.08` /
+       `ge 0.12` — same feature, near-identical rules, dev percentiles 30.9%/53.7%/72.5% — give
+       `G12` deviations of **32% / 44% / 62%**, pass/pass/**fail**, monotone in where the threshold
+       sits relative to the fixed 0.15/0.25 perturbation quantiles.
+       **Consequence for the plan:** the achievable-at-this-`n` denominator is **at most 3 of the 7**
+       scoreable patterns (`P01`, `P03`, `P06`), of which the committed run **already recovers two**
+       (`P01`, `P06`) — so the headline "unique-pattern recall = 2/7 (29%)" is measured against a
+       denominator at least three of whose entries are unreachable by construction, and items 5–6
+       (search/selection) have a hard reachable ceiling of **3/7** executed perfectly, moving exactly
+       one not-already-recovered pattern (`P03`, which item 7 separately flagged as trap-`T03`-unsafe
+       to chase until `G06`'s generalization is evaluated on its own schedule). This is exactly the
+       input item 2 needs. **This is diagnosis only — no gate, threshold, estimator, perturbation
+       rule, or eligibility change is proposed, scoped, or authorized by it**; the autopsy names
+       four real design questions it opened and explicitly declines to answer any of them, because
+       answering them here would be designing a validation-gate change against travel's seven known
+       pattern identities, which this task's hard rule forbids.
+       Also corrected item 7's §3 counterfactual table, which omitted `G03` from `P09`'s failed-gate
+       list; item 7's own raw JSON was already correct and `G03` is `P09`'s binding level-2 gate. No
+       computed number changed.
     2. **Define benchmark semantics:** given the autopsy's result, which of the 7 ground-truth
        patterns should even be considered achievable at `predictive_association` at travel's actual
        `n` — a `recall` denominator that includes patterns no honest validation test could ever
@@ -3404,7 +3460,10 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     a given engineering change actually addresses.
   - **The single most useful next number, per this reprioritization:** for each of the 7 patterns,
     the maximum evidence grade achievable under oracle candidate injection, and the exact validation
-    gate responsible for its ceiling — item 1 above, not a new search result.
+    gate responsible for its ceiling — item 1 above, not a new search result. **Answered
+    2026-08-28** (item 1's entry above): maximum grade is `predictive_association` for `P06` alone
+    and `descriptive_observation` for the other six; binding gates are `G12` (`P01`, `P03`), `G05`
+    (`P02`), and `G03` (`P04`, `P08`, `P09`).
 
 - **Hard rule, binding on this task (mirrors `ADR-054`'s `b2b_sales`-specific-tuning prohibition,
   now extended to the validation/eligibility layers this reprioritization opened up):** no new
