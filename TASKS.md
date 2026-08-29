@@ -4419,6 +4419,89 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     themselves). Per `ADR-071`'s sequence, step 2 (the oracle-adjustment-set sufficiency experiment)
     may now be opened as its own task — not performed by this review.
 
+### TASK-078 — Oracle-adjustment-set sufficiency experiment (`ADR-071` step 2): if `G06` receives the true confounder set directly, is the rest of the validation mechanism sufficient to reject the five traps?
+
+- **Owner:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-075` (`CODE_REVIEWER`-confirmed adversarially, `ADR-071`)
+- **The question this task exists to answer, stated precisely (founder, 2026-08-29):** if the
+  selection layer (`G06`) receives an *ideal* adjustment set directly — bypassing its own
+  cardinality-cliff-affected selection logic entirely — is the *rest* of the validation mechanism
+  (estimator, remaining `G00`–`G14` gates, thresholds) sufficient to reject the five confounding
+  traps? This is a distinct, prior question to any selector fix, and its answer cleanly splits the
+  solution space:
+  - **If 5/5 traps (with `T02`'s caveat handled per its own two-counterfactual design below) are
+    rejected under oracle confounders:** the diagnosis is nearly closed — the primary defect is
+    adjustment-set *construction*, and the eventual fix-design task can be scoped narrowly to
+    relevance-aware selection plus coverage/overlap constraints, without cause to redesign the
+    estimator or any downstream gate.
+  - **If any fully-representable trap still passes with its oracle adjustment set:** the cardinality
+    cliff (`TASK-075`) remains a proven, real defect, but is **not sufficient** to explain the
+    safety failure by itself. Opening a "fix `G06`'s selector" task would be premature — a second
+    forensic layer (estimator/specification/downstream decision semantics) is required first, as its
+    own task, before any fix-design work begins.
+- **Scope — kept deliberately as narrow as a single clean intervention, per the founder's own
+  instruction:**
+  1. **Unchanged everything except the adjustment set actually used.** Same dataset, same candidate
+     definitions (`CAND-014`/`T03`, `CAND-015`/`T04`, and the constructed/counterfactual candidate
+     definitions for `T01`/`T02`/`T05` that `TASK-075` already built and fidelity-checked), same
+     estimator, same `G00`–`G14` gates and thresholds throughout. **The single intervention: replace
+     the automatically-selected adjustment set with each trap's known ground-truth confounder set**
+     (`synthetic_data/evaluation/hidden_ground_truth.json`'s `confounded_by` field), bypassing `G06`'s
+     own selection logic for that one substitution only — the selection *algorithm* is not modified,
+     its *output* is overridden for this experiment only.
+  2. **No search for a better adjustment set, and no adding variables after seeing a result.** The
+     oracle set for each trap is read once, fixed before any candidate is re-scored, and not revised
+     based on how the experiment turns out — the same pre-registration discipline this project
+     applies everywhere else (`ADR-007`/`ADR-012`).
+  3. **`T02` gets two separate, non-combinable counterfactuals, decided before running either:**
+     - **(a) Schema-feasible oracle:** only `T02`'s ground-truth confounders that actually exist in
+       the current dataset schema (including `trip_duration_days`, which `TASK-075` confirmed is a
+       genuine selection-among-eligible failure), explicitly excluding `booking_month` (confirmed
+       absent from the manifest's entire feature schema — a vocabulary gap, not a selection failure).
+       This tests **`G06` sufficiency under the current vocabulary** — the same question every other
+       trap answers.
+     - **(b) Full-ground-truth oracle — only if reconstructable without changing the benchmark's own
+       meaning** (e.g. deriving `booking_month` from an existing decision-time date field already
+       present in the analytical contract, the same way `HANDOFF-059`/`ADR-045` identified the gap
+       for `P04`, *without* adding it as a permanent vocabulary feature — a one-off counterfactual
+       column for this experiment only, not a `discovery.engine` change). If this cannot be built
+       without altering what the benchmark measures, disclose that plainly and report (a) alone for
+       `T02`, do not force a fabricated substitute. This separates **selector sufficiency from
+       representability/vocabulary sufficiency** — a different question from (a), and the two must be
+       reported as two distinct numbers, never merged into one "T02 result."
+  4. **Preregistered acceptance criterion, fixed now — deliberately not "T03 no longer passes":**
+     every fully-representable trap given its complete known confounder set must stop reaching the
+     disqualifying evidence/policy state (`shadow_policy` or above, per `docs/benchmark/decision-gate.md`'s
+     own hard-disqualifier definition) — evaluated per-trap, not as an aggregate pass rate that could
+     average away a single genuine survivor.
+  5. **Record the exact gate-of-death and the adjusted effect for every trap under its oracle
+     adjustment set**, whether it's rejected or not — this is diagnostic information about *why*
+     oracle adjustment worked (or didn't), not just whether it did, and directly informs whether
+     `ADR-071`'s fork lands on "selector fix" or "new forensic task."
+  6. **Do not touch, re-score, or evaluate the six existing real `PASS` candidates in this
+     experiment.** This experiment tests the *sufficiency of oracle adjustment on traps*, not the
+     quality of any future selector — positive-control preservation is `ADR-071`'s own step-5
+     acceptance-matrix concern, deliberately deferred to fix-design/implementation, not measured
+     here.
+- **Explicitly not in scope:** any change to `G06`, `apply.py`, `discovery.engine`, or any gate;
+  designing or scoping the eventual selector fix (a distinct, later task per `ADR-071`'s sequence,
+  opened only after this task's fork resolves); the second forensic layer named in the "any trap
+  survives" branch above (opened as its own task only if that branch is the actual result).
+- **Hard rule (same force as `TASK-075`'s and `ADR-071`'s):** no gate, threshold, or selection logic
+  may be tuned, chosen, or justified by reference to this experiment's own outcome on `T01`–`T05`'s
+  specific identities. This task measures a property of the existing, already-decided mechanism
+  under one controlled substitution — it does not iterate toward a result.
+- **Done when:** all five traps have a recorded oracle-adjustment result (`T02` reported as two
+  separate, distinct counterfactuals per item 3), each with its gate-of-death and adjusted effect
+  disclosed regardless of outcome, the preregistered acceptance criterion is applied exactly as
+  stated (no reinterpretation after seeing results), the fork this task exists to resolve is stated
+  explicitly (5/5-with-T02-caveat blocked → open `G06` fix-design; any fully-representable survivor →
+  open a new forensic task first), and `CODE_REVIEWER` independently confirms the experiment's
+  fidelity and the stated result before either follow-on opens.
+
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
 - **Owner:** ARCHITECT
