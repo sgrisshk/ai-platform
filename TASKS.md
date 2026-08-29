@@ -4566,9 +4566,13 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   into `discovery.engine`'s own design territory even though no change to it is authorized here)
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** DONE (2026-08-29), pending `CODE_REVIEWER` independent confirmation of the three
-  attributions before `ADR-071` step 3 (`G06` fix-design) may open, per `ADR-072`. **Founder
-  directive (`ADR-073`): this review is bound by four required checks (independently reproduce
+- **Status:** DONE (2026-08-29). `CODE_REVIEWER` independent confirmation (`ADR-073`'s four-check,
+  alternative-mechanism-seeking mandate) now performed — **APPROVED (2026-08-29)**, no surviving
+  alternative explanation found for `T03`/`T04`'s survival mechanism after genuine attempts; one
+  honest, non-overturning disclosure nuance recorded (see "Reviewer verification" below).
+  `ADR-071` step 3 (`G06` fix-design) may now open, per `ADR-072`/`ADR-073`, scoped exactly as
+  `ADR-073` names it (a narrowly-scoped candidate-composition safety design task — not performed by
+  this review). **Founder directive (`ADR-073`): this review is bound by four required checks (independently reproduce
   `T04`'s residual and confirm attribution to the compound-condition variable, not an estimator
   artifact; repeat the counterfactual adjustment and confirm both safety criteria flip as expected;
   recompute the `3.75×` `_development_score` enrichment from scratch and test its robustness to
@@ -4611,6 +4615,100 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   throughout — no finding used to justify a design move outside its own branch; no trap's pass/fail
   verdict changed; no code, gate, threshold, estimator, or `discovery.engine` change proposed,
   scoped, or implemented.
+- **Reviewer verification (2026-08-29, `CODE_REVIEWER`, `ADR-073`): APPROVED.** Independently
+  re-derived, not by re-reading `TASK-079`'s report and accepting its numbers — a genuinely separate
+  pure-Python (`csv` module, no `polars`, no reuse of `apply_module._stratified_adjustment`/
+  `_binned_adjustment_frame`) re-implementation of raw-effect and stratified-adjustment arithmetic
+  was written from scratch for checks 1–2, and the real, unmodified `discovery.engine` scoring
+  functions were called directly (not via `TASK-079`'s own script) with an independently-written
+  aggregation loop for check 3. `TASK-079`'s own diagnostic script was also re-run in full and its
+  raw JSON output is byte-identical to the already-committed
+  `docs/benchmark/task-079-residual-confounding-forensics-raw.json` — confirms determinism and that
+  the committed document's numbers are not a transcription of hand-edited values.
+  1. **Check 1 (`T04` residual attributable to `discount_rate`, not an estimator artifact) —
+     CONFIRMED.** Pure-Python re-derivation (own quantile-binning and population-variance
+     implementation, deliberately different from `apply.py`'s own): raw harm `166.5` EUR (exact
+     match); oracle-only (`booking_lead_days`, `destination`) adjusted harm `154.4` EUR, attenuation
+     `0.072`, E-value `1.705` (report: `154.1`/`0.07`/`1.70` — the ~`0.3` EUR difference is
+     attributable to population- vs sample-variance and quantile tie-handling, not a discrepancy in
+     the underlying finding). Bin-granularity re-check at 2 and 8 bins independently reproduces the
+     same small, bounded drift `TASK-079` §2.2 reports.
+  2. **Check 2 (counterfactual adjustment incl. `discount_rate` flips both safety criteria) —
+     CONFIRMED, independently re-run.** Same from-scratch pure-Python stratification, oracle +
+     `discount_rate`: adjusted harm `81.9` EUR, attenuation `0.508` (`> 0.50` ceiling, **FAIL**),
+     E-value `1.445` (`< 1.5` floor, **FAIL**) — report: `79.1`/`0.52`/`1.43`, same qualitative
+     result, both gates flip in the expected direction. **Central-mandate placebo test performed
+     here, not requested by the four checks but directly relevant to them:** the identical
+     third-variable-addition test was repeated substituting `discount_rate` with each of 12 other
+     adjustment-eligible features (`customer_segment`, `quoted_cost_eur`, `supplier`, `manager`,
+     `product_category`, `party_size`, `trip_duration_days`, `customer_type`, `customer_price_eur`,
+     `manual_exception`, `installments`, `acquisition_channel`) — **none** flip both gates; the
+     closest (`quoted_cost_eur`) reaches only attenuation `0.127`/E-value `1.673`, far short of
+     `discount_rate`'s `0.508`/`1.445`. This rules out "adding any third covariate mechanically
+     attenuates via more/sparser strata" as an alternative, estimator-side explanation —
+     `discount_rate`'s effect on the adjustment is qualitatively distinct from the rest of the pool,
+     not a generic artifact of stratifying on one more column.
+  3. **Check 3 (`3.75×` enrichment recomputed, robustness tested) — CONFIRMED, and found robust to
+     every alternative tried.** Baseline reproduced exactly from scratch (confounder trials `3/5 =
+     0.6`, non-confounder `4/25 = 0.16`, ratio `3.75`). Alternative operational definitions tested,
+     all against the real, unmodified `_metric`/`_development_score`/`_atoms`/`_eligible`: (a) using
+     **every** atom per feature instead of only the best-scoring one (a materially different, larger
+     sample: `7/20 = 0.35` vs `8/122 = 0.066`, ratio `5.34×` — stronger, not weaker); (b) a stricter
+     definition requiring the score increase to exceed 1% of the base score (identical `3.75×` —
+     every real increase/decrease in this sample is far from the noise boundary, no borderline
+     cases); (a)+(b) combined (`6.10×`); (c) an alternate `DiscoveryConfig` with
+     `population_score_exponent=1.0` (the pre-`TASK-058` linear-in-`n_exposed` scoring, `5.00×` on a
+     smaller `1/5` vs `1/25` sample). Every alternative tested produced an equal or larger enrichment
+     ratio, never a smaller or reversed one — the finding is not an artifact of the specific
+     best-atom-only sample or the `delta > 0` definition `TASK-079` used.
+  4. **Check 4 (`T05` stays a distinct data-overlap ceiling) — CONFIRMED.** `T05`'s
+     `manual_exception=true` singleton is structurally excluded from Branch 2's compounding-sweep
+     mechanism entirely (opposite raw sign in the development split — `_eligible` never returns
+     `True` for it, independently reconfirmed), so it cannot be conflated with the `T03`/`T04`
+     score-enrichment mechanism even in principle: the two analyses never share a code path for
+     `T05`. Branch 3's own subset-coverage sweep independently re-run: sharp cliff confirmed
+     (coverage `1.00`/`0.988` at 1–2 variables down to `0.178` at the complete 4-variable oracle
+     set, `10/240` usable joint cells), matching `TASK-079`'s own numbers exactly on re-run.
+  **Central adversarial mandate — genuinely attempted, no mechanism found that explains `T03`/`T04`
+  without invoking candidate-composition semantics; one real, non-overturning nuance surfaced.**
+  Three real alternative mechanisms were tried, beyond the placebo test in check 2 above:
+  - *G06's own already-diagnosed coverage-floor/cardinality-cliff mechanism (`TASK-075`) might be
+    doing the real work, making the `G02`-circularity framing redundant/misleading for `T04`.*
+    Tested directly: ran the real, unmodified `_select_adjustment_columns` against `CAND-015`'s pool
+    with `discount_rate` counterfactually **not** `G02`-excluded (diagnostic-only, mirroring
+    `TASK-075` §2's own precedent). Result: `discount_rate` would **not** have been selected anyway
+    — it sorts 14th of 15 in cardinality try-order (binned cardinality 6), by which point the
+    running coverage has already collapsed to `0.34` (breached at `acquisition_channel`, position
+    7). **This is a genuine, real finding `TASK-079`'s document does not explicitly state for `T04`**
+    (`TASK-078` §3/§6 already disclosed the identical redundancy for `T03`'s `discount_rate`, but
+    `TASK-079` does not extend that same disclosure to `T04`) — recorded here as an honest
+    completeness gap. It does **not** function as an alternative explanation, though: the core claim
+    is about *why* `discount_rate` ends up as `CAND-015`'s own condition in the first place (raising
+    `_development_score`), which is prior to and independent of which downstream mechanism (`G02`,
+    or, redundantly, the coverage floor) then blocks adjusting for it. The redundancy reinforces
+    rather than undermines the attribution — worth `TASK-079`'s own document adding for symmetry
+    with its `T03` treatment, but not a defect in the finding itself.
+  - *`discount_rate`'s contribution might be substantially genuine recovery of true pattern `P01`
+    (`supplier=BlueWing AND discount_rate>=0.12 AND booking_lead_days<21`, the one true pattern that
+    also uses `discount_rate`), analogous to `T04`'s own `P06`-overlap partial explanation, rather
+    than confounding-like score inflation.* Tested via the identical overlap-decomposition method
+    `TASK-079` §2.4 already used for `P06`, applied here to `P01`: only `3.1%` of `CAND-015`'s
+    exposed population (`31`/`1006`) overlaps `P01`'s true rule, contributing an estimated `37.0` EUR
+    of the `166.5` EUR raw effect; the non-overlapping `96.9%` contributes the remaining `129.4` EUR
+    (sum `166.4`, matching raw within rounding). Genuine `P01` recovery is a minor, not a dominant,
+    contributor — this alternative does not hold as a primary explanation.
+  - *A placebo/third-covariate stratification artifact* (check 2 above) — tested and refuted; see
+    above.
+  **No alternative mechanism was found that explains `T03`/`T04`'s survival without invoking
+  candidate-composition semantics.** The one real nuance found (`G06`-redundancy for `T04`'s
+  `discount_rate`, parallel to `TASK-078`'s own `T03` disclosure) is a completeness gap in
+  `TASK-079`'s document, not a competing explanation, and does not block approval.
+  **Independent artifacts (not committed to this branch's tracked history beyond this record — pure
+  scratch verification scripts, per this review's read-only mandate):** rerun of
+  `scripts/diagnose_task079_residual_confounding_forensics.py` (byte-identical raw JSON,
+  confirmed); from-scratch pure-Python stratification re-derivation; from-scratch `_development_score`
+  enrichment re-aggregation with 4 alternative definitions/samples; `G06`-redundancy counterfactual;
+  `P01`-overlap decomposition.
 - **Depends on:** `TASK-078` (`SURVIVOR_FOUND`, `ADR-072`)
 - **Origin:** `TASK-078`'s oracle-adjustment-set experiment found that handing `G06` the true
   confounder set directly is not sufficient to stop `T03`/`T04` from reaching `shadow_policy`,
