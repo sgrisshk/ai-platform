@@ -4769,8 +4769,20 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** DESIGN COMPLETE (2026-08-29), pending independent `CODE_REVIEWER` review — not yet
-  `CODE_REVIEWER`-approved, and no implementation task is opened by this status change. **Founder
+- **Status:** DESIGN COMPLETE (2026-08-29); `CODE_REVIEWER` independent review complete
+  (2026-08-29, `ADR-074`) — **APPROVED WITH REVISION NEEDED, classifier-level (not
+  architecture-level)**. The validation/promotion staging decision itself (permissive discovery →
+  recomputed composition safety at validation → named evidence ceiling, zero `discovery.engine`
+  changes, three-way confound/interaction/indeterminate classification, capping never
+  rejecting/promoting) is confirmed sound and is **not** what this review's findings touch. What
+  is not yet approved is the *specific classifier mechanics* in design doc §4/§8.1 as currently
+  written: one real, adversarially-constructed defect in the attenuation-vs-concentration
+  signature (risk 1, per `ADR-074`'s own fork — corrects the estimand/classifier, does not discard
+  the architecture) plus four narrower gaps (risks 2-5) that must be corrected in the design
+  document before an implementation task opens on it as an unchanged specification. Full findings
+  below. No implementation task is opened by this entry, and none should open until the design
+  document itself is revised to address the findings below — per `ADR-074`'s own fork, this is not
+  a return to `discovery.engine` redesign or `G06`-selection-fix framing. **Founder
   directive (`ADR-074`): review bound by five specific risks** (leave-one-out estimand validity,
   tested via synthetic known-DGP form tests not `T03`/`T04`; order semantics/permutation invariance
   of "first atom" privilege; whether reused thresholds carry the *same statistical semantics* in the
@@ -4800,6 +4812,153 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   reject/promote, mirroring `TASK-079`'s own `T05` treatment. All five hard-fixed non-solutions
   confirmed unused (design doc §11). Implementation, if `CODE_REVIEWER` approves this design, is a
   distinct, later task per this task's own binding instruction — not opened here.
+- **Reviewer verification (2026-08-29, `CODE_REVIEWER`, `ADR-074`): APPROVED WITH REVISION NEEDED
+  (classifier-level).** Genuinely new synthetic form tests with known data-generating processes
+  were built (never reusing `T03`/`T04`), calling the real, unmodified
+  `policy_analytics.validation.apply._stratified_adjustment` and the real
+  `DEFAULT_THRESHOLDS.max_adjusted_attenuation`/`min_confounder_stratum_coverage` directly — no
+  reimplementation of the estimator. The real gate-application order in `apply.py`/`grading.py`/
+  `contract.py`/`report.py` was traced by reading the code, not assumed. Scratch-only verification
+  script (per `TASK-079`'s own reviewer-verification precedent — not committed to this branch's
+  tracked history beyond this record).
+  1. **Risk 1 (leave-one-out estimand validity) — REAL DEFECT FOUND, signature-level, per
+     `ADR-074`'s own fork (corrects the estimand/classifier; does not discard the architecture).**
+     Five distinct synthetic DGPs built (A-E) plus a small-sample noise sweep. Sanity cases confirm
+     the check works as designed at the clean extremes: a near-perfect confound proxy (`C` exactly
+     equals the true common cause `U`) correctly reads confound-like (attenuation `0.99`); a clean,
+     unconfounded interaction (`X ⊥ C`) correctly reads interaction-like (attenuation `0.00`).
+     **The adversarial case (Scenario C): a candidate atom that is a realistic, non-exact proxy
+     (concordance `0.75`, not a contrived edge case) for the true confounding common cause, where
+     the base rule's true causal effect is exactly zero (100% confounded, by construction).** At
+     concordance `0.75` the check returns **`interaction_like` with no evidence cap at all**
+     (attenuation `0.196`, comfortably under the `0.50` ceiling; concentration holds:
+     `harm(R)=34.5 > harm(base_i)=29.8`) — a clean, real "backwards" case matching `ADR-074`'s own
+     named concern precisely (ordinary proxy-confounding produces the concentration/non-attenuation
+     signature). This is not an exotic corner case: `TASK-079` §2.4 already established this
+     project's own real data shows oracle adjustment removing only ~11% of theoretically-removable
+     confounding, i.e. real search-selected atoms are exactly the "correlated-but-not-identical"
+     proxies this scenario tests, not clean textbook confounders. At lower concordance (`0.55`-
+     `0.62`) the same DGP degrades to `composition_risk_indeterminate` (still capped, safer) rather
+     than a clean uncapped pass — the danger zone is specifically the good-but-imperfect-proxy
+     regime. **The opposite-direction failure `ADR-074` also names (genuine interaction reading as
+     confound-like) was attempted hard and not found**: Scenario D (a true effect modifier `D`
+     proxied noisily by the candidate atom `C`, zero confounding anywhere in the DGP) never produced
+     attenuation above `~0.002` at any tested concordance (`0.95` down to `0.55`) — it degrades only
+     to `indeterminate` via loss of concentration, never to `confound_like`; Scenario E (genuine
+     interaction contaminated by a real, independently-caused, modest confounding-via-selection
+     role for the *same* atom) also stayed correctly `interaction_like` (attenuation `0.059`). A
+     realistic small-sample noise sweep (Risk 1c: clean-interaction DGP, `n=5000/1000/645/300`, 200
+     trials each) found `0/200` spurious ceiling-crossings at every sample size — pure sampling
+     noise misclassifying a genuine interaction as confound-like is not a material risk at these
+     thresholds. **Net: the design's attenuation-threshold-alone discriminator is asymmetrically
+     vulnerable — it can be fooled into a fully uncapped pass for a real confound wearing a decent
+     (not perfect) proxy, but resisted every constructed attempt to fool it into wrongly capping a
+     real interaction.** Per `ADR-074`'s fork, this does not touch the validation/promotion staging
+     decision or the three-stage separation, which remain sound; it requires revising the
+     classifier itself (the single-threshold attenuation comparison is not sufficient evidence, on
+     its own, for an uncapped `interaction_like` verdict).
+  2. **Risk 2 (order semantics/permutation invariance) — the design DOCUMENT is sound; a real
+     documentation-consistency defect exists elsewhere.** Design doc §4/§8.1 both specify a loop
+     over **every** atom `i` in `1..k` ("for each atom `Ci` in `R`" / "for each `i` in `1..k`"),
+     not "atoms beyond the first" — confirmed by direct re-reading of the design document's own
+     formal mechanism sections. Confirmed empirically (not just by construction) that a given
+     atom's own classification is bit-for-bit identical regardless of whether the candidate's
+     condition tuple is stored `(A,B)` or `(B,A)`, because `base_i` and the stratification variable
+     are pure set operations on atom identity, never on tuple position. **However, this task's own
+     `TASKS.md` recommendation summary above (and `ADR-074`'s own risk-2 problem statement, which
+     appears to quote it) says "for each condition atom beyond the first" — a phrasing inconsistent
+     with, and less safe than, the design document's own §4/§8.1 text.** Constructed a concrete
+     demonstration: built a 2-atom candidate where atom `A` (stored first) is a near-perfect
+     confound proxy and atom `B` (stored second) is only weakly, benignly correlated with the same
+     latent driver. Atom `A`'s own leave-one-out check correctly reads `confound_like` (attenuation
+     `1.03`) — but if only "atoms beyond the first" are ever checked, that check never runs, and the
+     one check that does run (atom `B`'s) reads `composition_risk_indeterminate` (attenuation
+     `0.00`) and does not flag the candidate at all. **Whether a real confound is caught would then
+     depend entirely on which slot it happens to occupy in the tuple — exactly the order-dependence
+     defect `ADR-074` was checking for — but only if an implementation follows the "beyond the
+     first" paraphrase instead of the design document's own correct full-loop text.** Verdict:
+     no defect in the reviewed design document itself; a required correction to the recap language
+     surrounding it (this `TASKS.md` entry's own recommendation summary above, and by extension how
+     the risk was framed in `ADR-074`) so a future implementer is not misled into building the
+     unsafe partial version.
+  3. **Risk 3 (threshold semantic reuse) — REAL finding: single-atom coverage collapse is
+     empirically rarer than joint collapse, not more common as design doc §6.2.1 claims.** Directly
+     compared coverage behavior of single-atom vs. joint (G06-style) stratification using the real
+     `_stratified_adjustment`, at matched population sizes. Joint 3-variable (2×3×4=24-cell)
+     stratification collapses sharply at small `n` (coverage `0.06` at `n=150`), reproducing
+     `TASK-075`'s own real cardinality-cliff shape. **A single 4-level atom (matching
+     `ADJUSTMENT_QUANTILE_BINS`, the realistic case for a numeric-feature leave-one-out atom) stays
+     at coverage `~1.00` even at `n=150`, and at `n=645` (`CAND-014`'s own real exposed population)
+     — with enormous headroom over `TASK-075`'s own real 7th-joint-column figure of `0.44` at the
+     identical population size.** Design doc §6.2.1 states this check "inherits the identical risk"
+     as `G06`'s coverage collapse and will hit the floor "more often... not less" for deep/narrow
+     rules — this specific claim is not supported by the evidence above for realistic atom
+     cardinalities (2-6 levels): the coverage floor will rarely bind for a single atom at any
+     population size `G06` itself would even attempt validation on. **This connects directly to
+     risk 1: every scenario in the risk-1 test battery, including the damaging Scenario C
+     misclassification, showed `coverage=1.00` — the floor never engaged.** In practice, almost all
+     of this classifier's real discriminating power rests on the single attenuation-threshold
+     comparison alone (risk 1's demonstrated weak point), while the "indeterminate via coverage
+     collapse" safety net design §6.2.1 leans on will engage far less often than the document
+     assumes. Classifier-level, not architecture-level; the design document's own risk narrative in
+     §6.2.1 should be corrected to match (it currently over-states, not under-states, how often the
+     coverage floor will protect against a bad classification — the safer direction to be wrong in,
+     but still a real empirical claim that does not hold as written).
+  4. **Risk 4 (multiple-atom/joint composition risk) — NOT explicitly disclosed; a real gap, exactly
+     the kind `ADR-074` flagged as possible.** Re-read design doc §4, §8.1, §11, and §12 in full.
+     Structurally confirmed from the mechanism's own text: it only ever removes exactly one atom
+     and stratifies by exactly one variable at a time (`base_i = R` minus a single `Ci`) — it never
+     constructs a base rule with two or more atoms removed, nor a joint multi-variable
+     stratification analogous to `G06`'s own greedily-grown joint adjustment set. A composition risk
+     that exists only through the joint inclusion of two or more atoms (the same reason `G06` grows
+     a multi-variable set rather than testing variables one at a time) is therefore structurally
+     invisible to this check, by construction. §11's depth-non-penalization bullet and §12's "what
+     this design does not solve" section (crowding-out, the inherited estimator-adequacy ceiling,
+     open threshold-transfer questions) were checked specifically for this disclosure and do not
+     contain it. Per `ADR-074`'s own framing, this is not necessarily a blocker for a v1 design, but
+     the explicit disclosure it requires is currently missing and must be added to design doc §12
+     before implementation.
+  5. **Risk 5 (evidence-ceiling invariant on the real promotion path) — narrow gap; the real code
+     already provides strong, relevant protection the design document does not cite or rely on
+     explicitly.** Traced `apply.py`'s `run_validation` → `grading.classify_evidence_level`/
+     `evidence_ceiling` → `grading.assign_policy_readiness` → `report.ValidationReport.__post_init__`
+     end to end. Found that `ValidationReport.__post_init__` (report.py) already enforces, as a hard
+     invariant at construction time, that `self.evidence_level` must exactly equal
+     `classify_evidence_level(self.gate_results, self.identification_design)` — recomputed fresh
+     from `gate_results` (checked for completeness against every canonical `GateId` by
+     `grading._result_map`) — raising `ValueError` otherwise; `assign_policy_readiness` is driven
+     purely by that same (necessarily consistent) evidence level, so `policy_readiness` cannot
+     exceed what a capped evidence level permits (confirmed: an evidence level at or below
+     `PREDICTIVE` can never yield `shadow_policy`). **This means: if the composition check is
+     implemented as a genuine new `GateId`/`GateSpec` entry participating in `GATE_SPECS`'s
+     `evidence_ceiling` mechanism — exactly what "mirroring `G02`'s own `CAP_EVIDENCE` pattern"
+     should mean literally, not just by analogy — the existing invariant machinery already prevents
+     the cap from being silently bypassed or re-raised by any other gate or state-transition path; a
+     bespoke post-hoc override attempt would fail loudly at report-construction time instead.**
+     However, the design document does not state this integration requirement explicitly (§8.1 says
+     only "mirroring G02's own CAP_EVIDENCE pattern" at a conceptual level, never naming `GateId`/
+     `GATE_SPECS`/`ValidationReport`'s own consistency invariant), and §10's test plan does not
+     include the explicit invariant test `ADR-074` requires ("not an assumption"). Narrow,
+     implementation-specification-level gap: add the integration requirement to §8.1 and an
+     invariant test to §10, so a later implementation is required to rely on this existing
+     protection rather than risk re-deriving a weaker, ad-hoc mechanism.
+  **Central question (`ADR-074`), answered directly: partially yes, with one real, concrete
+  exception.** The composition check is permutation-consistent by construction (risk 2, confirmed)
+  and does not turn genuine interaction into an automatically-forbidden structure under every
+  constructed adversarial attempt in that direction (risk 1's Scenario D/E, risk 1c) — but it is
+  **not yet** a statistically meaningful, general way to detect loss of adjustability, because its
+  single attenuation-threshold discriminator can be fooled by a realistic (not contrived) imperfect
+  proxy into granting a fully uncapped pass to a 100%-confounded candidate (risk 1's Scenario C),
+  and the coverage floor it relies on as a secondary safety net will rarely engage for typical
+  single-atom cardinalities (risk 3), leaving that vulnerability largely unguarded in practice.
+  **Overall verdict: APPROVED WITH REVISION NEEDED — classifier-level, not architecture-level.**
+  The three-stage separation (permissive discovery / recomputed validation-stage composition safety
+  / named evidence ceiling under ambiguity) is independently confirmed strong and untouched by any
+  finding above, per `ADR-074`'s own fork. Design doc §4/§6.2/§8.1/§10/§12 require revision (risks
+  1, 3, 4, 5 above) before an implementation task opens on this design as an unchanged
+  specification; risk 2 requires no design-document change but does require this task's own
+  `TASKS.md` recap language (and `ADR-074`'s problem framing built on it) not to be read as the
+  specification an implementer follows.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
