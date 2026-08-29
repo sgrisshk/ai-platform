@@ -4424,7 +4424,50 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** DONE (2026-08-29), diagnosis complete — **not yet `CODE_REVIEWER`-approved**, per this
+  task's own Reviewer field; that is a separate, later step. Full record:
+  `docs/benchmark/task-078-oracle-adjustment-sufficiency.md`, raw computed output
+  `docs/benchmark/task-078-oracle-adjustment-sufficiency-raw.json`, produced by
+  `scripts/diagnose_task078_oracle_adjustment_sufficiency.py` (calls the real, unmodified
+  `policy_analytics.validation.apply.run_validation`; the only intervention is a process-local,
+  `finally`-restored monkeypatch of the module attribute `_select_adjustment_columns` for the
+  duration of each call — `G06`'s own source, `G02`, and every other gate are untouched).
+  - **Fidelity:** `artifacts/blind/task-073-official-20260829-001.*` are not present in this
+    worktree (same disclosed limitation the `CODE_REVIEWER`'s independent `TASK-075` review
+    already recorded). Substituted: dataset identity re-verified fresh (matches `TASK-075`'s own
+    recorded hash), and a fresh, override-free `run_validation()` call reproduces `TASK-075`'s own
+    already-recorded `adjustment_columns_used` exactly for all five traps' conditions before any
+    oracle-override result is reported.
+  - **Result, per trap, against its oracle (or best-achievable oracle) confounder set:**
+    - `T01`, `T02(a)` (schema-feasible, `booking_month` excluded), `T02(b)` (full-ground-truth,
+      `booking_month` derived one-off from `booking_date` per this task's own item 3(b)), and `T05`
+      — all **rejected** (`policy_readiness=not_ready`), on two independent grounds: `G03` sample
+      adequacy fails on their raw (unadjusted) effect alone, and their oracle-adjusted `G06`
+      independently fails too (attenuation or E-value). `T02(a)` and `T02(b)` reach the identical
+      verdict — `booking_month`'s absence is confirmed not load-bearing for this trap's own
+      rejection specifically (its raw effect is too weak to pass `G03` either way), without
+      reopening `TASK-075`'s finding that the vocabulary gap is real.
+    - **`T03` (`CAND-014`) and `T04` (`CAND-015`) both SURVIVE at `shadow_policy`** under their
+      oracle adjustment sets, clearing every other gate (`G00`–`G12`, `G15`) exactly as their real
+      gate traces do. `T04`'s oracle set (`booking_lead_days`, `destination`) is fully achievable,
+      no representability caveat, full coverage (`1.00`) — and the candidate still passes `G06`
+      (attenuation `0.07`, E-value `1.70`). `T03`'s oracle set is the disclosed best-achievable 2 of
+      3 (`customer_type`, `installments`; `discount_rate` structurally excluded by `G02` since it is
+      `CAND-014`'s own second condition, untouched) — full coverage, essentially zero attenuation
+      (`−0.01`), E-value `1.94`.
+  - **Fork resolved: SURVIVOR FOUND.** Per this task's own preregistered instruction, opening a
+    "fix `G06`'s selector" task now would be premature. `TASK-075`'s cardinality cliff remains a
+    proven, real defect, but is **not sufficient** to explain the safety failure by itself — a
+    second forensic layer (estimator/specification/downstream decision semantics) is required
+    first, as its own task, before any `G06` fix-design work begins. Named, not designed, for that
+    next task (§9 of the report): why full-coverage adjustment for `T04`'s complete, correct
+    confounder set still leaves a `shadow_policy`-reaching effect (estimator/threshold-calibration
+    question); whether the search folding a true confounder into a candidate's own condition set
+    (`T03`/`CAND-014`'s `discount_rate`) is a systematic `discovery.engine` candidate-composition
+    failure mode, not a `G06` question at all; `T05`'s oracle set cannot reach the coverage floor
+    even at its complete, correct 4 variables (`0.18`), a genuine data-support ceiling worth
+    carrying into any future selector's coverage/overlap trade-off. Neither follow-on task is
+    opened by this task itself, per its own scope — for the orchestrating session/founder to open.
 - **Depends on:** `TASK-075` (`CODE_REVIEWER`-confirmed adversarially, `ADR-071`)
 - **The question this task exists to answer, stated precisely (founder, 2026-08-29):** if the
   selection layer (`G06`) receives an *ideal* adjustment set directly — bypassing its own
