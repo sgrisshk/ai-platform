@@ -4207,7 +4207,20 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
 - **Status:** DONE (diagnosis complete; `CODE_REVIEWER` independent confirmation still pending, per
-  this task's own Reviewer field — not marked `CODE_REVIEWER`-approved by this entry)
+  this task's own Reviewer field — not marked `CODE_REVIEWER`-approved by this entry). **Founder
+  directive (`ADR-071`): this review must be explicitly adversarial** — the reviewer's job is to
+  attempt to *refute* the "cardinality cliff" causal explanation and the systematicity claim (all 5
+  traps affected, `T04` saved by accident not by design, `T02` carries a second independent
+  vocabulary gap), not confirm it, per `ADR-071`'s six specified checks (reorder eligible covariates
+  and check predicted order-dependence; independently recompute joint coverage from scratch;
+  verify rejected confounders were genuinely eligible when rejected; check whether a different `G06`
+  sub-mechanism would exclude them anyway; independently re-derive that `T04`'s survival is
+  accidental overlap with `P06`, not correct gate behavior; cleanly separate `T02`'s two distinct
+  causes rather than reporting one combined gap). This finding is causal/mechanistic, held to a
+  higher confirmation bar than `TASK-070`'s already-strict standard because a fix-design task will be
+  built directly on it — see `ADR-071` for the full sequence this review is step 1 of (oracle-
+  adjustment sufficiency check → `G06` fix-design → implementation → adversarial controls →
+  multi-domain regression → new official cycle).
 - **Depends on:** `TASK-073` (`HANDOFF-075` `CODE_REVIEWER`-confirmed, `ADR-068`/`ADR-069`)
 - **Origin:** `task-073-official-20260829-001` — the first official run under the pipeline's actual
   current default configuration — promoted trap `T03` (`CAND-014`:
