@@ -5300,9 +5300,17 @@ continuation) still owns that question.
 **From:** STATISTICS
 **To:** CODE_REVIEWER, FOUNDER_STRATEGY
 
-**Status:** OPEN — awaiting both independent `CODE_REVIEWER` re-derivation and `FOUNDER_STRATEGY`
-sign-off, per `TASK-073`'s own Reviewer/Sign-off fields (Statistics does not perform either itself,
-per this project's standing self-review prohibition).
+**Status:** RESOLVED (2026-08-29). Both halves complete: `FOUNDER_STRATEGY` sign-off recorded in
+`ADR-069` (contingent on the `CODE_REVIEWER` half below); `CODE_REVIEWER` re-derivation now
+independently performed — **CONFIRMED, no defect** — full record in `TASK-073`'s own `TASKS.md`
+entry (Reviewer verification, 2026-08-29). Custody chain (file hashes + manifest HMAC, re-derived
+from scratch using the actual evaluator key, not merely re-checked), `TASK-019`/`TASK-028` outputs
+(reproduced field-for-field to a scratch path), the `T03`/`CAND-014` trap-promotion finding, the
+`beam_rules_per_structure=2` no-override-path claim, `decision-gate.md`'s append-only discipline,
+and `TASK-073`'s scope discipline (zero `discovery.engine`/`apply.py` code diff, no non-travel
+domain, `TASK-057` untouched) were all independently re-derived and all hold. `ADR-069`'s
+contingency is therefore met: its three-branch follow-on order is now in effect, per `ADR-069`
+itself (not reopened or reinterpreted by this handoff).
 
 **Task:** Independently re-derive `task-073-official-20260829-001`'s blind-custody chain and
 `TASK-019`/`TASK-028` outputs (`CODE_REVIEWER`), and sign off on the new `decision-gate.md` entry

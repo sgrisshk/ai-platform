@@ -3912,14 +3912,74 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Priority:** P0
 - **Status:** OFFICIAL RESULT RECORDED — FAILED (hard disqualifier 2: confounding trap `T03`
   reached `shadow_policy` with zero matched true pattern). `CODE_REVIEWER` re-derivation
-  (`HANDOFF-075`) in progress. `FOUNDER_STRATEGY` sign-off given directly by the founder,
-  **contingent on `CODE_REVIEWER`'s confirmation** (`ADR-069`) — not a substitute for `HANDOFF-075`
-  completing, only its strategic half settled in advance. **Founder's explicit order, effective once
-  `HANDOFF-075` confirms:** this FAILED verdict is final and not open to reinterpretation regardless
-  of the other five metrics' individual attractiveness; no search-mechanism redesign or further
-  recall tuning is authorized until the `T03`/`G06`-class forensic analysis (`ADR-069` Branch 1) and
-  the configuration-custody follow-on (`ADR-069` Branch 2) are opened and addressed. Full reasoning:
+  (`HANDOFF-075`) **CONFIRMED, no defect (2026-08-29)** — see full re-derivation record below.
+  `FOUNDER_STRATEGY` sign-off given directly by the founder, contingent on `CODE_REVIEWER`'s
+  confirmation (`ADR-069`) — that contingency is now met. **Founder's order (`ADR-069`) is therefore
+  in effect:** this FAILED verdict is final and not open to reinterpretation regardless of the other
+  five metrics' individual attractiveness; no search-mechanism redesign or further recall tuning is
+  authorized until the `T03`/`G06`-class forensic analysis (`ADR-069` Branch 1) and the
+  configuration-custody follow-on (`ADR-069` Branch 2) are opened and addressed. Full reasoning:
   `ADR-069`.
+- **Reviewer verification (2026-08-29, `CODE_REVIEWER`, `HANDOFF-075`): CONFIRMED — no defect found.**
+  Independently re-derived from scratch, not by re-reading the implementer's own report or its
+  same-pass integrity check:
+  1. **Custody chain.** Re-hashed all three frozen output files
+     (`/private/tmp/policy-blind-runs/task-073-official-20260829-001/frozen/`) — SHA-256 matches
+     `frozen/hashes.json` exactly. Re-derived the manifest's HMAC-SHA256 `evaluator_signature` from
+     scratch (own script implementing `SIGNATURE_DOMAIN` + canonical-JSON payload exactly as
+     `tools/blind_agent/core.py` defines it, `hmac.new(...).hexdigest()`), using the actual evaluator
+     signing key at `/private/tmp/policy-blind-evaluator/signing.key` (uid/mode-verified, matching
+     `load_signing_key`'s own checks) — signature matches exactly. Unlike `TASK-064`'s evaluation
+     (where the ephemeral evaluator key no longer existed, leaving the HMAC not re-checkable), this
+     key was still present, so this is a **full** re-derivation, not a partial one — disclosed for
+     completeness, not a caveat. `events.jsonl`/`state.json`/`provenance.json` show a consistent
+     created→prepared→verified→running→completed→verified→frozen trail, and `provenance.json`'s
+     recorded `engine.py` SHA-256 matches the file's actual current hash in this checkout (no drift).
+  2. **`TASK-019`/`TASK-028` reproduction.** Re-ran the real `scripts/validate_candidates.py` (contract
+     `v1.3.0`, `--dataset-root travel-bookings-analytical-v1.1.0`, `--blind-compliant
+     --founder-block-lifted`) and `scripts/evaluate_benchmark.py` against the frozen candidates, to a
+     scratch path — output is field-for-field identical to
+     `artifacts/validation/task-019-official-20260829-task-073-001.json` and
+     `artifacts/evaluation/task-028-task-073-official-001.json` (only differences: timestamps, and a
+     `/tmp` vs. `/private/tmp` path spelling — the same location on this OS). Verdict counts (11
+     PASS / 4 DOWNGRADE), Top-10 precision (70%, same composition including `CAND-010`/`CAND-014`/
+     `CAND-015`), economic-weighted recall (45.2%), leakage (0), direction accuracy (100%), and median
+     impact error (219.9%) all reproduced exactly.
+  3. **Trap-promotion finding.** Independently confirmed from the reproduced output, not read off the
+     report: `CAND-014`'s conditions are genuinely `acquisition_channel eq paid_search` AND
+     `discount_rate ge 0.08`; `T03` in `synthetic_data/evaluation/hidden_ground_truth.json` has
+     `apparent_feature="acquisition_channel=paid_search"`, which is one of `CAND-014`'s two literal
+     conditions — a real match under `evaluate_benchmark.py`'s own (generic, not `T03`-special-cased)
+     `_matches_trap` logic. `CAND-014`'s `policy_readiness` is genuinely `shadow_policy` and
+     `matched_patterns` is genuinely `[]` in independently-recomputed output; `best_pattern_recall` is
+     0.456, cleanly below the 0.5 match threshold (not a near-miss) — confirmed **not** an ambiguous
+     case like `T04`/`CAND-015` (independently confirmed at `best_pattern_recall=0.69`, matching
+     `P06`). G06's adjustment set genuinely used (`customer_type`, `manual_exception`,
+     `customer_segment`, `party_size`, `payment_method`, `product_category`) excludes
+     `acquisition_channel` and `discount_rate` (the latter is `CAND-014`'s own second condition, so
+     G02 required its exclusion from the adjustment set); `installments` — one of `T03`'s three true
+     `confounded_by` variables — appears in `adjustment_columns_considered` but not
+     `adjustment_columns_used`, i.e. dropped by G06's coverage gate. This is a genuine, disclosed gap
+     in what the gates jointly guarantee, not a report-writing error or a bug in this reviewer's read.
+  4. **`beam_rules_per_structure` claim.** Confirmed directly: `engine.py`'s
+     `DiscoveryConfig.beam_rules_per_structure` default is `2`; `beam_rules_per_structure` does not
+     appear anywhere in `scripts/run_discovery.py` (which constructs `DiscoveryConfig` with only
+     `seed`/`max_feature_identity_fraction`), `tools/blind_agent/cli.py`'s argparse, or the `Makefile`
+     — no override path exists anywhere in the real official-run pipeline.
+  5. **`decision-gate.md` append-only discipline.** `git diff` of the commit that added the 2026-08-29
+     entry (`0e2fc29`) shows a pure addition (`+44/-0` lines) against the pre-existing file; the two
+     prior entries and pre-registered bands are byte-identical before and after. The only later change
+     to this entry, `HEAD` vs. `0e2fc29`, is `ADR-067`→`ADR-068` in two places — a legitimate,
+     fully-disclosed cross-reference fix from the `2e63f55` merge commit, which resolved a genuine
+     ADR-number collision between `TASK-073`'s and `TASK-074`'s independently-branched work (message:
+     "Resolved ADR numbering collision... No content lost from either side"). Not a defect.
+  6. **Scope discipline.** `git diff --name-only` from `TASK-073`'s branch point to its tip touches
+     only `DECISIONS.md`, `TASKS.md`, `docs/benchmark/decision-gate.md`, `memory/CURRENT_STATE.md`,
+     `memory/HANDOFFS.md` — zero `discovery.engine`/`apply.py` code, zero non-travel `synthetic_data`
+     paths. `TASK-057`'s own `TASKS.md` entry (a separate, far-earlier section) is untouched.
+  - **Nothing found that changes the FAILED verdict, the trap-promotion finding, or any of the six
+    graded metrics.** No caveat beyond item 1's disclosure (stronger evidence available here than in
+    `TASK-064`'s precedent, not weaker).
 - **Depends on:** `TASK-070` (contract `v1.3.0`, done, `CODE_REVIEWER`-approved), `TASK-072`
   (closed the framing question this task now answers with a real result instead of a diagnostic one)
 - **Origin and the specific gap this closes (2026-08-29, founder-directed, after this gap was found
