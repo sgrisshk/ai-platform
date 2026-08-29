@@ -3911,9 +3911,15 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   appending to it is a founder-level record, not a Statistics-internal artifact)
 - **Priority:** P0
 - **Status:** OFFICIAL RESULT RECORDED — FAILED (hard disqualifier 2: confounding trap `T03`
-  reached `shadow_policy` with zero matched true pattern). `CODE_REVIEWER`/`FOUNDER_STRATEGY`
-  sign-off (this task's own Reviewer/Sign-off fields) not yet performed — separate, later, not done
-  by Statistics itself.
+  reached `shadow_policy` with zero matched true pattern). `CODE_REVIEWER` re-derivation
+  (`HANDOFF-075`) in progress. `FOUNDER_STRATEGY` sign-off given directly by the founder,
+  **contingent on `CODE_REVIEWER`'s confirmation** (`ADR-069`) — not a substitute for `HANDOFF-075`
+  completing, only its strategic half settled in advance. **Founder's explicit order, effective once
+  `HANDOFF-075` confirms:** this FAILED verdict is final and not open to reinterpretation regardless
+  of the other five metrics' individual attractiveness; no search-mechanism redesign or further
+  recall tuning is authorized until the `T03`/`G06`-class forensic analysis (`ADR-069` Branch 1) and
+  the configuration-custody follow-on (`ADR-069` Branch 2) are opened and addressed. Full reasoning:
+  `ADR-069`.
 - **Depends on:** `TASK-070` (contract `v1.3.0`, done, `CODE_REVIEWER`-approved), `TASK-072`
   (closed the framing question this task now answers with a real result instead of a diagnostic one)
 - **Origin and the specific gap this closes (2026-08-29, founder-directed, after this gap was found
