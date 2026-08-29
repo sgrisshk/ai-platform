@@ -4763,6 +4763,105 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   to justify a design move outside its own branch), and `CODE_REVIEWER` independently confirms the
   three attributions before `ADR-071` step 3 (`G06` fix-design) may open.
 
+### TASK-080 — Candidate-composition safety design (`ADR-073`): how should search build compound rules without a systematic advantage for conditions that inflate apparent effect while making adjustment information structurally unavailable?
+
+- **Owner:** ARCHITECT
+- **Support:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
+- **Design-only — no implementation.** This task produces a design document and a reasoned
+  recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
+- **The central object of design, stated precisely (founder, 2026-08-29) — not `T03`/`T04`
+  specifically, and not a list of known confounders:** search benefits from adding an atom that
+  amplifies a rule's apparent economic effect, while including that same atom in the rule's own
+  condition can deprive downstream validation of the ability to check whether the effect is
+  explained by that same factor. **This is a structural hypothesis-construction problem**, not a
+  `G06` selection problem, an estimator problem, or a threshold-calibration problem — `TASK-075`,
+  `TASK-078`, and `TASK-079` (independently `CODE_REVIEWER`-confirmed at each step) have already
+  ruled those out as the primary defect.
+- **Minimum three solution classes this task must consider and compare, not just the first one that
+  looks sufficient:**
+  1. **Composition-aware scoring/penalty.** An additional atom's `_development_score` contribution
+     reflects not only development gain but a cost for the adjustability/identifiability it removes
+     from the resulting rule.
+  2. **Counterfactual composition check.** Before a compound rule is promoted, test directly: is the
+     new atom primarily an effect-amplifier, and does the apparent effect disappear under whatever
+     control of its role is still permissible before it's folded into the condition?
+  3. **Dual representation.** A variable may remain part of the subgroup's own description while
+     validation retains a way to assess its explanatory contribution, instead of `G02`'s current
+     automatic structural exclusion the moment it appears in a condition.
+- **Hard-fixed non-solutions — binding, do not propose any of these, even as a partial or interim
+  measure:**
+  - Do not ban `discount_rate`, `paid_search`, or any other confounder-like feature by name or
+    class identity.
+  - Do not reference trap IDs or any ground-truth identity anywhere in the production design (this
+    project's standing pre-registration discipline, `ADR-007`/`ADR-012`, extended here explicitly).
+  - Do not lower `G06`'s coverage floor.
+  - Do not strengthen `G12`/`G06` thresholds specifically in order to reject `T03`/`T04` — any
+    threshold change must be justified generically, never by reference to these two traps' outcomes.
+  - Do not penalize compound rules merely for depth — depth is not the mechanism `TASK-079`
+    identified, and penalizing it would be a different, unjustified change.
+- **Property-based acceptance criteria, fixed now — deliberately not "`T03` and `T04` disappear."**
+  A candidate design must demonstrate, with evidence, that it:
+  1. **Eliminates or controls the proven advantage** (`TASK-079`'s finding): confounder → folded
+     into condition → higher `_development_score` → structurally unavailable adjustment.
+  2. **Preserves the ability to detect genuine interactions**, where the second atom really is part
+     of the true effect, not a confound wearing the same statistical shape — see the
+     interaction-vs-confound distinction below; this is the single most important criterion, stated
+     explicitly by the founder as the one most likely to be silently violated by a naive fix.
+  3. **Has defined, disclosed behavior for insufficient-overlap cases like `T05`** — distinct from
+     how it handles `T03`/`T04`'s mechanism, per `TASK-079`'s own preregistered cross-branch
+     separation (an overlap ceiling is not a composition defect and must not be handled as one).
+  4. **Is compatible with decision-time/leakage constraints** (this project's `DECISION_TIME` /
+     `PROJECT_CONTEXT.md` discipline) — the design must not require information unavailable at
+     decision time to assess a candidate's composition risk.
+  5. **Admits a deterministic implementation with reproducible runs** — matching every gate this
+     project has ever shipped (no randomness in the safety-relevant decision itself).
+  6. **Is testable against all 5 traps, the real historical positive controls (`TASK-075`'s 6 known
+     `PASS` candidates), and more than one domain** — not travel alone, matching `TASK-070`'s own
+     precedent; this task does not run those tests (design-only) but must specify exactly how the
+     eventual implementation would be tested against them.
+- **The interaction-vs-confound distinction — the design's hardest and most important question,
+  explored explicitly, not assumed away:** the most dangerous naive correction is teaching the
+  system to suspect *any* atom that strongly changes the apparent outcome when folded into a
+  condition — because that is exactly what a genuine interaction effect also looks like. The design
+  must state, as clearly as this is actually identifiable from observational data, how it tells an
+  **effect-defining modifier** (a true interaction — the second atom is genuinely part of the
+  effect) apart from a **confounding/effect-amplifying condition** (the second atom's apparent
+  contribution is actually unremoved confounding). **If this project's own observational evidence
+  cannot reliably distinguish the two cases, the design must say so and specify that the correct
+  outcome is a named evidence ceiling — not an automatic reject and not an automatic promotion.**
+  This mirrors `TASK-079`'s own `T05` treatment (a named ceiling outcome, not a fix) and must not be
+  quietly resolved either direction by assumption.
+- **Explicit question this task must answer directly — at what stage does the safety invariant
+  belong?** At child generation, at scoring (`_development_score`), at candidate eligibility, or
+  only at validation/promotion? **Do not assume `_development_score` is the fix point merely
+  because that's where `TASK-079` observed the enrichment** — that is where the *symptom* was
+  measured, not necessarily where the *correct intervention* belongs. Explicitly evaluate the
+  alternative the founder specifically wants investigated in depth: **search stays fully permissive
+  at generation/scoring, and composition-risk metadata travels with the candidate** (which
+  explanatory variables were absorbed into the subgroup's own definition, and how), **constraining
+  the evidence grade later** rather than blocking or penalizing the candidate's existence at
+  generation time. This framing — never let the system "forget" which explanatory variables a
+  subgroup definition has already absorbed — is explicitly preferred as a hypothesis to evaluate
+  seriously, because it better preserves this project's product goal of discovering unknown
+  interactions without turning the discovery layer into a premature causal filter. The design must
+  compare this against earlier-stage interventions on their own merits, not default to the
+  early-stage option merely because that's structurally closer to where `TASK-079`'s enrichment was
+  observed.
+- **Done when:** a design document exists that (a) states the central structural problem generically
+  (never keyed to `T03`/`T04`/`discount_rate`/`paid_search`'s identities); (b) evaluates all three
+  named solution classes plus the metadata-travels-with-candidate alternative, with reasoning for
+  which stage(s) the safety invariant should live at; (c) gives a specific, disclosed answer to the
+  interaction-vs-confound distinguishability question, including what happens when it cannot be
+  resolved; (d) states a recommended design (or an honest disclosure that no candidate design
+  clears all six acceptance properties yet, which is itself an acceptable, real outcome per this
+  project's own discipline); (e) confirms none of the five hard-fixed non-solutions were used, even
+  partially; and `CODE_REVIEWER` independently reviews the design document before any implementation
+  task is opened.
+
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
 - **Owner:** ARCHITECT
