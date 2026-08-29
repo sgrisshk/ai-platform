@@ -5293,4 +5293,54 @@ continuation) still owns that question.
   resolution of R1/R2" section (both dated, append-only — the original review/gap-list text is left
   as written, superseded rather than rewritten).
 - **Explicitly not done here:** re-deciding `ADR-058` condition 2 or `HANDOFF-072`'s dispute of it
+
+## HANDOFF-075
+
+**Created:** 2026-08-29
+**From:** STATISTICS
+**To:** CODE_REVIEWER, FOUNDER_STRATEGY
+
+**Status:** OPEN — awaiting both independent `CODE_REVIEWER` re-derivation and `FOUNDER_STRATEGY`
+sign-off, per `TASK-073`'s own Reviewer/Sign-off fields (Statistics does not perform either itself,
+per this project's standing self-review prohibition).
+
+**Task:** Independently re-derive `task-073-official-20260829-001`'s blind-custody chain and
+`TASK-019`/`TASK-028` outputs (`CODE_REVIEWER`), and sign off on the new `decision-gate.md` entry
+and its stated bearing on `TASK-072`/`TASK-057` (`FOUNDER_STRATEGY`) — matching this project's
+established pattern for every prior official run (e.g. `HANDOFF-060`/`TASK-064`).
+
+**Context:** `TASK-073` produced the first official (non-diagnostic) `TASK-015`/`TASK-019`/
+`TASK-028` cycle under the current default engine configuration. Full result:
+`docs/benchmark/decision-gate.md`'s 2026-08-29 entry, `ADR-068`, `TASKS.md` `TASK-073`. Overall
+verdict **FAILED** — hard disqualifier 2 fired (confounding trap `T03` reached `shadow_policy` with
+zero matched true pattern, `CAND-014`). This is a genuinely new failure mode: no prior official run
+ever promoted a trap. Statistics performed a first-pass independent integrity check in the same
+agent invocation that produced the run (file-hash and manifest-HMAC re-derivation from scratch,
+both matched) — this satisfies `TASK-073` scope item 6's "basic integrity" language but is
+explicitly **not** the separate, later `CODE_REVIEWER` pass this handoff requests.
+
+**Frozen run metadata:** run ID `task-073-official-20260829-001`; frozen at
+`/private/tmp/policy-blind-runs/task-073-official-20260829-001/frozen/` (gitignored `artifacts/`
+convention — not archived into the repo, same as `task-064-beam-20260822-001` and both prior
+official runs); dataset identity
+`b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`
+(`travel-bookings-analytical-v1.1.0`); discovery method `discovery-engine-v0.6.0`; run contract
+`blind-run-contract-v1.1.0`; outcome contract `1.1.0`; validation contract `1.3.0`; seed `1729`;
+evaluated hypotheses `33,085`; candidates `15`; frozen file hashes recorded in
+`frozen/hashes.json`. Validation report:
+`artifacts/validation/task-019-official-20260829-task-073-001.json`. Evaluation report:
+`artifacts/evaluation/task-028-task-073-official-001.json`.
+
+**Expected output:** a `CODE_REVIEWER` re-derivation record (own hash/signature re-checks, own
+re-run of `validate_candidates.py`/`evaluate_benchmark.py` to a scratch path, byte-for-byte
+comparison against the frozen artifacts above) and a `FOUNDER_STRATEGY` sign-off record on the
+`decision-gate.md` entry and its `TASK-072`/`TASK-057` bearing statement, both recorded in
+`TASK-073`'s own `TASKS.md` entry (Reviewer/Sign-off fields) once complete.
+
+**Explicitly not requested:** any retuning of `discovery.engine`, the validation gates, or
+`decision-gate.md`'s pre-registered bands in response to this FAILED result — `TASK-073`'s hard rule
+(same force as `TASK-069`'s) forbids that being motivated by this run's own outcome on travel's
+patterns/traps. The `beam_rules_per_structure` documentation-only follow-on named in `TASK-073`'s
+`TASKS.md` entry (correcting `TASK-064`'s closure text) is separately available for whoever picks it
+up; it is not part of this handoff's own ask.
   — that remains the named separate step.

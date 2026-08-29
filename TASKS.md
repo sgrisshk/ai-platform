@@ -3890,6 +3890,17 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     determination's own reasoning corroborates that `ADR-063`'s bar is still unmet on the same
     substantive numbers, but that corroboration is a side effect of answering `TASK-072`'s own
     question, not a re-evaluation of `TASK-057` undertaken here.
+  - **Update (2026-08-29, Statistics, `TASK-073`/`ADR-068`):** flip-condition 1 above is now
+    realized, not hypothetical — `task-073-official-20260829-001` is a real, official
+    `TASK-015`/`TASK-019`/`TASK-028` cycle under contract v1.3.0 and the actual current default
+    engine, with a genuine new `decision-gate.md` entry. The result is **FAILED** (hard disqualifier:
+    confounding trap `T03` promoted to `shadow_policy` with zero matched true pattern — a new failure
+    mode, not previously seen in any official run), not the STRONG/PROMISING-with-improved-metric this
+    condition contemplated. This determination's "not yet" therefore stands on stronger, non-diagnostic
+    grounds than it did on 2026-08-28: the diagnostic ceiling `ADR-066` declined to treat as a realized
+    result has now been realized, officially, and it did not clear the gate. Per `TASK-073`'s own
+    scoping note (matching this task's own convention above), this new FAILED result does not itself
+    bear on `TASK-057`'s pause in either direction. Full detail: `ADR-068`.
 
 ### TASK-073 — Official rerun: fresh `TASK-015` blind discovery on travel under the current default engine, validated under contract `v1.3.0`, scored by `TASK-028`, new `decision-gate.md` entry
 
@@ -3899,7 +3910,10 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Sign-off:** FOUNDER_STRATEGY (`docs/benchmark/decision-gate.md` is that document's own owner;
   appending to it is a founder-level record, not a Statistics-internal artifact)
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** OFFICIAL RESULT RECORDED — FAILED (hard disqualifier 2: confounding trap `T03`
+  reached `shadow_policy` with zero matched true pattern). `CODE_REVIEWER`/`FOUNDER_STRATEGY`
+  sign-off (this task's own Reviewer/Sign-off fields) not yet performed — separate, later, not done
+  by Statistics itself.
 - **Depends on:** `TASK-070` (contract `v1.3.0`, done, `CODE_REVIEWER`-approved), `TASK-072`
   (closed the framing question this task now answers with a real result instead of a diagnostic one)
 - **Origin and the specific gap this closes (2026-08-29, founder-directed, after this gap was found
@@ -3977,6 +3991,60 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   `FOUNDER_STRATEGY`-signed, with the `beam_rules_per_structure` discrepancy disclosed (and, if
   warranted, a narrow documentation-only follow-on named for it), and `TASK-072`'s entry is updated
   to reference this task's real result rather than the diagnostic figures alone.
+- **Result (2026-08-29, Statistics/Architect, `ADR-068`):**
+  1. **`beam_rules_per_structure` finding:** `engine.py`'s `DiscoveryConfig.beam_rules_per_structure`
+     default is `2`, and no real official-run code path (`scripts/run_discovery.py`, the blind-agent
+     CLI/acceptance contract, the `Makefile`) exposes any way to override it — every official run,
+     including this one, has used `2` unconditionally since `discovery-engine-v0.5.0` shipped. This
+     directly contradicts `TASK-064`'s closing prose ("not adopted as default... No further tuning
+     authorized"): the value was never actually reverted. **Not changed here**, per this task's own
+     hard rule and `TASK-069`'s prior one. Narrow follow-on named: correct `TASK-064`'s closure text
+     to state the value was never reverted, rather than changing code. Separately,
+     `max_feature_identity_fraction=1.0` (`TASK-068`'s diversity floor, disabled) *is* genuinely the
+     default — CLI/`Makefile` both default to `1.0` and require a signed override — no comparable
+     discrepancy there.
+  2. **Run:** `task-073-official-20260829-001` — full `ADR-008`/`051`/`052` protocol followed for real
+     (`blind-rehearsal` → `BLIND_REHEARSAL_VALID`; `issue` → `verify` → `BLIND_WORKSPACE_VALID` →
+     `launch` → `freeze`), `BLIND_DATASET=travel`, `agent=deterministic`, `network=none`, `seed=1729`,
+     `discovery-engine-v0.6.0`, 33,085 evaluated hypotheses, 15 candidates persisted,
+     `dataset_identity_sha256=b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`
+     (`travel-bookings-analytical-v1.1.0`). Blind-custody chain independently re-verified in this
+     same pass: all three frozen output files' SHA-256 hashes and the issued manifest's HMAC
+     evaluator signature both re-derived from scratch and matched exactly — real integrity
+     verification, not the separate later `CODE_REVIEWER` pass this task's own Reviewer field still
+     requires.
+  3. **Validated** under contract `v1.3.0` via the real `scripts/validate_candidates.py`
+     (`artifacts/validation/task-019-official-20260829-task-073-001.json`, gitignored per this
+     project's standing convention; 11 PASS / 4 DOWNGRADE).
+  4. **Scored** by the real `scripts/evaluate_benchmark.py`
+     (`artifacts/evaluation/task-028-task-073-official-001.json`).
+  5. **`decision-gate.md`** gained its third "Post-benchmark comparison" entry (appended, prior two
+     untouched): Top-K precision 70% (7/10); economic-weighted recall 45.2% (P01, P06 of 7
+     scoreable, unchanged from both prior official entries); confounder trap rejection — **hard
+     disqualifier 2 fired**: `T03` (`CAND-014`, `acquisition_channel==paid_search AND
+     discount_rate>=0.08`) reached `policy_readiness=shadow_policy` with **zero** matched true
+     pattern (PASS at `adjusted_observational_association`, survived G06 confounding adjustment,
+     E-value 1.90); `T04` also reached `shadow_policy` (`CAND-015`, ambiguous — also matches `P06`,
+     same category as the 2026-08-17 entry's ambiguous `CAND-014`); leakage 0; direction accuracy
+     100% (9/9); economic impact estimation error median 219.9% (6.5%–464.6% range). **Overall
+     verdict: FAILED** — a hard disqualifier overrides every graded band regardless of score. This is
+     a genuinely new failure mode: no prior official run, and not even the rejected
+     `task-064-beam-20260822-001`, ever promoted a trap.
+  6. Independent verification of the blind-custody chain performed as above (item 2); `TASK-019`/
+     `TASK-028` outputs read and cross-checked by hand against the printed summary
+     (verdict counts, top-10 composition, trap-promotion detail, median impact error) — all
+     consistent. This is not the separate `CODE_REVIEWER` sign-off this task's own Reviewer field
+     requires; that remains a later, independent pass.
+  7. **`TASK-072`/`TASK-057` relationship, stated explicitly:** this FAILED result does not reopen
+     `TASK-072`'s "not yet" — if anything it settles the question more firmly on real, non-diagnostic
+     evidence, on a genuinely new failure mode (`ADR-066`'s flip-condition (a) is now realized, and it
+     did not flip). It does not touch `TASK-057`'s pause or `ADR-063`'s own separately-stated
+     reopening condition in either direction; a FAILED result here no more lifts that pause than a
+     PROMISING one would have. `TASK-072`'s `TASKS.md` entry is updated to cite this real result.
+  - **Hard rule honoured:** no discovery-engine parameter, scoring term, or validation-gate value was
+    tuned, chosen, or justified by this run's own outcome; `beam_rules_per_structure` and
+    `max_feature_identity_fraction` were left exactly at their pre-existing code defaults, and no gate
+    was touched before or after seeing the result.
 
 ### TASK-074 — Pre-register success/kill criteria for a first real (non-synthetic) customer dataset run
 

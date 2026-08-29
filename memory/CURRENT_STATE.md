@@ -999,8 +999,33 @@ re-graded, and no follow-on task is opened: what a `3/7 under v1.3.0` denominato
   needs `TASK-057`/`TASK-037`.
 - The **escalate** branch (hard disqualifier, or two runs both WEAK-or-worse) does **not** apply —
   no hard disqualifier ever fired, and the one remediation attempt succeeded.
+  **Superseded 2026-08-29 — see below: a hard disqualifier has since fired for the first time,**
+  in a genuine official run this 14-day-window framing predates; this paragraph is left as written
+  to preserve the historical record of what was true through 2026-08-17/2026-08-22, not edited.
 
 See `30_DAY_VALIDATION_PLAN` framing in `docs/strategy/30-day-validation-plan.md`.
+
+**First official run under the actual current default engine, 2026-08-29 (`TASK-073`, `ADR-067`)
+— overall verdict FAILED, a confounding trap genuinely promoted for the first time.** Scoping this
+run surfaced a real documentation/code discrepancy before any code changed: `engine.py`'s
+`DiscoveryConfig.beam_rules_per_structure` default is `2` (`TASK-064`'s tested-and-rejected value),
+and no code path in `scripts/run_discovery.py`, the blind-agent CLI, or the `Makefile` overrides
+it — every official run, including this one, has used `2` unconditionally since
+`discovery-engine-v0.5.0` shipped, contradicting `TASK-064`'s own "not adopted as default" closing
+language. Not changed here, per this task's hard rule; disclosed as a narrow documentation-only
+follow-on instead. The run itself (`task-073-official-20260829-001`, full `ADR-008`/`051`/`052`
+protocol, `discovery-engine-v0.6.0`, contract v1.3.0, blind-custody chain independently
+re-verified — hashes and manifest HMAC both re-derived from scratch) is the first genuinely
+official (non-diagnostic) `TASK-015`/`TASK-019`/`TASK-028` cycle since 2026-08-17. Result: Top-10
+precision 70%, economic-weighted recall 45.2% (unchanged — still only P01/P06 of 7 scoreable),
+leakage 0, direction accuracy 100%, economic impact error median 219.9% — all moot, because hard
+disqualifier 2 fired: trap `T03` reached `policy_readiness=shadow_policy` with **zero** matched
+true pattern (`CAND-014`, survived G06 confounding adjustment on its own merits, E-value 1.90). No
+prior official run, including the rejected `task-064-beam-20260822-001`, ever promoted a trap.
+`TASK-072`'s "not yet" stands, now on real rather than diagnostic grounds; `TASK-057`'s pause is
+unaffected either way, per this task's own scoping rule. Awaiting `CODE_REVIEWER` re-derivation and
+`FOUNDER_STRATEGY` sign-off (`HANDOFF-075`). Full record: `docs/benchmark/decision-gate.md`
+(2026-08-29 entry), `ADR-067`, `TASKS.md` `TASK-073`.
 
 ## Success criterion
 

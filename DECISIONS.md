@@ -3120,3 +3120,97 @@ measured, this decision only changes what the company does in response to it.
 **Anti-overfitting discipline, honoured.** Written with zero real candidates in hand — no real dataset exists yet to have shaped any threshold here, and the document itself commits to being append-only after a first run, exactly as `decision-gate.md` was, so no later result can be used to quietly rewrite what would have counted as success ahead of time.
 
 **Consequences:** `TASK-074`'s `TASKS.md` entry is marked `RECORDED`, pointing at `docs/benchmark/real-data-decision-gate.md`. No code, mechanism, or validation-contract change is made by this entry. `TASK-069`, `TASK-070`, `TASK-072`, and `TASK-073`'s own `TASKS.md` entries are untouched. The new document is PRE-REGISTERED and append-only from this point forward, governing every real-data run from the first one on, until superseded by a later, dated `FOUNDER_STRATEGY` append.
+
+## ADR-068 — First official run under the actual current default engine (`TASK-073`): overall verdict FAILED, a confounding trap genuinely promoted for the first time
+
+**Date:** 2026-08-29
+**Status:** Accepted
+
+**Decision:** `TASK-073` produced a real, non-diagnostic `TASK-015`/`TASK-019`/`TASK-028` cycle —
+`task-073-official-20260829-001` — under the discovery engine's actual current default
+configuration (`discovery-engine-v0.6.0`, `beam_rules_per_structure=2`,
+`max_feature_identity_fraction=1.0`), validated under contract v1.3.0 and scored by `TASK-028`. The
+new `docs/benchmark/decision-gate.md` entry (2026-08-29, appended, not edited into the prior two)
+records the overall verdict as **FAILED**: hard disqualifier 2 fires because trap `T03`
+(`acquisition_channel==paid_search AND discount_rate>=0.08`, `CAND-014`) reaches
+`policy_readiness=shadow_policy` — PASS at `adjusted_observational_association`, surviving G06
+confounding adjustment (E-value 1.90, attenuation 0.04) — with **zero** matched true pattern. Trap
+`T04` also reaches `shadow_policy` (`CAND-015`), in the same ambiguous-overlap posture as the
+2026-08-17 entry's `CAND-014` (it also matches `P06`), but `T03`'s promotion carries no such
+ambiguity: it is a clean, disclosed trap promotion, the first one this project's official benchmark
+history has ever produced. Per `docs/benchmark/decision-gate.md`'s own rule, a fired hard
+disqualifier overrides every graded metric regardless of how they individually score (Top-10
+precision 70% and direction accuracy 100% would each have graded STRONG in isolation).
+
+**Why this run exists and what it closes.** `TASK-072`/`ADR-066` found that every recall figure
+then in circulation (`2/2` chaseable, `3/7` under v1.3.0) was `TASK-070`'s diagnostic oracle
+re-measurement against `task-064-beam-20260822-001` — a candidate set `TASK-064` itself had already
+rejected as an experiment, five days newer than the standing official `decision-gate.md` baseline,
+and never officially graded. Scoping this task's own run surfaced a second problem before any code
+ran: `engine.py`'s `DiscoveryConfig.beam_rules_per_structure` default is `2`, and no code path in
+`scripts/run_discovery.py`, the blind-agent CLI, or the `Makefile` overrides it — meaning `TASK-064`'s
+tested-and-rejected value has been the unconditional default for every official run since
+`discovery-engine-v0.5.0` shipped, contradicting `TASK-064`'s own "not adopted as default" closing
+language. Per this task's hard rule, that discrepancy is disclosed, not resolved, here (see the
+narrow documentation-only follow-on named below) — this task ran the engine exactly as it actually
+stands in code, made no code change, and reported what came out.
+
+**What actually happened, mechanically.** `discover_candidates` under the (unconditional)
+`beam_rules_per_structure=2` beam evaluated 33,085 hypotheses (vs. `task-064-beam-20260822-001`'s
+26,213 — the analytical dataset moved from v1.0.0 to v1.1.0 between runs, not a beam-width change)
+and persisted 15 candidates. `T03` (a manager/acquisition-channel-composition confounding trap, per
+`docs/analytics/validation-contract.md` §10) was not present at all in either prior official run's
+15 candidates or in `task-064-beam-20260822-001`'s. Its appearance and full-gate survival here is a
+genuinely new search-stage event, not a validation-contract artifact — `CAND-014` passed G00 through
+G14 with G06's adjustment set (`customer_type`, `manual_exception`, `customer_segment`, `party_size`,
+`payment_method`, `product_category`) explicitly including neither `acquisition_channel` as a
+condition nor any variable that fully explains it away, and the corrected `G12` (`ADR-064`) did not
+catch it either — `T03` was never one of the four patterns `G12`'s fix was measured against
+(`docs/benchmark/task-070-g12-fix-remeasurement.md` §3 covers `P01`–`P09`, not `T01`–`T05`). This is
+disclosed as a genuine gap in what the current pipeline's gates jointly guarantee, not attributed to
+any single gate's defect — no gate is known to be malfunctioning; `T03` cleared every one of them on
+its own merits under this dataset's actual composition.
+
+**Independent verification performed in this same pass (not deferred to a separate `CODE_REVIEWER`
+pass — `TASK-073` scope item 6, basic integrity only).** The full `ADR-008`/`051`/`052` protocol was
+followed for real (`blind-rehearsal` → `BLIND_REHEARSAL_VALID` → `issue` → `verify` →
+`BLIND_WORKSPACE_VALID` → `launch` → `freeze`). After freezing, this task independently re-derived,
+from scratch rather than by re-invoking the tool's own checks: (1) SHA-256 of all three frozen
+output files (`candidates.json`, `discovery_metrics.json`, `run_report.md`), matching
+`frozen/hashes.json` exactly; (2) the issued manifest's HMAC-SHA256 evaluator signature
+(`blind-agent-manifest-v1\0` domain prefix, canonical-JSON payload, the evaluator's own signing key),
+matching `manifest.json`'s recorded `evaluator_signature` exactly. Both checks passed. This is basic
+custody-chain integrity re-derivation only; it is not the separate, later `CODE_REVIEWER` sign-off
+`TASK-073`'s own Reviewer field requires, which this entry does not claim to satisfy.
+
+**Relationship to `TASK-072`/`TASK-057`, stated explicitly per this task's own scoping rule.** This
+result does not reopen the question `TASK-072` answered — if anything it closes it more firmly: where
+`ADR-066` rested "not yet" on a diagnostic ceiling that had never been realized as an official result,
+this entry is exactly the realized official result `ADR-066` named as flip-condition (a), and it
+graded FAILED, on a genuinely new failure mode `ADR-066` did not have in evidence. `TASK-072`'s "not
+yet" stands, now for a stronger reason than before. This ADR does not touch `TASK-057`'s own pause or
+`ADR-063`'s separately-stated reopening condition in either direction — a FAILED result here no more
+lifts that pause than a PROMISING one would have, per `TASK-073`'s own scoping note, and this ADR
+must not be read as bearing on it beyond that.
+
+**Narrow documentation-only follow-on named (not opened or fixed here, per `TASK-073`'s own
+instruction).** `TASK-064`'s `TASKS.md` closure text ("not adopted as default on the strength of this
+result... No further tuning of `beam_rules_per_structure` authorized") should be corrected to state
+plainly that the value was never actually reverted and has been the unconditional default the whole
+time — a documentation correction, not a `discovery.engine` change, and not authorized or performed
+by this task.
+
+**Anti-overfitting discipline, honoured.** No discovery-engine parameter, scoring term, or
+eligibility/validation-gate value was tuned, chosen, or justified by reference to this run's own
+outcome on travel's patterns or traps — `beam_rules_per_structure` and `max_feature_identity_fraction`
+were left exactly at their pre-existing, already-decided code defaults throughout, and no gate was
+touched. A FAILED verdict, including a genuinely new trap promotion, is reported in full rather than
+treated as a reason to adjust anything before reporting it, per this task's own hard rule.
+
+**Consequences:** `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison" gains its third
+entry (2026-08-29, FAILED, appended, prior two entries untouched). `TASK-073`'s `TASKS.md` entry is
+marked with the real result. `TASK-072`'s `TASKS.md` entry is updated to cite this real result
+alongside its existing diagnostic-figure citation. `TASK-057` remains paused, unaffected. The
+`beam_rules_per_structure` documentation discrepancy is named as an open, narrow follow-on, not filed
+as a new task by this ADR — left for whoever next touches `TASK-064`'s record or opens the follow-on
+formally.
