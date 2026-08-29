@@ -4769,7 +4769,8 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** DESIGN COMPLETE (2026-08-29); `CODE_REVIEWER` independent review complete
+- **Status:** IN_PROGRESS — REVISION (2026-08-29, `ADR-075`, classifier/estimand level only; see
+  revision scope below). Prior history: DESIGN COMPLETE (2026-08-29); `CODE_REVIEWER` independent review complete
   (2026-08-29, `ADR-074`) — **APPROVED WITH REVISION NEEDED, classifier-level (not
   architecture-level)**. The validation/promotion staging decision itself (permissive discovery →
   recomputed composition safety at validation → named evidence ceiling, zero `discovery.engine`
@@ -4959,6 +4960,46 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   specification; risk 2 requires no design-document change but does require this task's own
   `TASKS.md` recap language (and `ADR-074`'s problem framing built on it) not to be read as the
   specification an implementer follows.
+- **Revision reopened (2026-08-29, founder directive, `ADR-075`) — classifier/estimand level only;
+  the three-stage architecture is conditionally accepted and not reopened without new refuting
+  data.** Full scope in `ADR-075`; summary here:
+  - **The one blocker:** the design's implicit rule `attenuation < 0.50 → interaction_like` is now
+    an **explicitly forbidden inference**, permanently — `TASK-079` and this review's own Scenario C
+    together establish low attenuation is not evidence of the *absence* of confounding on this
+    project's data.
+  - **Central research question narrowed:** what observed data is sufficient to safely assign
+    `interaction_like`, as distinct from merely failing to detect confounding?
+  - **Required redesign direction: an asymmetric classifier.** `confound_like` requires positive
+    evidence of confounding; `interaction_like` requires its *own* positive evidence of
+    interaction/effect modification — never the residual class left when adjustment merely fails to
+    show confounding; `indeterminate` is everything else. Candidate positive-interaction-evidence
+    signals to investigate empirically (not preselected): effect-contrast heterogeneity across the
+    atom's levels; interaction-term stability under an independent parameterization; consistency
+    across admissible partitions/threshold perturbations; nested-model comparison (`base+atom` vs.
+    `base+atom+interaction`). The revision's job is determining which estimand matches this design's
+    own rule semantics, not adding another p-value.
+  - **Mandatory new suite addition — the core deliverable:** a **proxy-confounding ladder** (swept
+    concordance, near-random to near-exact). Required property, checked across the full ladder: as
+    confounder observability degrades, the classifier's primary failure mode must be
+    `confound_like → indeterminate`, **never** `confound_like → interaction_like`.
+  - **Deliberately asymmetric loss function:** false interaction (confound → `indeterminate`) is
+    acceptable, an evidence ceiling per the existing architecture; false confounding-as-interaction
+    (confound → `interaction_like`, uncapped) is a safety failure. Report these separately in any
+    test suite — never averaged into one accuracy number.
+  - **The four review-derived corrections also required:** fix the unsafe-proxy case (above); sync
+    this task's own `TASKS.md` recap (and by extension `ADR-074`'s framing built on it) with the
+    design document's own correct "all atoms `1..k`" rule; correct §6.2.1's false single-atom-
+    coverage claim and add §12's missing joint-only-risk disclosure; specify the evidence cap as a
+    genuine `GateId`/`GateSpec` participating in `GATE_SPECS`'s `evidence_ceiling` mechanism, with an
+    explicit invariant test that downstream re-promotion past the cap is impossible.
+  - **Joint-only (multi-atom) risk stays documented v1 limitation, not solved here**, if the
+    atom-wise classifier can be made safe on its own terms — full subset enumeration would recreate
+    the multiplicity/coverage problems this project has already resolved elsewhere (`G05`/`ADR-015`).
+  - **Output required:** a revised classifier specification plus its own adversarial form-test suite
+    (including the mandatory proxy-confounding ladder) — not implementation. Only once the
+    imperfect-proxy DGP class stops producing an unjustified `interaction_like` does the revised
+    design go back to independent `CODE_REVIEWER` review; only after that does implementation get
+    discussed. No implementation task is authorized by this revision.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
