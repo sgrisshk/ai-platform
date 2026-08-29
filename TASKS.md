@@ -4185,7 +4185,8 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** ARCHITECT
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** DONE (diagnosis complete; `CODE_REVIEWER` independent confirmation still pending, per
+  this task's own Reviewer field — not marked `CODE_REVIEWER`-approved by this entry)
 - **Depends on:** `TASK-073` (`HANDOFF-075` `CODE_REVIEWER`-confirmed, `ADR-068`/`ADR-069`)
 - **Origin:** `task-073-official-20260829-001` — the first official run under the pipeline's actual
   current default configuration — promoted trap `T03` (`CAND-014`:
@@ -4245,6 +4246,47 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   class is named (not just "why this candidate"), the isolated-vs-systematic question (scope item 3)
   is answered with evidence, and `CODE_REVIEWER` independently confirms the trace before any
   follow-on fix-design task is opened.
+- **Evidence (2026-08-29), Statistics/Architect:** Full record:
+  `docs/benchmark/task-075-t03-forensic-trace.md`, raw computed output
+  `docs/benchmark/task-075-t03-forensic-trace-raw.json`, produced by
+  `scripts/diagnose_task075_g06_confounding_coverage.py` (calls the real, unmodified
+  `policy_analytics.validation.apply` selection helpers, never a reimplementation). Fidelity
+  asserted before anything was reported: frozen `candidates.json` SHA-256 matches `hashes.json`;
+  the repository's dataset copy is byte-identical to the frozen blind workspace's; a fresh
+  `run_validation()` reproduces `CAND-014`'s and `CAND-015`'s `adjustment_columns_used`,
+  `confounder_stratum_coverage`, and `policy_readiness` exactly against the committed
+  `TASK-019` artifact.
+  - **Gate-by-gate:** every gate G00–G12/G15 ran at full statistical power and `CAND-014` clears
+    them on genuine merits (`n_exposed=645`, p≈1.3e-9 BH-adjusted, 100% G12 sign agreement); G13/G14
+    fail as expected for observational data (the contract's own disclosed level-3 ceiling). **G06 is
+    the one gate whose own internal adjustment-set-selection narrowed** — not from overall sample
+    size, but from its own coverage-gated greedy selection.
+  - **Mechanism (item 2, the deliverable):** G06 orders adjustment-pool covariates by their own
+    marginal cardinality alone and stops the first time joint coverage would drop below the 0.50
+    floor — a **cardinality cliff**: nothing in the rule scores a covariate by confounding
+    relevance, only by how cheap it is to add and how much sample coverage remains. `installments`
+    (`T03`'s confounder) is tried 7th, at the exact point six already-selected low-cardinality
+    covariates have driven coverage down to 0.73 — one column's worth of headroom above the floor —
+    and loses by 0.057 coverage. `discount_rate` (`T03`'s second confounder) is separately excluded
+    because it is one of `CAND-014`'s own two condition features (G02's circularity guard); traced
+    counterfactually without that compounding, it would fail on the identical coverage-floor
+    mechanism anyway, so the condition-folding is a disclosed secondary factor, not the load-bearing
+    one.
+  - **Isolated vs. systematic (item 3), checked empirically, not by inspection:** `T01`, `T02`,
+    `T05` have never produced a real persisted candidate in this project's history and were traced
+    counterfactually through the same unmodified code on their own `apparent_feature`; every one
+    loses at least one true confounder to the identical coverage-floor mechanism (`T02` also has an
+    independent gap — `booking_month` is not in the manifest's adjustment-eligible pool at all). The
+    one other trap that *has* produced a real candidate, `T04`, hit the exact same failure in the
+    same run (`CAND-015`'s confounders `booking_lead_days`/`destination` both coverage-dropped) and
+    was saved from a second clean disqualifying promotion only by accidentally overlapping true
+    pattern `P06` — not by any gate working as designed. **Not isolated to `T03`.**
+  - **Hard rule honoured:** no fix, gate change, threshold change, or eligibility change is
+    proposed anywhere in the report; §5 names what a future fix-design task's scope and controls
+    would need to cover, generically, without keying on `installments`, `discount_rate`,
+    `paid_search`, or `T03`'s identity.
+  - **Not yet done:** `CODE_REVIEWER` independent confirmation (this task's own Reviewer field) —
+    marked `DONE` for the diagnosis itself, not `CODE_REVIEWER`-approved.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
