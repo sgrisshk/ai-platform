@@ -4769,7 +4769,28 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** DESIGN COMPLETE (2026-08-29), pending independent `CODE_REVIEWER` review — not yet
+  `CODE_REVIEWER`-approved, and no implementation task is opened by this status change.
+  Design document: `docs/analytics/task-080-candidate-composition-safety-design.md`.
+  **Recommendation (disclosed, not a non-recommendation): combine solution classes 2 (counterfactual
+  composition check) and 3 (dual representation), located entirely at validation/promotion, computed
+  from a promoted candidate's own frozen condition tuple with zero changes to `discovery.engine`.**
+  For each condition atom beyond the first, a leave-one-out check (reusing `_stratified_adjustment`'s
+  existing estimator and the existing `max_adjusted_attenuation`/`min_confounder_stratum_coverage`
+  thresholds — no new tunable constants) classifies it confound-like, interaction-like, or
+  composition-risk indeterminate; a confound-like or indeterminate atom caps the candidate's evidence
+  level (mirroring `G02`'s own `CAP_EVIDENCE` pattern) under a reason code kept distinct from `T05`'s
+  own overlap-ceiling state, never rejecting or promoting automatically. Composition-aware scoring
+  (solution class 1) and any generation/eligibility-stage intervention were evaluated in depth and
+  rejected as the primary mechanism — both fail the interaction-preservation criterion on the merits
+  (a scalar score/binary cutoff cannot represent the three-outcome confound/interaction/indeterminate
+  distinction §6 of the design doc establishes is necessary, and both act on the same raw-development
+  information that creates the ambiguity in the first place). The interaction-vs-confound distinction
+  is treated as reliably resolvable only at the clear extremes; the ambiguous middle is disclosed as
+  structurally common (not a corner case) and given a named evidence ceiling, never an automatic
+  reject/promote, mirroring `TASK-079`'s own `T05` treatment. All five hard-fixed non-solutions
+  confirmed unused (design doc §11). Implementation, if `CODE_REVIEWER` approves this design, is a
+  distinct, later task per this task's own binding instruction — not opened here.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
