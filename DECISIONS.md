@@ -3610,3 +3610,68 @@ one error class this project actually cares about.
 
 **Consequences.** `TASK-080`'s own `TASKS.md` entry moves to an in-progress revision status with this
 scope attached, rather than a new task opening. `TASK-057` remains paused, unaffected.
+
+## ADR-076 — Narrow adversarial re-review of `TASK-080`'s revised classifier: five checks, approval criterion stated as a property, not a number reproduced
+
+**Date:** 2026-08-29
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` re-review now. An
+implementation task for `G16_CANDIDATE_COMPOSITION_SAFETY` opens only if this review is `APPROVED`.
+
+**Decision.** `TASK-080`'s revision (`ADR-075`) reported `0/1100` `confound_like → interaction_like`
+safety failures across the full proxy-confounding ladder, against `805/1100 (73.2%)` under the
+prior, review-rejected implicit rule on the identical trials. This result is judged strong enough to
+justify a **narrow** re-review — not a re-litigation of the accepted three-stage architecture, and
+not a re-derivation of the two solution classes already ruled out. The review is scoped specifically
+to the new classifier's own properties.
+
+**Five required checks, founder-specified verbatim in substance:**
+
+1. **Independently reproduce the proxy-confounding ladder** and confirm `confound_like →
+   interaction_like` genuinely stays at `0` across the stated concordance range — including under
+   alternative seeds and/or DGP parameterizations the original test battery did not use, not merely
+   the exact same trials re-run.
+2. **Check the two positive-evidence signals (stratum-contrast heterogeneity; threshold-perturbation
+   stability) are not hidden-dependent in a broader class of DGPs** than the current saturated
+   two-covariate construction the revision tested — i.e. do not merely confirm the revision's own
+   claimed algebraic redundancy between the ADR-075-named signals holds in general; construct at
+   least one DGP outside the saturated two-covariate shape and check whether the two retained
+   signals still behave as genuinely independent evidence there, or silently collapse to one.
+3. **Test genuine-interaction controls, especially weak/local interactions**, to confirm the
+   revision's disclosed side effect (a real interaction sometimes reads `indeterminate`) actually
+   lands there and not in `confound_like` — a weak interaction misclassified as `confound_like`
+   would be a new, undisclosed failure mode the ladder alone would not surface.
+4. **Verify permutation invariance across all atoms** (not just the two-atom case the original
+   design-document defect concerned) and **trace the real behavior of the future `G16` cap through
+   the actual grading/reporting chain**, including an explicit confirmation that downstream
+   re-promotion past the cap is impossible — building on, but independently re-deriving, what the
+   revision's §8.1a and the prior review's risk-5 finding already established about
+   `ValidationReport.__post_init__`'s consistency invariant.
+5. **Separately reconfirm the two documented limitations stay disclosed, not silently resolved
+   either direction:** the joint-only (multi-atom) composition-risk blind spot remains a stated v1
+   limitation, not solved by this revision; and low coverage under the classifier's own stratification
+   is not, anywhere in the revised design, treated as evidence of the *absence* of confounding (the
+   asymmetric-loss discipline `ADR-075` fixed must hold here too — a low-coverage `indeterminate`
+   result must never be read as a clean pass).
+
+**Approval criterion, stated as a property, not a number reproduced — this is the standard the review
+is held to, not "was `0/1100` reproduced again":** as confounder observability degrades, the
+classifier degrades `confound_like → indeterminate`, **never** `confound_like → interaction_like`;
+and `interaction_like` requires **two independent pieces of positive evidence**, not one signal or a
+residual-class inference. A review that reproduces the headline number without independently
+testing whether this *property* holds under conditions the original battery didn't cover does not
+meet this ADR's own bar.
+
+**Explicit fork:** `APPROVED` under this standard is sufficient basis to open an implementation task
+for `G16_CANDIDATE_COMPOSITION_SAFETY`, built to the now-fixed specification in the revised design
+document (§8.1/§8.1a) — no further design-level review round is anticipated unless this one finds a
+genuine defect. If a genuine defect is found, it is triaged the same way `ADR-074`'s own fork
+handled the first round: a signature/estimand-level problem is corrected without reopening the
+accepted architecture; anything found to compromise the architecture itself would be a materially
+larger finding requiring its own escalation, not assumed here.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the review's success criterion as a
+property before the review runs, exactly so a review cannot declare success merely by re-deriving
+the same headline number the revision already reported.
+
+**Consequences.** `TASK-080`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's five
+checks and property-based approval criterion. `TASK-057` remains paused, unaffected.
