@@ -3891,6 +3891,135 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     substantive numbers, but that corroboration is a side effect of answering `TASK-072`'s own
     question, not a re-evaluation of `TASK-057` undertaken here.
 
+### TASK-073 — Official rerun: fresh `TASK-015` blind discovery on travel under the current default engine, validated under contract `v1.3.0`, scored by `TASK-028`, new `decision-gate.md` entry
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT
+- **Reviewer:** CODE_REVIEWER
+- **Sign-off:** FOUNDER_STRATEGY (`docs/benchmark/decision-gate.md` is that document's own owner;
+  appending to it is a founder-level record, not a Statistics-internal artifact)
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-070` (contract `v1.3.0`, done, `CODE_REVIEWER`-approved), `TASK-072`
+  (closed the framing question this task now answers with a real result instead of a diagnostic one)
+- **Origin and the specific gap this closes (2026-08-29, founder-directed, after this gap was found
+  while scoping this task — recorded here so it is not re-discovered):** `TASK-072`/`ADR-066`
+  established that the `2/2`/`3/7` figures cited throughout `TASK-069`/`TASK-070` are a **diagnostic**
+  re-measurement, not an official `TASK-019`/`TASK-028` result. Checking which candidate set an
+  official rerun should even target surfaced a second, more specific problem: **the diagnostic chain
+  (oracle decomposition, validation-power autopsy, `G12` form investigation, `TASK-070`'s
+  re-measurement) traced `task-064-beam-20260822-001` throughout — a candidate set `TASK-064` itself
+  closed as a *rejected* experiment** (Top-10 precision 90%→70% against baseline, no gain on
+  `P02`/`P04`/`P08`/`P09`, "not adopted as default on the strength of this result," no
+  `decision-gate.md` entry was ever appended for it). The standing `decision-gate.md` baseline
+  remains `task-058-remediation-20260817-001` (`PROMISING`, 2026-08-17, engine `v0.2.0`) — five days
+  *older* than the rejected run the diagnostics actually used. Neither is current: `engine.py`'s own
+  `DiscoveryConfig.beam_rules_per_structure` default is `2` — i.e. `TASK-064`'s tested value is
+  still the class default in code today, contradicting `TASK-064`'s own "not adopted as default"
+  closing language (a real documentation/code discrepancy, not resolved here — this task must
+  disclose it, not silently pick a side) — and `TASK-068`'s feature-identity diversity-floor
+  post-filter (`ADR-057`, `discovery-engine-v0.6.0`) landed after `task-064-beam-20260822-001` and
+  has **never been run on travel at all**, only on `ecommerce` (`task-068-ecommerce-*-20260827`).
+  **No frozen candidate set in `artifacts/` was generated under today's actual default
+  configuration on travel.** This task exists to produce one.
+- **Goal:** Produce a real, officially graded result — not a diagnostic projection — that either
+  moves `TASK-072`'s "not yet" determination or confirms it on genuine, current evidence. This is
+  the result `ADR-066`'s flip-condition (a) names, and per the founder's own framing, this result,
+  not further oracle-style diagnostics, should settle where `TASK-072` stands next.
+- **Scope, in order:**
+  1. **Resolve the `beam_rules_per_structure` default discrepancy first, as a disclosed finding, not
+     a design decision.** Determine what the current code path a real `scripts/run_discovery.py` /
+     blind-agent invocation actually uses by default (read the code, do not assume either the
+     dataclass default or `TASK-064`'s prose is authoritative) and state plainly which one governs a
+     fresh run. **Do not change the default value to resolve the discrepancy** — that would be a
+     `discovery.engine` tuning decision this task is not scoped or authorized to make (`TASK-069`'s
+     hard rule still binds: no such change may be motivated by what it does to travel's specific
+     recall). If the discrepancy needs correcting, name it as a separate documentation-only follow-on
+     (fixing `TASK-064`'s closure text or the dataclass default's own justification, whichever is
+     actually wrong), not fixed inline here.
+  2. **Fresh `TASK-015`-equivalent blind discovery run on travel**, under whatever the current
+     default configuration genuinely is per step 1, following the established `ADR-008`/`051`/`052`
+     blind-custody protocol (issue → verify → launch → freeze → sign → independently verify) exactly
+     as `task-015-official-20260816-015`/`task-058-remediation-20260817-001`/
+     `task-064-beam-20260822-001` did — travel's ground truth has been open since 2026-08-16 for
+     diagnostic purposes, but the *procedure* stays the same so the run is directly comparable to
+     the prior official entries and its provenance (dataset identity, engine version, run contract
+     version, hashes, receipt) is fully recorded the same way.
+  3. **Validate under contract `v1.3.0`** via the real `scripts/validate_candidates.py` (`TASK-019`'s
+     own tool) — not `scripts/diagnose_validation_power.py` or any other diagnostic script — producing
+     a genuine `artifacts/validation/*.json`.
+  4. **Score via `scripts/evaluate_benchmark.py`** (`TASK-028`'s own tool), producing a genuine
+     `artifacts/evaluation/*.json`.
+  5. **Append one new entry to `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison"**
+     (append-only per that document's own convention — do not edit the pre-registered bands or the
+     two existing entries), reporting all six graded metrics, the overall verdict, and the contract
+     version (`v1.3.0`) and engine version this run used, in the same table format as the two
+     existing entries.
+  6. **Independent `CODE_REVIEWER` re-derivation** of the blind-custody chain integrity and the
+     `TASK-019`/`TASK-028` outputs, matching this project's established pattern for every prior
+     official run and remediation cycle.
+  7. **`FOUNDER_STRATEGY` sign-off** on the new `decision-gate.md` entry and its bearing (or explicit
+     lack of bearing) on `TASK-072`'s "not yet" determination — a new PROMISING/STRONG result here
+     does not by itself reopen `TASK-057` (that still requires `ADR-063`'s own separately-stated
+     condition), and this task must state that explicitly, the same way `TASK-072`/`ADR-066` did.
+- **Hard rule (same force as `TASK-069`'s and `TASK-070`'s):** no discovery-engine parameter,
+  scoring term, or eligibility/validation-gate value may be tuned, chosen, or justified by reference
+  to this run's own outcome on travel's known patterns. The point of this task is to find out what
+  the *existing, already-decided* pipeline actually produces under its real current configuration —
+  not to iterate the configuration until it looks good. If the result is a real, disclosed FAILED or
+  WEAK verdict, that is this task's success condition being met, not a reason to retune anything
+  before reporting it.
+- **Explicitly not in scope:** any change to `discovery.engine`, `apply.py`, or `decision-gate.md`'s
+  own pre-registered bands; any non-travel domain (this task is travel-only, matching
+  `decision-gate.md`'s own existing scope); resolving `TASK-057`'s pause.
+- **Done when:** a new, real (non-diagnostic) `decision-gate.md` entry exists for a fresh travel run
+  under the current default engine and contract `v1.3.0`, independently `CODE_REVIEWER`-verified and
+  `FOUNDER_STRATEGY`-signed, with the `beam_rules_per_structure` discrepancy disclosed (and, if
+  warranted, a narrow documentation-only follow-on named for it), and `TASK-072`'s entry is updated
+  to reference this task's real result rather than the diagnostic figures alone.
+
+### TASK-074 — Pre-register success/kill criteria for a first real (non-synthetic) customer dataset run
+
+- **Owner:** FOUNDER_STRATEGY
+- **Support:** ARCHITECT
+- **Priority:** P1
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-072` (this task executes the follow-on `ADR-066` proposed but deliberately
+  did not open)
+- **Origin:** `ADR-066`'s named gap — `docs/benchmark/decision-gate.md`'s bands score
+  known-ground-truth metrics that are structurally uncomputable on real data (no hidden ground truth
+  exists to score a real run against), so nothing in this project currently defines what "a good
+  result" or "a bad result" means for a first real dataset's own output. Defining that only after
+  seeing a real run's results would repeat exactly the premature-precision mistake `ADR-007`/`ADR-012`
+  exist to prevent — the same discipline that makes this task pre-registration, not post-hoc grading.
+- **Goal:** Before any real customer dataset is ever ingested, write down — analogous to what
+  `docs/benchmark/decision-gate.md` did for the synthetic benchmark before `TASK-028` ever ran —
+  what would count as a defensible, worth-surfacing result from a first real run, and what would
+  count as a result the company should not act on or present to a stakeholder, given that no oracle
+  exists to score it against.
+- **Scope, not assumed in advance:**
+  1. A human/domain-expert plausibility-review protocol — who reviews a candidate finding before it
+     is ever shown to a stakeholder, and against what standard, given there is no ground truth to
+     check it against mechanically.
+  2. A minimum bar for what counts as a "defensible finding worth surfacing" vs. one that should be
+     suppressed or held as internal-only, expressed in terms this project's own evidence-level
+     vocabulary already has (`descriptive_observation` / `predictive_association` / etc.) plus
+     whatever additional real-data-specific checks (e.g. minimum sample size actually available,
+     minimum plausibility-review consensus) a real run needs that synthetic grading didn't.
+  3. Explicit language capping any claim made to a stakeholder at the evidence grade actually
+     reached — this project's own discipline (no claim beyond what the gate proved) extended to a
+     context where the usual gates can't independently verify against a known answer.
+  4. What a "kill" result looks like for a first real run — explicitly, not just the success path —
+     and what happens next if it occurs (try a different real dataset, return to synthetic work,
+     something else), matching this project's standing discipline of disclosing negative results as
+     real, planned-for outcomes rather than surprises.
+- **Explicitly not in scope:** any code, mechanism, or validation-contract change; opening or
+  scoping the actual first real-data ingestion itself (that remains gated by `TASK-057`'s pause and
+  `TASK-037`/`TASK-038`, which do not exist in any executed form yet).
+- **Done when:** a dated `FOUNDER_STRATEGY` record (analogous in weight and permanence to
+  `docs/benchmark/decision-gate.md` itself) exists, defining success/kill criteria for a first real
+  run's own output, before any real dataset has been ingested.
+
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 
 - **Owner:** STATISTICS
