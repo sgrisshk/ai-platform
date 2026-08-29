@@ -2317,6 +2317,27 @@ blocker"), not reopened or implied-done by this closure.
   its tested defaults, zero-quota reproduces `v0.4.1` exactly) but is not adopted as default on the
   strength of this result. No further tuning of `beam_rules_per_structure` authorized. Full detail:
   `ADR-049`, `HANDOFF-060` (resolved).
+- **Closure-text correction (2026-08-29, `ARCHITECT`, `TASK-076` part 1, `ADR-069` Branch 2):** the
+  paragraph immediately above is **wrong about what the code actually did** and is corrected here,
+  in place, rather than silently rewritten. "`discovery-engine-v0.5.0` is not reverted... but is not
+  adopted as default" was never an accurate description of `engine.py`: the commit that introduced
+  `beam_rules_per_structure` (`a1be806`, this same task) set its dataclass default to `2` — the
+  exact value this task's own official run tested — from the moment the field first existed, and no
+  later commit ever changed it. There was no reversion to describe, because the field was never at
+  any other default; "not adopted as default" asserted a code state that did not exist on the day it
+  was written, not a state that later drifted away from true. `2` has been `DiscoveryConfig`'s sole,
+  unconditional default continuously since `discovery-engine-v0.5.0` shipped (2026-08-22) through
+  `discovery-engine-v0.6.0` (`TASK-068`) and every real official-run entry point
+  (`scripts/run_discovery.py`, `tools/blind_agent/cli.py`, the `Makefile`) — none of which expose an
+  override for it — meaning every official run since, including `task-064-beam-20260822-001` itself
+  and `task-073-official-20260829-001`, ran with the value this task's prose called rejected.
+  `CODE_REVIEWER` independently confirmed the no-override-path claim (`HANDOFF-075`;
+  `TASK-073`'s own entry, "Reviewer verification," item 4). "No further tuning of
+  `beam_rules_per_structure` authorized" is unaffected by this correction and continues to bind
+  exactly as before — this correction changes only the prose's claim about what the code already
+  was, not the prohibition on changing it further. **No code changed by this correction**, and
+  `beam_rules_per_structure`'s value is unchanged and out of scope for `TASK-076` — see `TASK-076`
+  and `ADR-070` for the discrepancy's origin and the resulting process determination.
 
 ### TASK-037 — Real-dataset security review
 - **Owner:** CODE_REVIEWER
@@ -4251,7 +4272,14 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** ARCHITECT
 - **Support:** STATISTICS
 - **Priority:** P1
-- **Status:** NOT_STARTED
+- **Status:** DONE (2026-08-29). Part 1: `TASK-064`'s closure text corrected in place (see that
+  task's entry) — the value was never reverted, `2` has been the sole, unconditional default since
+  the field's introduction. Part 2 determination: **YES, build the binding — scoped narrowly to
+  `DiscoveryConfig`'s own defaults, not a general decision-custody framework.** Full reasoning,
+  friction analysis against this project's actual engine-default-change history, alternatives
+  considered and rejected, and the existing-precedent check: `ADR-070`. Implementation opened
+  separately as `TASK-077` (not performed by this task itself, matching this project's own
+  decide/implement separation, e.g. `ADR-066`'s proposed-follow-on pattern).
 - **Depends on:** `TASK-073` (`HANDOFF-075` `CODE_REVIEWER`-confirmed, `ADR-068`/`ADR-069`)
 - **Origin:** `TASK-073` found `engine.py`'s `DiscoveryConfig.beam_rules_per_structure` default is
   `2` — `TASK-064`'s tested-and-rejected value — with no override path anywhere in the real
@@ -4294,7 +4322,38 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   recorded on whether an automated default-binding mechanism should be built — "yes, scoped as X,"
   or "no, because Y" — either is an acceptable outcome per this project's own discipline of
   disclosing negative/no-action determinations as real answers, not just proposals that get built by
-  default.
+  default. **Both met (2026-08-29) — see Status above and `ADR-070`.**
+
+### TASK-077 — Implement the `DiscoveryConfig` accepted-defaults binding test (`ADR-070`)
+
+- **Owner:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P2
+- **Status:** READY
+- **Depends on:** `TASK-076` (determination), `ADR-070` (full design and scope)
+- **Origin:** `ADR-070`'s part-2 determination on `TASK-076`: yes, build a narrow binding between
+  `DiscoveryConfig`'s runtime defaults and a recorded "currently accepted defaults" manifest, so a
+  silent discrepancy like `beam_rules_per_structure` remaining `2` after `TASK-064` recorded it as
+  rejected cannot recur unnoticed. This task performs the implementation `TASK-076` itself
+  deliberately did not (a determination task, not an implementation task, matching this project's
+  decide/implement separation).
+- **Goal:** Add one test (e.g. `tests/analytics/test_discovery_config_accepted_defaults.py`)
+  asserting every `DiscoveryConfig()` field default equals a manifest dict recorded in that same
+  test file, each entry commented with the task/ADR that approved it (seed the manifest with every
+  field's actual current value, cross-referenced against the provenance already narrated in each
+  field's own `engine.py` docstring — `beam_rules_per_structure` must be recorded as `2`, citing
+  `TASK-064`'s corrected closure text and this `ADR-070`, not `0` or any other value). On mismatch,
+  the failure message must name the diverged field, the manifest's recorded value, and the code's
+  actual value, and instruct the author to update the manifest (new value, new dated comment naming
+  the approving task/ADR) or fix the code, whichever is correct.
+- **Explicitly not in scope:** changing any `DiscoveryConfig` field's actual default value; extending
+  this binding pattern to `ValidationThresholds`, `GATE_SPECS`, or any class beyond `DiscoveryConfig`
+  (`ADR-070` explicitly declines to generalize on a sample size of one — a separate, later task if a
+  comparable drift is ever found elsewhere); any change to `engine.py`'s runtime behavior.
+- **Done when:** the test exists, passes against the current code (`beam_rules_per_structure=2`
+  recorded, matching), is wired into the normal test run, and `CODE_REVIEWER` confirms the manifest's
+  recorded values and citations are accurate against `engine.py`'s own docstrings and the cited
+  tasks/ADRs.
 
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 

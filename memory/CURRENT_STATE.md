@@ -1013,7 +1013,14 @@ and no code path in `scripts/run_discovery.py`, the blind-agent CLI, or the `Mak
 it — every official run, including this one, has used `2` unconditionally since
 `discovery-engine-v0.5.0` shipped, contradicting `TASK-064`'s own "not adopted as default" closing
 language. Not changed here, per this task's hard rule; disclosed as a narrow documentation-only
-follow-on instead. The run itself (`task-073-official-20260829-001`, full `ADR-008`/`051`/`052`
+follow-on instead. **Follow-on resolved 2026-08-29 (`TASK-076`, `ADR-070`):** `TASK-064`'s closure
+text corrected in place (the value was never reverted, `2` has been the sole default since the
+field's introduction — no code or value change); separately, `ADR-070` determines this project
+should bind `DiscoveryConfig`'s runtime defaults to a recorded accepted-defaults manifest going
+forward (`TASK-077`, not yet implemented), scoped to that one class, not a general framework.
+`HANDOFF-075` (`CODE_REVIEWER` re-derivation, `FOUNDER_STRATEGY` sign-off) is separately resolved,
+recorded in `TASK-073`'s own entry — `ADR-069`'s three-branch order of operations is in effect. The
+run itself (`task-073-official-20260829-001`, full `ADR-008`/`051`/`052`
 protocol, `discovery-engine-v0.6.0`, contract v1.3.0, blind-custody chain independently
 re-verified — hashes and manifest HMAC both re-derived from scratch) is the first genuinely
 official (non-diagnostic) `TASK-015`/`TASK-019`/`TASK-028` cycle since 2026-08-17. Result: Top-10
@@ -1023,9 +1030,12 @@ disqualifier 2 fired: trap `T03` reached `policy_readiness=shadow_policy` with *
 true pattern (`CAND-014`, survived G06 confounding adjustment on its own merits, E-value 1.90). No
 prior official run, including the rejected `task-064-beam-20260822-001`, ever promoted a trap.
 `TASK-072`'s "not yet" stands, now on real rather than diagnostic grounds; `TASK-057`'s pause is
-unaffected either way, per this task's own scoping rule. Awaiting `CODE_REVIEWER` re-derivation and
-`FOUNDER_STRATEGY` sign-off (`HANDOFF-075`). Full record: `docs/benchmark/decision-gate.md`
-(2026-08-29 entry), `ADR-067`, `TASKS.md` `TASK-073`.
+unaffected either way, per this task's own scoping rule. `CODE_REVIEWER` re-derivation and
+`FOUNDER_STRATEGY` sign-off (`HANDOFF-075`) are now resolved — **CONFIRMED, no defect** — and
+`ADR-069`'s three-branch follow-on order (forensic `TASK-075`, configuration-custody `TASK-076`,
+both independent) is in effect; see the resolution note above. Full record:
+`docs/benchmark/decision-gate.md` (2026-08-29 entry), `ADR-067`/`ADR-068`/`ADR-069`, `TASKS.md`
+`TASK-073`.
 
 ## Success criterion
 
