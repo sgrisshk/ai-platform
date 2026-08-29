@@ -4566,7 +4566,40 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   into `discovery.engine`'s own design territory even though no change to it is authorized here)
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** DONE (2026-08-29), pending `CODE_REVIEWER` independent confirmation of the three
+  attributions before `ADR-071` step 3 (`G06` fix-design) may open, per `ADR-072`. Full findings,
+  raw diagnostic JSON, and the three architectural attributions:
+  `docs/benchmark/task-079-residual-confounding-forensics.md` (+
+  `-raw.json`, `scripts/diagnose_task079_residual_confounding_forensics.py`). Summary per branch —
+  **`T03`:** first sufficient survival mechanism established — a true confounder's own strong raw
+  (unadjusted) outcome-association can cause `discovery.engine`'s ordinary greedy
+  score-maximization to select it as an additional rule condition, at which point `G02`'s (correct)
+  circularity guard permanently excludes it from adjustment; confirmed systematic (not isolated to
+  `T03`) via an identical sweep on `T04`, and via a 3.75x confounder-vs-non-confounder
+  score-increase-rate comparison across both. Architectural level: **candidate-generation
+  semantics** (`discovery.engine`'s condition composition), not `G06`, not the estimator. **`T04`:**
+  the same general mechanism, found independently via the estimator-focused branch — two
+  independent estimator variants (binning-granularity sweep, additive-OLS regression) both
+  reproduce the shipped result within noise, ruling out estimator-mechanics insufficiency;
+  `CAND-015`'s own second condition (`discount_rate`) is both strongly outcome-associated and
+  structurally inadjustable (in the candidate's own condition set, and absent from `T04`'s own
+  documented trap confounders, which characterize only its single `apparent_feature`); a
+  counterfactual confirms `T04`'s pure trap does not survive without this compounding, and a
+  diagnostic-only hypothetical confirms adjusting for the missing variable would flip both the
+  attenuation and E-value gates to FAIL. Architectural level: **candidate-generation semantics**,
+  not the estimator, not primarily threshold calibration (thresholds separate the two cases
+  cleanly, not marginally). **`T05`:** named validation-treatment recommendation — a distinct
+  "identifiability-ceiling" evidence-level/readiness outcome, separate from ordinary `not_ready`, is
+  a coherent addition (not authorized/scoped here) for the case where known, correct confounders are
+  jointly inestimable on the sample regardless of selection quality (confirmed via a full
+  subset-coverage sweep: a sharp cliff at the 4th variable, not a gradual decline, and a joint-cell
+  count 3.6x the population's theoretical maximum-occupancy ceiling); separately, a future selector
+  could in principle and cheaply check an achievable-coverage ceiling in advance of attempting
+  adjustment — named, not designed. Explicitly **not** a recommendation to lower the coverage floor
+  (the floor is working correctly). Preregistered cross-branch separation (`ADR-072`) honored
+  throughout — no finding used to justify a design move outside its own branch; no trap's pass/fail
+  verdict changed; no code, gate, threshold, estimator, or `discovery.engine` change proposed,
+  scoped, or implemented.
 - **Depends on:** `TASK-078` (`SURVIVOR_FOUND`, `ADR-072`)
 - **Origin:** `TASK-078`'s oracle-adjustment-set experiment found that handing `G06` the true
   confounder set directly is not sufficient to stop `T03`/`T04` from reaching `shadow_policy`,
