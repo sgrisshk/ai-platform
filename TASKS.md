@@ -4770,8 +4770,17 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
 - **Status:** DESIGN COMPLETE (2026-08-29), pending independent `CODE_REVIEWER` review — not yet
-  `CODE_REVIEWER`-approved, and no implementation task is opened by this status change.
-  Design document: `docs/analytics/task-080-candidate-composition-safety-design.md`.
+  `CODE_REVIEWER`-approved, and no implementation task is opened by this status change. **Founder
+  directive (`ADR-074`): review bound by five specific risks** (leave-one-out estimand validity,
+  tested via synthetic known-DGP form tests not `T03`/`T04`; order semantics/permutation invariance
+  of "first atom" privilege; whether reused thresholds carry the *same statistical semantics* in the
+  new estimand, not just reuse-convenience; multiple-atom joint composition risk explicitly
+  disclosed as a limitation; an explicit invariant test that the evidence cap cannot be re-raised by
+  a different downstream gate). **Central question, deliberately not "does this stop `T03`/`T04`":**
+  is the composition check general, permutation-consistent, and statistically meaningful, without
+  turning genuine interaction into an automatically-forbidden structure? A signature-level problem
+  (risk 1) does not discard the architecture — it requires correcting the estimand/classifier, not
+  reopening `discovery.engine` redesign. Design document: `docs/analytics/task-080-candidate-composition-safety-design.md`.
   **Recommendation (disclosed, not a non-recommendation): combine solution classes 2 (counterfactual
   composition check) and 3 (dual representation), located entirely at validation/promotion, computed
   from a promoted candidate's own frozen condition tuple with zero changes to `discovery.engine`.**

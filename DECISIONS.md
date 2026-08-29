@@ -3431,3 +3431,83 @@ negative/positive-control discipline (`TASK-075` §5, `ADR-071`'s acceptance mat
 6 real historical `PASS` candidates, `T02`'s separate vocabulary gap, `T05`'s ceiling excluded from
 the fix's own scope). If not `APPROVED`, `TASK-079`'s attribution is revised per the review's finding
 before any design task opens. `TASK-057` remains paused, unaffected.
+
+## ADR-074 — Adversarial review mandate for `TASK-080`'s design: five specific risks, centered on the leave-one-out estimand's validity, not on whether `T03`/`T04` would be stopped
+
+**Date:** 2026-08-29
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` review now. No
+implementation task opens until this review completes, per `TASK-080`'s own instruction and the
+founder's explicit statement below.
+
+**Decision.** `TASK-080`'s design (§8: a leave-one-out counterfactual composition check located
+entirely at validation/promotion, computed from a candidate's own frozen condition tuple, zero
+`discovery.engine` changes, three-way confound-like/interaction-like/indeterminate classification
+capping evidence level rather than rejecting or promoting) is judged mature enough for independent
+review. Four elements are specifically noted as strong, recorded so the review does not have to
+re-derive why they're plausible before stress-testing them: (1) separating discovery permissiveness
+from promotion safety, consistent with `TASK-079`'s own finding that the defect surfaced through
+search composition without implying search itself must perform causal classification; (2) recomputing
+composition risk from the condition tuple rather than introducing a new metadata object that could
+drift from the actual candidate; (3) the three-way classification, which a binary classifier could
+not honestly support given `TASK-079`'s and `T05`'s own findings against full observational
+identifiability; (4) capping rather than rejecting, preserving the evidence-level contract's own
+semantics (descriptive existence disclosed, policy-worthy promotion withheld).
+
+**Five specific risks the review must address — not exhaustive, but not optional either:**
+
+1. **Leave-one-out estimand validity.** Does `compound candidate → remove atom A → stratify base
+   population by A` actually answer the causal/statistical question the design attributes to it?
+   Specifically: are there cases where a *genuine interaction* looks like attenuation once its atom
+   is removed, and ordinary *proxy-confounding* looks like concentration — i.e., could the design's
+   attenuation-vs-concentration signature be backwards or ambiguous in a case class the design
+   didn't test? **Must be tested via synthetic form tests with a known data-generating process** —
+   not `T03`/`T04`, which cannot establish general estimand validity by construction.
+2. **Order semantics / permutation invariance.** The design's "for each atom beyond the first"
+   phrasing privileges the first atom in a condition tuple. Since `A AND B == B AND A` logically, a
+   safety verdict should not depend on which atom happened to enter the tuple first during beam
+   construction, *unless* order genuinely carries semantic content — which must be proven, not
+   assumed. If it can't be proven, the review must require either permutation invariance (the
+   verdict is the same under any reordering) or an explicit, justified canonicalization rule.
+3. **Threshold semantic reuse.** Reusing `max_adjusted_attenuation` and
+   `min_confounder_stratum_coverage` without new constants is good practice, but does not by itself
+   prove those thresholds carry the *same statistical semantics* in the new leave-one-atom-out
+   estimand that they had in `G06`'s joint adjustment. The review must check semantic reuse, not
+   merely note the convenience of reuse — otherwise this ships as a new gate wearing old,
+   differently-calibrated numbers.
+4. **Multiple-atom / joint composition risk.** For a rule `A ∧ B ∧ C`, independent leave-one-out
+   checks on `B` and `C` may miss a composition risk that exists only through their *joint*
+   inclusion. This is not necessarily a blocker for a v1 design, but the review must confirm the
+   limitation is explicitly disclosed in the document (atom-wise safety ≠ subset-wise safety), not
+   silently assumed away.
+5. **Evidence-ceiling invariant on the real promotion path.** Confirm the cap cannot be accidentally
+   re-raised to `shadow_policy` (or any disqualifying readiness) by a *different* downstream
+   gate/state transition — an explicit invariant test is required here, not an assumption, given
+   `TASK-073`'s own history of a hard-disqualifier firing through a path this project did not
+   initially expect.
+
+**The central review question, stated precisely — deliberately not "does this design stop
+`T03`/`T04`," which is too weak a criterion:** *is the proposed composition check a general,
+permutation-consistent, statistically meaningful way to detect loss of adjustability, without turning
+genuine interaction into an automatically-forbidden structure?*
+
+**Fork, stated explicitly in advance:**
+- **`APPROVED`** → an implementation task opens next, with `TASK-080`'s design document as an
+  unchanged specification.
+- **A problem found specifically in the attenuation-vs-concentration statistical signature (risk 1)
+  does not, by itself, discard the whole architecture.** The separation this design established —
+  permissive discovery → recomputed composition safety at validation → evidence ceiling under
+  ambiguity — is judged strong independent of the specific classifier inside the safety check. A
+  signature-level finding requires correcting the estimand/classifier, not reopening `discovery.engine`
+  redesign or returning to a `G06`-selection-fix framing already ruled out by `TASK-079`.
+
+**Explicit block, unchanged:** no implementation task for `TASK-080`'s design opens until this review
+completes. `ADR-072`'s block on `G06` selector fixes, estimator replacement, and discovery redesign
+remains in effect regardless of this review's outcome — this review concerns only the validation-layer
+design in `TASK-080`, not a reopening of the ruled-out layers.
+
+**Anti-overfitting discipline, honoured.** This ADR authorizes no implementation and no design
+revision — only an adversarial review with a specific, falsifiable mandate, continuing the posture
+`ADR-071`/`ADR-073` established for `TASK-075`/`TASK-079`.
+
+**Consequences.** `TASK-080`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's five
+specific risks and central question. `TASK-057` remains paused, unaffected.
