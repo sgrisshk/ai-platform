@@ -4206,8 +4206,10 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** ARCHITECT
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** DONE (diagnosis complete; `CODE_REVIEWER` independent confirmation still pending, per
-  this task's own Reviewer field — not marked `CODE_REVIEWER`-approved by this entry). **Founder
+- **Status:** DONE (diagnosis complete; `CODE_REVIEWER` independent adversarial confirmation now
+  recorded below, per this task's own Reviewer field — genuine confirmation, all six `ADR-071`
+  checks independently reproduced, one disclosed access limitation, see "CODE_REVIEWER independent
+  review" below). **Founder
   directive (`ADR-071`): this review must be explicitly adversarial** — the reviewer's job is to
   attempt to *refute* the "cardinality cliff" causal explanation and the systematicity claim (all 5
   traps affected, `T04` saved by accident not by design, `T02` carries a second independent
@@ -4319,8 +4321,103 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     proposed anywhere in the report; §5 names what a future fix-design task's scope and controls
     would need to cover, generically, without keying on `installments`, `discount_rate`,
     `paid_search`, or `T03`'s identity.
-  - **Not yet done:** `CODE_REVIEWER` independent confirmation (this task's own Reviewer field) —
-    marked `DONE` for the diagnosis itself, not `CODE_REVIEWER`-approved.
+  - **Not yet done (superseded — see verdict below):** ~~`CODE_REVIEWER` independent confirmation
+    (this task's own Reviewer field) — marked `DONE` for the diagnosis itself, not
+    `CODE_REVIEWER`-approved.~~
+- **`CODE_REVIEWER` independent adversarial review (2026-08-29), per `ADR-071`'s six specified
+  checks. Verdict: cardinality-cliff mechanism CONFIRMED; systematicity across `T01`–`T05`
+  CONFIRMED. No refutation found on any of the six checks.** Method: a review script written from
+  scratch, importing neither `scripts/diagnose_task075_g06_confounding_coverage.py`'s code nor its
+  raw JSON as a source of truth for any computed number — calls the real, unmodified
+  `policy_analytics.validation.apply._adjustment_pool`, `_binned_adjustment_frame`, and
+  `_stratified_adjustment` directly against the real, committed
+  `travel-bookings-analytical-v1.1.0` dataset and `hidden_ground_truth.json`.
+  - **Check 1 (reorder the eligible-covariate list; look for the predicted order-dependence):
+    CONFIRMED.** `_select_adjustment_columns` itself always re-sorts its `pool` argument by
+    cardinality internally, so permuting that argument alone is a no-op — disclosed here rather than
+    silently worked around. The real test instead varied actual try-order via a thin wrapper loop
+    that still calls the real, unmodified `_stratified_adjustment` for every accept/reject decision
+    at each step (the only "logic" that matters is that scoring function, never reimplemented).
+    Result: forcing each rejected true confounder to be tried *first* flipped it into the selected
+    set in every single case tested where it wasn't independently excluded some other way
+    (`installments` for `T03`/`CAND-014`; `discount_rate`/`installments` for `T03`-pure;
+    `trip_duration_days` for `T02`; `destination`/`booking_lead_days` for `T01`, `T05`, and
+    `CAND-015`). Reverse-cardinality, alphabetical, and random-shuffle orderings also changed the
+    retained set in essentially every trace. This is the single most direct confirmation available:
+    the same variables the cardinality-order run rejects are *includable* merely by trying them
+    earlier, with nothing else about them changed.
+  - **Check 2 (recompute joint coverage from scratch): CONFIRMED.** Independently reproduced,
+    matching `TASK-075`'s own reported and raw-JSON coverage values to many decimal places at every
+    selection step, for `CAND-014`, `CAND-015`, `CAND-007`, and all five traps' real/counterfactual
+    traces.
+  - **Check 3 (rejected confounders genuinely eligible when rejected): CONFIRMED** for every case
+    checked (`installments`/`T03`; `trip_duration_days`/`T02`; `destination` and
+    `booking_lead_days`/`T01`, `T05`, `CAND-015`) — each independently confirmed `DECISION_TIME`-
+    classified in the manifest, present in `validation_roles.adjustment_eligible`, not one of the
+    candidate's own condition features, and reaching the greedy loop before failing purely on
+    coverage.
+  - **Check 4 (different `G06` sub-mechanism excluding anyway): confirmed present, and correctly
+    disclosed, in exactly the one case `TASK-075` already named — `CAND-007`**, where
+    `booking_lead_days`/`destination` are literally `CAND-007`'s own condition features (G02
+    circularity guard is the true binding constraint there, not coverage, and the report states this
+    correctly rather than attributing it to the coverage floor). `CAND-014`'s `discount_rate`
+    structural exclusion is confirmed non-load-bearing: the counterfactual trace shows it would be
+    coverage-floor-rejected anyway (coverage `0.0622`, independently reproduced exactly). One minor
+    inaccuracy found in the write-up: §2 states `discount_rate` is "tried 8th" in that counterfactual
+    trace; independently reproduced, it is actually the 14th of 15 pool columns tried (cardinality 6,
+    second-highest) — the coverage value and the substantive conclusion are unaffected, only the
+    stated ordinal position is wrong.
+  - **Check 5 (`T04`/`CAND-015`'s survival re-derived as accidental `P06` overlap, not correct gate
+    behavior): CONFIRMED, and independently strengthened beyond `TASK-075`'s own report.**
+    Recomputed `CAND-015`'s recall against `P06`'s `affected_booking_ids` from scratch:
+    `93/134 = 0.6940` (report: `0.69`). Decomposed *why*: `payment_method==bank_transfer` alone (one
+    of `CAND-015`'s two conditions, and literally one of `P06`'s three defining conditions) gives
+    exactly `1.0000` recall against `P06` by construction — `P06`'s population is a subset of it.
+    `discount_rate>=0.05` (`CAND-015`'s other, `P06`-unrelated condition) passes `69.40%` of `P06`'s
+    affected population, statistically indistinguishable from its own `69.07%` base rate across the
+    full 10,000-row population. The overlap is fully explained by one trivially-shared condition
+    plus a second condition filtering at essentially its own population base rate, with no
+    relationship to `P06`'s true drivers (`destination==Tokyo`, `booking_lead_days<10`). `CAND-007`'s
+    recall against `P06` independently reproduced at exactly `1.0000`, confirming it as a genuine
+    `P06` recovery for contrast.
+  - **Check 6 (`T02`'s two causes, kept separate): CONFIRMED, both independently and distinctly.**
+    (a) `trip_duration_days`: genuinely `DECISION_TIME`, genuinely in `adjustment_eligible`, not a
+    condition feature, reaches the greedy loop and is coverage-floor-rejected — a genuine
+    selection-among-eligible failure. (b) `booking_month`: absent from the dataset's entire physical
+    schema (`manifest.json`'s `feature_timing` lists every column the dataset has at all, and
+    `booking_month` is not among them) — not merely excluded from `adjustment_eligible` while present
+    elsewhere, unlike `travel_month`, which does exist, is `DECISION_TIME`, and is deliberately
+    excluded from `adjustment_eligible` as a disclosed calendar-derived scope limit
+    (`validation-contract.md` §4b/§11, independently confirmed to say so) — a structurally distinct,
+    independent vocabulary gap from (a).
+  - **Disclosed limitation of this review.** `artifacts/blind/task-073-official-20260829-001.*`
+    (frozen `candidates.json`, `hashes.json`) are not present in this reviewer's git worktree
+    checkout — `artifacts/` is gitignored, and this is a fresh worktree with no prior official-run
+    output written into it (consistent with this project's own noted shared-worktree/concurrent-
+    session working conditions). This reviewer could **not** independently re-execute
+    `TASK-075`'s own diagnostic script's fidelity checks 1 and 3 (frozen-file SHA-256 verification
+    against `hashes.json`, and a fresh `run_validation()` byte-matching the already-committed
+    validation report). `CAND-014`/`CAND-015`/`CAND-007`'s conditions used throughout this review are
+    instead reconstructed from the condition strings documented identically in
+    `docs/benchmark/task-075-t03-forensic-trace.md` and `docs/benchmark/decision-gate.md`
+    (independently authored, mutually consistent) — not read from the frozen candidate file itself.
+    Independently verified instead, from scratch: the dataset's own identity hash
+    (`b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`) matches, recomputed fresh
+    against the manifest and all four partitions. This limitation bears on custody/fidelity
+    re-verification only — every substantive mechanism and systematicity claim was independently
+    reproduced from the real code and real dataset regardless, per checks 1–6 above.
+  - **Also found:** the raw JSON's `final_coverage` field (one summary value per trace) is computed
+    as the coverage of the *last column tried* in the full cardinality ordering (almost always a
+    high-cardinality column that gets rejected, e.g. `manager`), not the coverage of the
+    actually-*selected* adjustment set — a cosmetic labeling bug in the diagnostic script's summary
+    output. The markdown report's own per-step tables (§2) use the correct values throughout and are
+    unaffected; this only matters if a future reader trusts the raw JSON's `final_coverage` field at
+    face value.
+  - **CODE_REVIEWER field: satisfied.** Genuine confirmation — all six `ADR-071` checks
+    independently reproduced from the real, unmodified code and the real dataset, with the one
+    fidelity-custody limitation disclosed above (not a gap in the mechanism/systematicity findings
+    themselves). Per `ADR-071`'s sequence, step 2 (the oracle-adjustment-set sufficiency experiment)
+    may now be opened as its own task — not performed by this review.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
