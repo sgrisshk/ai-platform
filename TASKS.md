@@ -4769,8 +4769,14 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** IN_PROGRESS — REVISION (2026-08-29, `ADR-075`, classifier/estimand level only; see
-  revision scope below). Prior history: DESIGN COMPLETE (2026-08-29); `CODE_REVIEWER` independent review complete
+- **Status:** REVISED — DESIGN COMPLETE, PENDING RE-REVIEW (2026-08-29, `ADR-075`). Revision scope
+  (classifier/estimand level only, three-stage architecture not reopened) executed; full record
+  below under "Revision complete." Design document
+  (`docs/analytics/task-080-candidate-composition-safety-design.md`) updated in place with the
+  revised classifier, all four review-derived corrections, and a new §14 adversarial form-test
+  suite report. Next step, per `ADR-075`'s own sequencing: independent `CODE_REVIEWER` re-review —
+  **not performed by this revision itself; this entry does not self-approve.** Prior history: DESIGN
+  COMPLETE (2026-08-29); `CODE_REVIEWER` independent review complete
   (2026-08-29, `ADR-074`) — **APPROVED WITH REVISION NEEDED, classifier-level (not
   architecture-level)**. The validation/promotion staging decision itself (permissive discovery →
   recomputed composition safety at validation → named evidence ceiling, zero `discovery.engine`
@@ -5000,6 +5006,69 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     imperfect-proxy DGP class stops producing an unjustified `interaction_like` does the revised
     design go back to independent `CODE_REVIEWER` review; only after that does implementation get
     discussed. No implementation task is authorized by this revision.
+- **Revision complete (2026-08-29, ARCHITECT + STATISTICS support, `ADR-075`) — design document
+  updated in place; not self-approved; pending independent `CODE_REVIEWER` re-review per `ADR-075`'s
+  own sequencing.** Full detail in the design document's own revision banner and new §14; summary
+  here:
+  - **Asymmetric classifier settled on.** `confound_like` unchanged (coverage floor, sign match,
+    attenuation exceeds `max_adjusted_attenuation` — never the review's finding of a defect).
+    `interaction_like` now requires two independent, positive-evidence signals to *both* hold: (1)
+    **stratum-contrast heterogeneity** — `base_i`'s own effect recomputed separately within `Ci`'s
+    two levels must show a statistically credible gap (closed-form Wald test via the same
+    `normal_approx_two_sided_p` `G05` already uses in production, not a new resampling procedure),
+    the same "recompute within each level of a covariate" pattern `G09` already applies to its own
+    declared strong covariates, applied here to the leave-one-out atom instead; (2) **consistency
+    under threshold perturbation** — that same contrast, recomputed one G12-style bin below and one
+    bin above the atom's own threshold, must agree in sign and retain at least
+    `(1 - max_adjusted_attenuation)` of the production magnitude (the same already-audited constant,
+    reused for a stability role — no new tunable). The other two candidate signals `ADR-075` named
+    (an independent-parameterization regression estimate; a nested `base+atom` vs.
+    `base+atom+interaction` model comparison) were investigated empirically, not preselected against
+    or skipped: both reduce *algebraically* to signal 1's own difference-in-differences quantity in
+    this check's saturated, two-covariate leave-one-out design (confirmed numerically, 0 mismatches
+    to floating-point precision across 1,435 trials) — genuine independence instead comes from
+    re-partitioning the same data (signal 2), not re-parameterizing it.
+  - **Proxy-confounding ladder: the required property holds, continuously, across the full ladder —
+    not just at endpoints.** Concordance swept `{0.50, 0.55, ..., 0.95, 0.99}` (11 points), 100
+    trials/point (1,100 trials), confound DGP (base rule 100% confounded by construction, true
+    effect exactly zero): **0/1,100 `confound_like -> interaction_like` safety failures at every
+    concordance point**, vs. **805/1,100 (73.2%)** under the reviewed design's old implicit rule
+    (`attenuation <= max_adjusted_attenuation` alone sufficient) applied to the identical trials — at
+    the review's own adversarial concordance (`0.75`), the old rule fails 100/100 trials, the new
+    rule 0/100. A supplementary 1,050-trial stress run at the borderline concordance range
+    reproduced 0 failures, for 0/2,150 total. As concordance degrades, the classifier's behavior
+    shifts smoothly from `confound_like`-dominant to `indeterminate`-dominant, never once to
+    `interaction_like` — the required degradation direction, verified, not asserted.
+  - **Asymmetric error rates, reported separately, per `ADR-075`'s own instruction (never
+    averaged):** `[SAFETY-CRITICAL]` confound → `interaction_like` (uncapped): **0/1,100 = 0.0000**.
+    `[acceptable]` confound → `indeterminate`: 810/1,100 = 0.7364. `[correct]` confound →
+    `confound_like`: 290/1,100 = 0.2636. On the separate interaction DGP (275 trials, ground truth
+    `interaction_like`): `[correct]` interaction → `interaction_like`: 222/275 = 0.8073.
+    `[disclosed cost]` interaction → `indeterminate`: 53/275 = 0.1927. `[also 0]` interaction →
+    `confound_like`: 0/275 = 0.0000 — confirming the stricter significance bar the safety fix
+    required does not introduce a new misclassification risk in the opposite direction.
+  - **Four additional review-derived corrections, all confirmed executed in the design document:**
+    (1) the unsafe-proxy case — fixed, per the ladder result above; (2) the design document's own
+    §4/§8.1 "all atoms `1..k`" rule was already correct (the review's own finding) and is now
+    explicitly restated in §8.1 as a permanent, quotable sentence so this task's own recap language
+    (the actual defect the review found) cannot drift back to the unsafe "beyond the first"
+    paraphrase — this `TASKS.md` entry's recap above uses the corrected phrasing throughout; (3)
+    design doc §6.2's false claim that single-atom coverage collapse is more common than `G06`'s
+    joint collapse is corrected in place (the review found the opposite — a single 4-level atom
+    stays at `~1.00` coverage even at `n=150`/`n=645`, vs. joint 3-variable stratification collapsing
+    to `0.06` at `n=150`), and §12 now explicitly discloses the multi-atom/joint-composition-risk
+    blind spot as a documented v1 limitation, not solved here, per `ADR-075`'s own instruction not to
+    reopen `G05`/`ADR-015`; (4) design doc new §8.1a specifies the evidence cap as a genuine
+    `GateId`/`GateSpec` entry (e.g. `G16_CANDIDATE_COMPOSITION_SAFETY`) participating in
+    `GATE_SPECS`'s `evidence_ceiling` mechanism, citing (not re-deriving) the real protection
+    `ValidationReport.__post_init__` already provides, and §10 item 7 specifies the explicit
+    invariant test proving downstream re-promotion past the cap is impossible.
+  - **Artifacts:** design document revised in place
+    (`docs/analytics/task-080-candidate-composition-safety-design.md`, new §14 plus revisions to
+    §6.2/§6.3/§8.1/§10/§12/§13); form-test script
+    (`scripts/diagnose_task080_composition_classifier_revision.py`); raw output
+    (`docs/benchmark/task-080-composition-classifier-revision-raw.json`). No `discovery.engine`,
+    `apply.py`, or gate code touched; design-only, exactly as `ADR-075` authorized.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
