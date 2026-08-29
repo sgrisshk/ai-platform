@@ -3983,7 +3983,11 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** FOUNDER_STRATEGY
 - **Support:** ARCHITECT
 - **Priority:** P1
-- **Status:** NOT_STARTED
+- **Status:** **RECORDED (2026-08-29, `FOUNDER_STRATEGY`)** — full pre-registered success/kill
+  criteria written and dated before any real dataset has been ingested:
+  `docs/benchmark/real-data-decision-gate.md`. Recorded as `ADR-067`. No code, mechanism, or
+  validation-contract change made; `TASK-057`'s pause and `TASK-037`/`TASK-038` are untouched and
+  this task does not bear toward reopening any of them.
 - **Depends on:** `TASK-072` (this task executes the follow-on `ADR-066` proposed but deliberately
   did not open)
 - **Origin:** `ADR-066`'s named gap — `docs/benchmark/decision-gate.md`'s bands score
@@ -4019,6 +4023,27 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Done when:** a dated `FOUNDER_STRATEGY` record (analogous in weight and permanence to
   `docs/benchmark/decision-gate.md` itself) exists, defining success/kill criteria for a first real
   run's own output, before any real dataset has been ingested.
+- **Recorded (2026-08-29, FOUNDER_STRATEGY):** `docs/benchmark/real-data-decision-gate.md`,
+  pre-registered and dated, PRE-REGISTERED status, append-only after a first real run (mirroring
+  `docs/benchmark/decision-gate.md`'s own discipline). Covers all four scope items: (1) a
+  two-reviewer plausibility protocol — `STATISTICS` plus a named domain reviewer with real
+  operational knowledge of the specific business, checking effect-direction plausibility,
+  population/exposure defensibility, real-data-analog confounding-pattern resemblance to
+  `T01`–`T05`, and data-quality-artifact plausibility; (2) a minimum bar for "worth surfacing"
+  requiring evidence level ≥3 `adjusted_observational_association`, sample size/power re-derived
+  against the real dataset's own outcome variance (not synthetic-calibrated placeholders), both
+  reviewers' sign-off, named disclosure of what `G06` could not adjust for, materiality re-derived
+  against real variance, and no unresolved trap-shape resemblance — six conditions, all required,
+  anything short suppressed or held internal-only; (3) claim-capping language extending
+  `validation-contract.md` §6's `LANGUAGE_RULES` with a mandatory no-ground-truth disclosure clause
+  and a ban on citing synthetic-benchmark metrics as evidence for a real finding's reliability,
+  with example wording at levels 2 and 3; (4) two named kill-result shapes — Type A (near-empty
+  result, a legitimate disclosed outcome, diagnosed before any dataset-swap or approach change,
+  next step an explicit new founder decision, not pre-committed) and Type B (plausibility-review or
+  process breakdown, which halts all real-data work and forces a mandatory
+  `FOUNDER_STRATEGY`/`ARCHITECT`/`STATISTICS` review and a `DECISIONS.md` entry regardless of
+  outcome). Full reasoning and text: `docs/benchmark/real-data-decision-gate.md`; recorded as
+  `ADR-067`.
 
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 
