@@ -3321,3 +3321,49 @@ Any narrower acceptance criterion (e.g. "`T03` specifically no longer reaches `s
 **Anti-overfitting discipline, extended.** This ADR authorizes no fix and no gate change. It fixes, in advance of any design work, both the adversarial review standard for the causal claim it's built on and the acceptance matrix the eventual fix must clear — precisely so neither can be quietly loosened once a specific fix is in hand and looks attractive. The oracle-adjustment-set experiment (step 2) exists specifically so that a selector-only fix cannot be declared sufficient without first checking whether it actually is.
 
 **Consequences.** No new `TASKS.md` entry is opened by this ADR. `TASK-075`'s own `Reviewer: CODE_REVIEWER` field is now attached to this ADR's specific adversarial checklist, not a generic review. Steps 2–7 are named and pre-registered here, to be opened as `TASKS.md` entries only as each prior step's contingency is met. `TASK-057` remains paused, unaffected.
+
+## ADR-072 — `ADR-071`'s sequence amended: `TASK-078`'s survivor result inserts a mandatory second forensic layer before any `G06` fix-design; no selector fix, estimator replacement, or discovery redesign until it completes
+
+**Date:** 2026-08-29
+**Status:** Accepted, contingent — this ADR authorizes the second forensic layer (`TASK-079`) to start now; it does not authorize any fix, replacement, or redesign, which stay blocked exactly as stated below until `TASK-079` completes and is independently reviewed.
+
+**Decision.** `TASK-078`'s preregistered result is `SURVIVOR_FOUND`: two of five traps (`T04` cleanly, no representability caveat; `T03` with a disclosed structural caveat) still reach `shadow_policy` even when `G06` is handed each trap's true confounder set directly, bypassing the "cardinality cliff" (`TASK-075`) entirely. Per `ADR-071`'s own preregistered fork, this means the cardinality cliff is a real, confirmed defect but **not sufficient** to explain the safety failure `TASK-073` observed — `ADR-071`'s step 3 ("`G06` fix-design") is not yet reachable. This ADR inserts the mandatory intermediate step `ADR-071` itself anticipated for exactly this branch, names it precisely, and amends the sequence: **independent review of `TASK-075` (done) → oracle-adjustment sufficiency (`TASK-078`, done, `SURVIVOR_FOUND`) → second forensic layer (`TASK-079`, opened by this ADR) → only then `G06` fix-design (`ADR-071` step 3, still blocked) → implementation → adversarial controls → multi-domain regression → new official cycle.**
+
+**`TASK-079`, "Forensic analysis of residual confounding beyond `G06` adjustment-set selection," opened with three independent branches — `T03`, `T04`, and `T05` implicate three different mechanisms, and must not be collapsed into one investigation:**
+
+1. **`T04` — estimator sufficiency.** With the oracle adjustment set fixed (not re-chosen), decompose *why* `_stratified_adjustment`'s mean-differencing leaves a `shadow_policy`-reaching residual effect: strata construction/discretization, weighting, sparse-cell behavior, residual within-stratum imbalance, and the verdict's sensitivity to estimator variants that remain methodologically defensible (not merely picked to flip the outcome). **Goal is not to find an estimator that kills `T04`** — it is to establish whether the current estimator is methodologically insufficient for continuous/moderate-cardinality confounding, as a property, independent of `T04`'s specific identity.
+2. **`T03` — candidate-condition/confounder entanglement.** Not a `G06`-selection question. Formally characterize the general class of cases where a true confounder is simultaneously part of the found rule's own condition and therefore structurally excluded from adjustment by `G02`'s circularity guard. The question to answer: **can search produce an apparent pattern that becomes statistically irremovable downstream specifically because conditioning already folded the confounder into the subgroup definition?** If so, this is a distinct structural safety-defect hypothesis about the hypothesis-language/search pipeline (`discovery.engine`'s candidate-composition behavior) — not a `G06` defect, and not `T03`'s specific identity.
+3. **`T05` — overlap ceiling.** Not a "fix" question. The oracle set's `0.18` coverage is a genuine identifiability limitation on this dataset. Determine how validation *should* treat this class of case (reject / declare a ceiling / declare insufficient-overlap, as a named evidence-level or readiness outcome) and whether a future selector should account for achievable overlap *in advance*, so it never builds an adjustment set that cannot be reliably estimated regardless of how well it's chosen.
+- **Preregistered separation, binding across all three branches — the founder's own explicit
+  constraint, to prevent one branch's finding from silently justifying an unrelated design move:**
+  `T04`'s failure must not be treated as automatic proof that threshold calibration (`E-value`
+  floor, attenuation ceiling) is the defect; `T03`'s finding must not automatically lead to banning
+  confounder-like features from candidate rule conditions; `T05`'s ceiling must not lead to lowering
+  the coverage floor for recall's sake. **Mechanism first, design second** — each branch establishes
+  what is true before any branch is allowed to motivate a change anywhere.
+- **Completion criterion, fixed now, deliberately not "all traps start failing":** for each
+  surviving oracle trap (`T03`, `T04`), the forensic task must establish the *first sufficient
+  survival mechanism* and prove which architectural level a future fix belongs to — the estimator,
+  candidate-generation semantics, or data/overlap policy. `T05` must receive a named validation
+  treatment recommendation (not a fix) for its identifiability-ceiling class. Success is a correct,
+  evidenced attribution, not a change in any trap's pass/fail outcome — no code, gate, threshold, or
+  `discovery.engine` change is authorized by this task at all.
+
+**Explicit block, binding until `TASK-079` completes and is independently `CODE_REVIEWER`-confirmed:**
+no `G06` selector fix, no estimator replacement, and no new `discovery.engine`/search redesign may
+be opened or scoped. `TASK-078` already proved that a selector-only fix does not close the
+hard-disqualifier class this project is investigating; opening any of those three now would repeat
+exactly the premature-fix mistake `ADR-071` was written to prevent, on a now-larger scale.
+
+**Anti-overfitting discipline, extended.** This ADR authorizes no fix, gate change, or estimator
+change of any kind — only a three-branch diagnostic task, with its own completion criterion fixed in
+advance and its own binding rule against cross-branch conclusion-laundering (the preregistered
+separation above). The task must reach a real, evidenced architectural attribution per branch, not a
+change in outcome, exactly mirroring this project's standing discipline (`ADR-007`/`ADR-012`) that a
+diagnosis is not permitted to quietly become a design decision.
+
+**Consequences.** `TASK-079` is opened in `TASKS.md`, owner `STATISTICS` with `ARCHITECT` support for
+the `T03`/candidate-composition branch specifically (that branch reaches into `discovery.engine`'s
+own design territory, even though no change to it is authorized here). `ADR-071`'s step 3 (`G06`
+fix-design) remains named but not opened until `TASK-079` completes and is reviewed. `TASK-057`
+remains paused, unaffected.

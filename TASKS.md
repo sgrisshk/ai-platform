@@ -4544,6 +4544,82 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   explicitly (5/5-with-T02-caveat blocked → open `G06` fix-design; any fully-representable survivor →
   open a new forensic task first), and `CODE_REVIEWER` independently confirms the experiment's
   fidelity and the stated result before either follow-on opens.
+- **Result: `SURVIVOR_FOUND` (2026-08-29).** Two of five traps survive their oracle adjustment set:
+  `T04` (`CAND-015`) cleanly — complete, fully-achievable confounder set, full joint coverage
+  (`1.00`), plausible attenuation (`0.07`), still reaches `shadow_policy`; `T03` (`CAND-014`) with a
+  disclosed caveat — its third true confounder (`discount_rate`) is structurally inadjustable
+  because it is folded directly into the candidate's own condition (`G02`'s circularity guard,
+  correctly untouched), and its two adjustable confounders produce essentially zero attenuation
+  (`−0.01`). `T01`, `T02(a)` (schema-feasible), `T02(b)` (full-ground-truth, `booking_month`
+  reconstructed one-off), and `T05` are all rejected — `T05` notably capped at `0.18` joint coverage
+  even under its complete 4-variable oracle set, a genuine identifiability ceiling, not a selection
+  artifact. Full record: `docs/benchmark/task-078-oracle-adjustment-sufficiency.md`. Per the
+  preregistered fork: the cardinality cliff (`TASK-075`) is confirmed real but **not sufficient** to
+  explain `TASK-073`'s safety failure — opening a `G06` selector fix now would be premature.
+  **`ADR-072` opens `TASK-079` (second forensic layer) as the mandatory next step**, before any
+  selector fix, estimator replacement, or discovery redesign.
+
+### TASK-079 — Forensic analysis of residual confounding beyond `G06` adjustment-set selection (`ADR-072`; three independent branches — `T03`, `T04`, `T05`)
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT (specifically for the `T03` candidate-composition branch, which reaches
+  into `discovery.engine`'s own design territory even though no change to it is authorized here)
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-078` (`SURVIVOR_FOUND`, `ADR-072`)
+- **Origin:** `TASK-078`'s oracle-adjustment-set experiment found that handing `G06` the true
+  confounder set directly is not sufficient to stop `T03`/`T04` from reaching `shadow_policy`,
+  and that `T05`'s complete oracle set only reaches `0.18` joint coverage. Three different
+  mechanisms are implicated — this task investigates them as **three independent branches**, not
+  one combined investigation, per `ADR-072`.
+- **Branch 1 — `T04`: estimator sufficiency.** With the oracle adjustment set held fixed (not
+  re-chosen), decompose *why* `_stratified_adjustment`'s mean-differencing leaves a
+  `shadow_policy`-reaching residual effect: strata construction/discretization, weighting,
+  sparse-cell behavior, residual within-stratum imbalance, and the verdict's sensitivity to
+  estimator variants that remain methodologically defensible (not merely selected to flip the
+  outcome). **Goal is not to find an estimator that kills `T04`** — establish whether the current
+  estimator is methodologically insufficient for continuous/moderate-cardinality confounding, as a
+  general property, independent of `T04`'s specific identity.
+- **Branch 2 — `T03`: candidate-condition/confounder entanglement.** Not a `G06`-selection
+  question. Formally characterize the general class of cases where a true confounder is
+  simultaneously part of the found rule's own condition and therefore structurally excluded from
+  adjustment by `G02`'s circularity guard. Answer directly: **can search produce an apparent
+  pattern that becomes statistically irremovable downstream specifically because conditioning
+  already folded the confounder into the subgroup definition?** If so, this is a distinct
+  structural safety-defect hypothesis about the hypothesis-language/search pipeline
+  (`discovery.engine`'s candidate-composition behavior) — not a `G06` defect, and not keyed to
+  `T03`'s specific identity.
+- **Branch 3 — `T05`: overlap ceiling.** Not a "fix" question. `0.18` joint coverage under the
+  complete, correct 4-variable oracle set is a genuine identifiability limitation this dataset
+  produces. Determine how validation *should* treat this class of case (reject / declare a ceiling
+  / declare insufficient-overlap, as a named evidence-level or readiness outcome) and whether a
+  future selector should account for achievable overlap *in advance*, so it never builds an
+  adjustment set that cannot be reliably estimated regardless of how well it's chosen.
+- **Preregistered separation, binding across all three branches — do not let one branch's finding
+  justify an unrelated design move:** `T04`'s failure must not be treated as automatic proof that
+  threshold calibration (`E-value` floor, attenuation ceiling) is the defect; `T03`'s finding must
+  not automatically lead to banning confounder-like features from candidate rule conditions; `T05`'s
+  ceiling must not lead to lowering the coverage floor for recall's sake. **Mechanism first, design
+  second** — each branch establishes what is true before any branch is allowed to motivate a change
+  anywhere, in this task or any later one.
+- **Completion criterion, fixed now — deliberately not "all traps start failing":** for each
+  surviving oracle trap (`T03`, `T04`), establish the *first sufficient survival mechanism* and
+  prove which architectural level a future fix belongs to — the estimator, candidate-generation
+  semantics, or data/overlap policy. `T05` must receive a named validation-treatment recommendation
+  (not a fix) for its identifiability-ceiling class. Success is a correct, evidenced attribution,
+  not a change in any trap's pass/fail outcome.
+- **Explicitly not in scope, hard rule:** no code, gate, threshold, estimator, or
+  `discovery.engine` change of any kind is proposed, scoped, or implemented by this task. No fix
+  for `T03`/`T04`/`T05` specifically — findings must generalize beyond their identities, matching
+  every prior task in this chain (`TASK-069`, `TASK-070`, `TASK-075`, `TASK-078`).
+- **Explicit block, binding until this task completes and is independently `CODE_REVIEWER`-confirmed
+  (`ADR-072`):** no `G06` selector fix, no estimator replacement, and no new
+  `discovery.engine`/search redesign may be opened or scoped anywhere in this project.
+- **Done when:** all three branches have a recorded, evidenced architectural attribution (not just
+  an observation), the preregistered cross-branch separation is honored throughout (no finding used
+  to justify a design move outside its own branch), and `CODE_REVIEWER` independently confirms the
+  three attributions before `ADR-071` step 3 (`G06` fix-design) may open.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
