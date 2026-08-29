@@ -4179,6 +4179,123 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   outcome). Full reasoning and text: `docs/benchmark/real-data-decision-gate.md`; recorded as
   `ADR-067`.
 
+### TASK-075 — Forensic trace: why did confounding trap `T03` clear `G00`–`G14` and reach `shadow_policy`? (`ADR-069` Branch 1, no pre-selected fix)
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-073` (`HANDOFF-075` `CODE_REVIEWER`-confirmed, `ADR-068`/`ADR-069`)
+- **Origin:** `task-073-official-20260829-001` — the first official run under the pipeline's actual
+  current default configuration — promoted trap `T03` (`CAND-014`:
+  `acquisition_channel==paid_search AND discount_rate>=0.08`) to `policy_readiness=shadow_policy`
+  with zero matched true pattern (`best_pattern_recall=0.456`, not a near-miss or an ambiguous
+  overlap case like `T04`/`CAND-015`). This is the first clean confounding-trap promotion in this
+  project's official benchmark history, independently `CODE_REVIEWER`-confirmed (`HANDOFF-075`) with
+  no defect found in the run, the custody chain, or the trap-match logic itself.
+- **A concrete lead already surfaced, not a conclusion — investigate it, do not assume it's the
+  answer:** `HANDOFF-075`'s independent re-derivation found that `installments` — one of `T03`'s
+  three true `confounded_by` variables (`synthetic_data/evaluation/hidden_ground_truth.json`) —
+  appears in `CAND-014`'s `adjustment_columns_considered` but **not** in `adjustment_columns_used`,
+  i.e. it was dropped by `G06`'s own coverage gate before adjustment. This is one candidate
+  explanation for why `G06` did not catch this confound; it is not established as *the* cause, and
+  this task must verify it mechanistically (why did the coverage gate drop it — insufficient joint
+  sample support, a `DECISION_TIME` classification issue, a different reason entirely?) rather than
+  treat it as already explaining the failure.
+- **Goal:** Identify the specific gate, or gates, that — by their own stated purpose in
+  `docs/analytics/validation-contract.md` — should have stopped `T03` from reaching
+  `shadow_policy`, and did not, and understand *why* mechanistically. This is diagnosis only. No
+  fix, gate change, threshold change, or eligibility change is proposed, scoped, authorized, or
+  implemented by this task.
+- **Scope:**
+  1. **Full gate-by-gate trace of `CAND-014` through `G00`–`G14`** (mirroring `TASK-069` item 7's and
+     `TASK-070`'s own diagnostic rigor): for each gate, what did it check, what was the actual
+     computed value/decision, and did it run with full statistical power or a degraded one (e.g. a
+     coverage gate that silently narrowed for lack of joint sample support, per
+     `docs/benchmark/real-data-decision-gate.md` §1's own language about gates that "pass" while what
+     they verify shrinks — apply that same scrutiny here, on synthetic data, before real data ever
+     sees it).
+  2. **Determine the general class of confounding structure `T03` instantiates** — not "why did
+     `paid_search`/`discount_rate` specifically slip through," but what property of this confound
+     (e.g. a `confounded_by` variable that correlates with the exposure but has weak/no marginal
+     correlation with a *different*, more obviously-included covariate; a joint-support gap at a
+     specific stratum; something else) made it invisible to the current adjustment-set selection or
+     coverage logic. The forensic report must name this class in general terms before this task is
+     considered done.
+  3. **Determine whether this is isolated to `T03` or a systematic blind spot.** Check whether the
+     other four traps (`T01`, `T02`, `T04`, `T05`) — all still correctly rejected or, for `T04`,
+     ambiguous but not the same failure shape — share any structural similarity to `T03` that the
+     forensic explanation would predict should also be vulnerable, and whether they simply haven't
+     been tested under a configuration that would expose it yet.
+- **Hard rule, binding (identical in force to `TASK-069`'s, `TASK-070`'s, and `ADR-069`'s own
+  instruction):** this task may not propose, scope, or design any fix. Any eventual correction that
+  follows this task's diagnosis must be derivable from the **general confounding-structure class**
+  named in scope item 2 — never a condition special-cased on `paid_search`, `discount_rate`, `T03`'s
+  identity, or `installments` specifically. A future fix must be validated against both **negative
+  controls** (candidates/traps that currently pass and must continue to) and **positive controls**
+  (candidates that currently correctly fail/downgrade and must continue to) before it is considered
+  real, matching `ADR-069`'s own instruction.
+- **Explicitly not in scope:** any change to `apply.py`, `discovery.engine`, or
+  `validation-contract.md`; any non-travel domain (travel-only, since that's where the failure was
+  observed — whether it generalizes is scope item 3, not a reason to widen this task's own domain);
+  designing or implementing the eventual correction (a distinct, later task, opened only after this
+  one's diagnosis is complete and reviewed).
+- **Done when:** a full gate-by-gate trace of `CAND-014` is recorded, the general confounding-structure
+  class is named (not just "why this candidate"), the isolated-vs-systematic question (scope item 3)
+  is answered with evidence, and `CODE_REVIEWER` independently confirms the trace before any
+  follow-on fix-design task is opened.
+
+### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
+
+- **Owner:** ARCHITECT
+- **Support:** STATISTICS
+- **Priority:** P1
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-073` (`HANDOFF-075` `CODE_REVIEWER`-confirmed, `ADR-068`/`ADR-069`)
+- **Origin:** `TASK-073` found `engine.py`'s `DiscoveryConfig.beam_rules_per_structure` default is
+  `2` — `TASK-064`'s tested-and-rejected value — with no override path anywhere in the real
+  official-run pipeline (`scripts/run_discovery.py`, the blind-agent CLI, the `Makefile`), directly
+  contradicting `TASK-064`'s own closing language ("not adopted as default on the strength of this
+  result... No further tuning of `beam_rules_per_structure` authorized"). Every official run since
+  `discovery-engine-v0.5.0` shipped, including `task-073-official-20260829-001`, has silently used
+  the rejected value. `CODE_REVIEWER` independently confirmed this claim (`HANDOFF-075`).
+- **Goal, in two parts, explicitly separated:**
+  1. **Narrow, immediate:** correct `TASK-064`'s `TASKS.md` closure text to state plainly that the
+     value was never actually reverted and has been the unconditional default the entire time — a
+     documentation correction only, not a code change.
+  2. **General, the actual point of this task:** determine whether this project needs an automated
+     test or manifest binding each accepted-default configuration decision (an `ADR`, a benchmark
+     closure like `TASK-064`'s) to the runtime configuration it approved, so that a silent
+     configuration drift like this one — a rejected experimental value remaining the unconditional
+     default for eight days and two further engine revisions, undetected until an unrelated task
+     happened to need to check — cannot recur unnoticed. Scope this as a real design question, not a
+     foregone "yes, add a test": consider what such a binding would actually check (e.g. a test that
+     asserts `DiscoveryConfig()`'s defaults match a recorded "currently accepted defaults" manifest,
+     failing loudly if `engine.py` changes without the manifest being updated in the same commit,
+     forcing a conscious decision every time), its false-positive cost (every legitimate future
+     default change must update the manifest, by design — is that friction worth it), and whether a
+     narrower or differently-shaped mechanism would serve better.
+- **Explicit constraint (binding, from `ADR-069` directly):** **do not revert
+  `beam_rules_per_structure` to `0` or any other value, and do not treat `TASK-073` as retroactively
+  invalidated by this discrepancy.** `TASK-073` correctly measured the real, existing default engine
+  configuration as it actually stood in code on 2026-08-29 — that FAILED result is real evidence
+  about that real configuration, not an artifact to be undone by fixing the configuration
+  afterward. If this task's own conclusion (part 1 or part 2) leads to restoring an intended default,
+  that restoration must happen as its own separate, provenanced change (a dated `TASKS.md`/`ADR`
+  entry stating what changed and why) — and because the engine configuration will then have changed,
+  **any post-restoration official run is new evidence requiring a fresh official
+  `TASK-015`/`TASK-019`/`TASK-028` cycle**, not a retroactive correction of `TASK-073`'s FAILED
+  verdict, which stands on its own terms regardless of what this task concludes.
+- **Explicitly not in scope:** changing `beam_rules_per_structure`'s actual value; any other
+  `discovery.engine` parameter or gate change; `TASK-075`'s forensic scope (a separate, independent
+  branch — this task does not block on or gate `TASK-075`, and vice versa).
+- **Done when:** `TASK-064`'s closure text is corrected, and a disclosed, reasoned determination is
+  recorded on whether an automated default-binding mechanism should be built — "yes, scoped as X,"
+  or "no, because Y" — either is an acceptable outcome per this project's own discipline of
+  disclosing negative/no-action determinations as real answers, not just proposals that get built by
+  default.
+
 ### TASK-070 — Fix G12's proven contract/implementation mismatch (correctness fix, deliberately separate from `TASK-069`)
 
 - **Owner:** STATISTICS
