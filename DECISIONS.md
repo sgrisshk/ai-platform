@@ -3367,3 +3367,67 @@ the `T03`/candidate-composition branch specifically (that branch reaches into `d
 own design territory, even though no change to it is authorized here). `ADR-071`'s step 3 (`G06`
 fix-design) remains named but not opened until `TASK-079` completes and is reviewed. `TASK-057`
 remains paused, unaffected.
+
+## ADR-073 — Founder-directed adversarial review of `TASK-079`: four required checks, explicitly tasked with finding an alternative explanation before the candidate-generation-semantics attribution is accepted
+
+**Date:** 2026-08-29
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` review now. The
+candidate-composition safety design task named below opens only if that review is `APPROVED`.
+
+**Decision.** `TASK-079` makes a strong architectural claim: two independent trap-survivor cases
+(`T03`, `T04`) converge on the same mechanism — `discovery.engine`'s candidate-condition composition
+systematically, though not deterministically, favors folding a true confounder into a rule's own
+condition when doing so raises `_development_score`, which then makes that confounder structurally
+inadjustable downstream via `G02`'s (correct) circularity guard — and the estimator and validation
+thresholds received what amounts to *negative* evidence as root causes (both cleanly separated the
+adjusted-vs-unadjusted cases in the diagnostic counterfactuals, rather than behaving marginally or
+inconsistently). A design task can follow this claim, but **only after an independent attempt to
+break it**, per this project's standing discipline that a causal/architectural finding is held to a
+higher confirmation bar before anything is built on it (`ADR-071`'s own precedent for `TASK-075`).
+
+**Four required checks, binding on the review, founder-specified verbatim in substance:**
+
+1. **Independently reproduce `T04`'s residual effect and confirm it is genuinely attributable to the
+   compound-condition variable (`discount_rate`), not a hidden artifact of the estimator
+   implementation** — re-derive `TASK-079`'s Branch 1 finding from the real, unmodified code, not by
+   re-reading its report.
+2. **Repeat the counterfactual adjustment including that variable and confirm both safety criteria
+   (attenuation, `E-value`) flip in the expected direction** — independently re-run, not re-read.
+3. **Recompute the `3.75×` `_development_score` enrichment finding from scratch**, and check it is
+   not an artifact of the specific candidate sample or of how "raises score" was operationally
+   defined — try at least one alternative reasonable definition or a different candidate sample if
+   feasible, to check robustness.
+4. **Separately reconfirm `T05` as a data-overlap ceiling**, specifically to prevent it from being
+   silently pulled into the same "design defect" bucket as `T03`/`T04` — `T05`'s finding must stay
+   its own, distinct thing.
+
+**Central adversarial mandate, stated by the founder as the most important part of this review:**
+the reviewer must genuinely attempt to find **at least one alternative mechanism that explains
+`T03`/`T04` without invoking candidate-composition semantics**. If none is found, the architectural
+conclusion is strong enough to proceed to design. If one is found, `TASK-079`'s attribution does not
+stand as-is and must be revised before any design task opens.
+
+**What opens if `APPROVED` — named now, not opened yet:** not a general "discovery redesign," but a
+narrowly-scoped **candidate-composition safety design task**, with its question fixed in advance:
+*how should search be allowed to build compound rules without creating a systematic advantage for
+conditions that simultaneously inflate the apparent effect and make the relevant adjustment
+information structurally unavailable downstream?* This framing is deliberately narrower than
+"redesign `discovery.engine`" — it targets the one mechanism `TASK-079` attributed, not the whole
+search/scoring system.
+
+**Explicit block, unchanged and reaffirmed:** until this review completes, nothing in `G06`, the
+estimator, or `_development_score` may be changed. `ADR-072`'s block on any `G06` selector fix,
+estimator replacement, or discovery redesign remains fully in effect.
+
+**Anti-overfitting discipline, honoured.** This ADR authorizes no fix and no design work — only an
+adversarial review with a specific, binding mandate to try to disprove the finding it is reviewing,
+exactly the posture `ADR-071` set for `TASK-075` and now extends to a stronger architectural claim
+built on two independent branches converging.
+
+**Consequences.** `TASK-079`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's specific
+four-check, alternative-mechanism-seeking mandate. If `APPROVED`, the candidate-composition safety
+design task named above opens next, as its own `TASKS.md` entry, still bound by every prior task's
+negative/positive-control discipline (`TASK-075` §5, `ADR-071`'s acceptance matrix — all 5 traps, the
+6 real historical `PASS` candidates, `T02`'s separate vocabulary gap, `T05`'s ceiling excluded from
+the fix's own scope). If not `APPROVED`, `TASK-079`'s attribution is revised per the review's finding
+before any design task opens. `TASK-057` remains paused, unaffected.

@@ -4567,7 +4567,18 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
 - **Status:** DONE (2026-08-29), pending `CODE_REVIEWER` independent confirmation of the three
-  attributions before `ADR-071` step 3 (`G06` fix-design) may open, per `ADR-072`. Full findings,
+  attributions before `ADR-071` step 3 (`G06` fix-design) may open, per `ADR-072`. **Founder
+  directive (`ADR-073`): this review is bound by four required checks (independently reproduce
+  `T04`'s residual and confirm attribution to the compound-condition variable, not an estimator
+  artifact; repeat the counterfactual adjustment and confirm both safety criteria flip as expected;
+  recompute the `3.75×` `_development_score` enrichment from scratch and test its robustness to
+  sample/definition choices; separately reconfirm `T05` as a distinct data-overlap ceiling, not
+  pulled into the `T03`/`T04` design-defect bucket) plus a central adversarial mandate: genuinely
+  attempt to find at least one alternative mechanism explaining `T03`/`T04` without invoking
+  candidate-composition semantics.** If none is found, the architectural attribution is strong
+  enough to proceed to design; if one is found, the attribution does not stand as-is. If `APPROVED`,
+  the next task is not a general discovery redesign but a narrowly-scoped candidate-composition
+  safety design task (question fixed in `ADR-073`). Full findings,
   raw diagnostic JSON, and the three architectural attributions:
   `docs/benchmark/task-079-residual-confounding-forensics.md` (+
   `-raw.json`, `scripts/diagnose_task079_residual_confounding_forensics.py`). Summary per branch —
