@@ -4623,3 +4623,67 @@ promoting a diagnostic metric to official status — all before any of the four 
 
 **Consequences.** `TASK-084` is opened in `TASKS.md`, diagnosis only. `TASK-057` remains paused,
 unaffected. No fix-design task exists yet.
+
+## ADR-086 — Adversarial review of `TASK-084`'s causal decomposition: five checks, centered on whether the finding is genuinely `estimand/population-target mismatch` rather than an ordinary `estimator` defect
+
+**Date:** 2026-08-30
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` review now. No
+fix/design task opens until this review's verdict.
+
+**Decision.** `TASK-084`'s report is judged strong enough to justify review, with the review's mandate
+aimed primarily at the **causal decomposition** — the claim that moves this from a vague "impact
+estimator is wrong" to a specific, attributed mechanism (surrogate-rule population dilution, at the
+validation/estimator layer).
+
+**Five required checks, founder-specified verbatim in substance:**
+
+1. **Independently reproduce the causal controls** — not just the summary correlations (`r≈0.998`
+   positive, `r≈0.07` negative), but the **pre-registered directional claim itself**: controlled
+   dilution monotonically worsens headline impact error at a fixed true effect, while negative-control
+   population resizing (with no expected dilution bias) does not. The reviewer must verify
+   monotonicity/direction, not merely a correlation coefficient.
+2. **Genuinely attempt to break the "residual is the same mechanism" claim.** Independently
+   recompute both narrowing stages (`219.9% → 73.6% → 5.45%`) and the residual's correlation with
+   `recall_of_true_pattern`. **Specifically search for a per-booking estimator defect that could be
+   silently disappearing under the doubly-narrowed diagnostic** rather than genuinely being explained
+   by it — a defect that vanishes under a specific diagnostic transformation is not automatically the
+   same thing as a defect that was never there.
+3. **Check the architectural attribution itself, not just the numbers behind it.** The label
+   "validation/estimator" deserves specific scrutiny: if the estimator correctly estimates the effect
+   on exactly the population the candidate handed it, and the error arises because that population is
+   a broad surrogate for the true affected population, **this may not be an estimator defect in the
+   ordinary statistical sense — it may be an estimand/population-target mismatch.** This distinction
+   is load-bearing for what design question comes next and must be checked directly, not assumed from
+   the report's own framing.
+4. **Independently reproduce the regression decomposition.** Confirm `beam_rules_per_structure=2`
+   holds as an **amplifier**, not a root cause; dataset version as a **non-causal correlate**;
+   diversity (`TASK-060`) as a **trade-off**, not a fix. **No conclusion of "revert to the old
+   config" may be drawn from any of this** — the review must confirm the report itself draws none,
+   and must not draw one itself.
+5. **Keep the `TASK-058` historical discrepancy (`~37.5%` historical vs. `209.4%` current
+   reproduction) separate and appropriately bounded.** The reviewer may attempt to explain it, but
+   the missing original frozen artifact genuinely limits how strong any conclusion here can be. **This
+   discrepancy must not be used to refute the current forensic result, and must not be used to blame
+   "validation-contract evolution" without independent evidence** — an unexplained gap stays
+   unexplained, disclosed as such, not resolved by assertion in either direction.
+
+**Approval criterion, stated precisely — the standard this review is held to:** *after a genuine
+attempt at refutation, the bulk of metric 6's error is explained by a mismatch between the population
+a discovered broad surrogate rule is evaluated on and the population of the true harmful pattern;
+after controlling for both population count and per-record effect within the true overlap, no
+material, independent impact-estimation defect remains.*
+
+**Explicit fork:** `APPROVED` under this standard means the next step is genuinely a **design** task —
+named now, precisely, as **economic-impact target-population semantics**, not an "estimator fix": what
+is the system entitled to claim about the economic damage of a broad observational surrogate when the
+latent affected subpopulation is unknown in production? This task is not opened or scoped by this ADR.
+If the review instead finds a genuine, independent estimator defect surviving both narrowing stages,
+that finding — not the semantics question — determines what happens next.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the review's approval standard, and the
+specific distinction it must resolve (estimator defect vs. estimand/population-target mismatch),
+before the review runs — precisely so a review cannot declare success by re-deriving the same
+correlations without testing whether the underlying causal/architectural claim actually holds.
+
+**Consequences.** `TASK-084`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's five
+checks and precisely-scoped approval criterion. `TASK-057` remains paused, unaffected.
