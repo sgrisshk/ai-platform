@@ -5352,3 +5352,61 @@ patterns/traps. The `beam_rules_per_structure` documentation-only follow-on name
 `TASKS.md` entry (correcting `TASK-064`'s closure text) is separately available for whoever picks it
 up; it is not part of this handoff's own ask.
   — that remains the named separate step.
+
+## HANDOFF-076
+
+**Created:** 2026-08-30
+**From:** STATISTICS
+**To:** CODE_REVIEWER, FOUNDER_STRATEGY
+
+**Status:** OPEN.
+
+**Task:** Independently re-derive `task-083-official-20260830-001`'s blind-custody chain and
+`TASK-019`/`TASK-028` outputs (`CODE_REVIEWER`), and sign off on the new `decision-gate.md` entry and
+its stated bearing on `TASK-072`/`TASK-057`/`TASK-073` (`FOUNDER_STRATEGY`) — matching this project's
+established pattern for every prior official run (`HANDOFF-060`, `HANDOFF-075`).
+
+**Context:** `TASK-083` produced the first official (non-diagnostic) `TASK-015`/`TASK-019`/`TASK-028`
+cycle under contract v1.3.0 **with `G16_CANDIDATE_COMPOSITION_SAFETY` present**, pre-registered by
+`ADR-081` before the run. Full result: `docs/benchmark/decision-gate.md`'s 2026-08-30 entry, `ADR-082`,
+`TASKS.md` `TASK-083`. Overall verdict **FAILED**, but — unlike `TASK-073` — **no hard disqualifier
+fires**: 0/5 confounding traps reached `SHADOW_POLICY`/`HIGH_CONFIDENCE` (`T03`/`T04` both reappeared,
+both actively capped by `G16` with a stated caveat, matching the two candidates that produced
+`TASK-073`'s own hard-disqualifier-driven FAILED). The FAILED verdict instead comes from the
+weakest-graded-band rule alone, driven by metric 6 (economic impact estimation error, median 219.9%,
+identical to `TASK-073`'s own number and pre-dating `G16` by two weeks). Statistics performed a
+first-pass independent integrity check in the same agent invocation that produced the run (file-hash
+and manifest-HMAC re-derivation from scratch, both matched; `engine.py` provenance hash checked against
+the current checkout, no drift) — this satisfies `TASK-083` scope item 9's "basic integrity" language
+but is explicitly **not** the separate, later `CODE_REVIEWER` pass this handoff requests.
+
+**Frozen run metadata:** run ID `task-083-official-20260830-001`; frozen at
+`/private/tmp/policy-blind-runs/task-083-official-20260830-001/frozen/` (gitignored `artifacts/`
+convention — not archived into the repo, same as every prior official run); dataset identity
+`b6128eb3c1bdb36515c90570aa4ccabfc3dff8d1026d9002f1c832774b60a683`
+(`travel-bookings-analytical-v1.1.0`); discovery method `discovery-engine-v0.6.0`; run contract
+`blind-run-contract-v1.1.0`; validation contract `1.3.0` (with `G16`); seed `1729`; evaluated hypotheses
+`33,085`; candidates `15` (0 `k==1`, 15 `k>=2`); frozen file hashes recorded in `frozen/hashes.json`.
+Validation report: `artifacts/validation/task-019-official-20260830-task-083-001.json`. Evaluation
+report: `artifacts/evaluation/task-028-task-083-official-001.json`.
+
+**Two evidence-level distributions, for the reviewer's own re-derivation convenience (`ADR-081` item
+6):** pre-`G16`-ceiling (`G00`–`G15` alone), 11 `adjusted_observational_association` / 1
+`predictive_association` / 3 `descriptive_observation`; final (with `G16`), 0 / 12 / 3. Computed by
+re-calling the real `policy_analytics.validation.grading.classify_evidence_level` over each candidate's
+persisted gate results with `G16`'s own `GateResult` forced to `PASS`, after confirming the as-is
+recomputation reproduces every candidate's frozen `evidence_level` exactly.
+
+**Expected output:** a `CODE_REVIEWER` re-derivation record (own hash/signature re-checks, own re-run
+of `validate_candidates.py`/`evaluate_benchmark.py` to a scratch path, byte-for-byte comparison against
+the frozen artifacts above, and independent re-derivation of the pre-/post-`G16` evidence-level split)
+and a `FOUNDER_STRATEGY` sign-off record on the `decision-gate.md` entry and its `TASK-072`/`TASK-057`/
+`TASK-073` bearing statement, both recorded in `TASK-083`'s own `TASKS.md` entry (Reviewer/Sign-off
+fields) once complete.
+
+**Explicitly not requested:** any retuning of `discovery.engine`, `G06`, `G16`, the estimator, any
+threshold, or `decision-gate.md`'s pre-registered bands in response to this result — `TASK-083`'s hard
+rule (same force as every prior task in this chain) forbids that being motivated by this run's own
+outcome. Do not characterize the yield-ceiling finding (complete `ADJUSTED_OBSERVATIONAL`-and-above
+disappearance under `G16`) as the cause of the overall FAILED verdict — it is not; metric 6 alone
+drives it, and the two must stay visibly separate per `ADR-081` items 5/9.

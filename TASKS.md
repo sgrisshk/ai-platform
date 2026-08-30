@@ -5886,7 +5886,39 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Reviewer:** CODE_REVIEWER
 - **Sign-off:** FOUNDER_STRATEGY (`docs/benchmark/decision-gate.md` is that document's own owner)
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** OFFICIAL RESULT RECORDED — FAILED, but not by a hard disqualifier (2026-08-30).
+  `task-083-official-20260830-001` (contract v1.3.0 + `G16`, engine `discovery-engine-v0.6.0`, same
+  seed/config/dataset identity as `TASK-073`) ran the full `ADR-008`/`051`/`052` protocol end to end
+  (rehearsal → issue → verify → launch → freeze), independently custody-re-verified in the same pass
+  (SHA-256 of all three frozen outputs + HMAC evaluator signature both re-derived from scratch; no
+  `engine.py` drift). **Both `ADR-081` questions answered:** (1) safety — `T03`/`T04`
+  (`CAND-014`/`CAND-015`), the same two trap candidates `TASK-073` produced, both reappeared and are
+  both now actively capped at `experiment_only` by `G16` (reason `composition_risk_indeterminate`,
+  explicit caveat recorded on each) — **0/5 traps promoted, down from `TASK-073`'s 2/5; hard
+  disqualifier 2 does not fire**, a first for this project's official history. (2) yield — evidence
+  collapses essentially completely under `G16`: pre-`G16`-ceiling, 11/15 candidates would have reached
+  `adjusted_observational_association`; final (with `G16`), 0/15 do (11→`predictive_association`, 4
+  unaffected either way). `k==1`/`k>=2`: 0/15 singleton, 15/15 compound, matching `TASK-082`'s own
+  150/150 finding — disclosed again as an unchanged operational fact about `discovery.engine`'s
+  selection behavior, not a `G16` failure. **Full discovery-metric set is byte-identical to
+  `TASK-073`'s own** (Top-10 precision 70%, economic-weighted recall 45.2%, direction accuracy 100%,
+  identical candidate composition) — proving the evidence-level collapse is `G16`'s doing alone, with
+  zero discovery-quality regression. **Overall verdict FAILED anyway**, per `decision-gate.md`'s own
+  unmodified weakest-graded-band rule: confounder trap rejection grades PROMISING not STRONG (`T03`/
+  `T04` are actively, caveated-capped, but `T01`/`T02`/`T05` never appeared as candidates at all, so
+  only 2/5 traps clear the "each with a stated confounding caveat" STRONG bar); economic impact
+  estimation error grades FAILED (median 219.9%, identical to `TASK-073`, a pre-existing,
+  `G16`-independent estimation-granularity defect dating to 2026-08-16, not caused or affected by
+  `G16`) — the weakest band overall is FAILED, driven entirely by that pre-existing metric, kept
+  visibly separate from the (expected, intentional) yield-ceiling finding per `ADR-081` items 5/9.
+  Engine/config custody separately re-verified (`ADR-081` item 1): `beam_rules_per_structure=2` is
+  still the unconditional default with no override path anywhere in the real pipeline — unchanged
+  since `TASK-073` first disclosed it, still not resolved (the narrow documentation-only follow-on
+  named there remains open, untouched by this task's own hard rule).
+  New `docs/benchmark/decision-gate.md` entry (2026-08-30, appended, prior three entries untouched).
+  Full record: `ADR-082`. `CODE_REVIEWER` re-derivation and `FOUNDER_STRATEGY` sign-off
+  (`HANDOFF-076`) are the separate, later steps this task's own Reviewer/Sign-off fields require —
+  **not performed or claimed here.**
 - **Depends on:** `TASK-081` (`APPROVED`, `G16` implemented and independently reviewed)
 - **Pre-registration is `ADR-081`, fixed before this run starts — read it in full before doing
   anything.** No `discovery.engine`, `G06`, `G16`, estimator, or threshold change may occur between
