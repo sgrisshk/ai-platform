@@ -6086,8 +6086,40 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** ARCHITECT
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** DONE — diagnostic complete (2026-08-30, Statistics), pending independent
-  `CODE_REVIEWER` confirmation per this task's own Reviewer field (not self-marked approved here).
+- **Status:** **APPROVED (2026-08-30, independent adversarial `CODE_REVIEWER` review against
+  `ADR-086`'s five specified checks and precisely-scoped approval criterion).** Full results:
+  `docs/benchmark/task-084-code-reviewer-verification.md`. Summary per check: (1) causal controls'
+  directional/monotonicity claim independently reproduced with a fully independent DGP (own
+  parameters, seeds, finer grid) — positive control 9/9 monotonically increasing steps, r≈0.9996;
+  negative control 5/9 (no trend), r≈−0.40 — PASSES. (2) genuine synthetic counterexample built
+  (independent, dilution-unrelated per-record bug, `confound_c=0`) — confirms the doubly-narrowed
+  diagnostic has a real, disclosed **methodological blind spot** (cannot distinguish population
+  mismatch from a broadly-applied independent per-record bug by construction), but direct reading of
+  `apply.py`'s raw-mean-difference computation found no evidence such a bug actually exists in the
+  real code — PASSES, with the report's "no unexplained variance" language in §3.4/§5(b) flagged as
+  mildly overstated (r²≈0.87–0.88, not 1.0, independently recomputed). (3) estimator-vs-estimand
+  framing confirmed correct, independently, via `docs/analytics/validation-contract.md` §8's own
+  definition ("these records" = the candidate's own exposed set, not cited by the report itself) and
+  direct reading of `apply.py`'s `full_mask`/`combined_stats` — the estimator is arithmetically
+  correct on exactly the population the candidate rule selects; the mismatch is entirely in what the
+  benchmark compares it against. (4) branch 1 independently reproduced bit-exact; every "reproduces
+  vX.Y.Z" docstring claim checked directly against `engine.py`; `git diff` across every TASK-084
+  commit confirms zero `packages/` changes. An independent alternate-order ablation (adding
+  `beam_rules_per_structure=2` directly to the pre-diversity config instead of last) found it
+  produces **zero measurable effect** without `TASK-060`'s diversity mechanism active — refines
+  "amplifier" to "amplifies specifically via interaction with diversity-based selection," relevant to
+  `TASK-076`/`077`'s open config-custody work, does not change the cause/amplifier/correlated
+  classification for the actual official path. No "revert to old config" conclusion found anywhere,
+  none drawn. (5) TASK-058 gap independently spot-checked against `TASK-058`'s own `TASKS.md` entry
+  and the raw JSON (CAND-006's 0.37457 error, 12-candidate median arithmetic both confirmed
+  directly) — appropriately bounded already, left unexplained as required, not used to refute the
+  main finding. **Overall: no material, independent impact-estimation defect found; the two
+  refinements above are disclosed limitations/nuances, not estimator-defect-level findings.** Per
+  `ADR-086`'s explicit fork, a design task on economic-impact target-population semantics may now be
+  considered — not opened by this review, left to the orchestrating session/founder.
+- **Prior status (2026-08-30, Statistics), superseded above:** DONE — diagnostic complete, pending
+  independent `CODE_REVIEWER` confirmation per this task's own Reviewer field (not self-marked
+  approved here).
   Full four-branch report: `docs/benchmark/task-084-economic-impact-forensics.md`. Raw computed
   output: `docs/benchmark/task-084-branch1-engine-regression-raw.json`,
   `docs/benchmark/task-084-branch2-3-error-decomposition-raw.json`,
