@@ -3759,3 +3759,90 @@ first revision's own battery.
 
 **Consequences.** `TASK-080`'s own `TASKS.md` entry gets this revision's scope attached to its
 in-progress status, not a new task. `TASK-057` remains paused, unaffected.
+
+## ADR-078 — Final adversarial review of `TASK-080`'s two-state `G16` design: is the non-identifiability claim itself sound, and is the conservative two-state cap safe?
+
+**Date:** 2026-08-30
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` review now. If
+`APPROVED`, `TASK-080`'s design is considered closed and an implementation task for `G16` opens next.
+
+**Decision.** The second revision (`ADR-077`) concluded, with a real identifiability suite and a
+closed-form estimand audit, that no observational estimand computable from a candidate's condition
+tuple plus frame alone can give positive evidence for genuine interaction without also converting
+residual proxy confounding into `interaction_like`, and recommended a two-state `G16` v1
+(`confound_like`/`indeterminate`, both capping evidence, no `interaction_like` escape path). This
+review is narrower and stronger in kind than every prior round: it is not evaluating another
+interaction-recognition heuristic — it is evaluating whether the **non-identifiability result itself**
+holds, and whether the **two-state design that follows from it** is safe as a standalone specification.
+
+**Six required checks, founder-specified verbatim in substance:**
+
+1. **Attempt to refute the non-identifiability claim directly.** Independently verify the closed-form
+   derivation, both hidden symmetries the audit found the original §14.5 proof secretly relied on,
+   and the matched-pair construction. **Specifically and seriously attempt to find an observable
+   statistic**, computable only from the information `G16` is actually allowed to use (the
+   candidate's condition tuple plus the frame), **that distinguishes the constructed matched pair.**
+   If the reviewer genuinely finds one, the non-identifiability conclusion is not closed and must be
+   reported as such, not glossed over.
+2. **Independently reproduce the asymptotic counterexamples.** The load-bearing invariant is not the
+   specific numbers already reported (`0.067→1.000`; `42–50%` plateau) — it is the **existence** of at
+   least one admissible pure-confounding DGP for which increasing `n` does not eliminate false
+   interaction evidence. If this existence claim is confirmed, the review must state explicitly that
+   no amount of further significance/threshold tuning can conceptually resolve the problem — the
+   defect is structural, not a calibration question.
+3. **Check the claim's own boundary — it must not be over-read.** The proven scope is: within the
+   information `G16` actually has access to (a candidate's condition tuple + frame) and the admissible
+   DGP class tested, without additional identifying assumptions, positive interaction release is not
+   identifiable. **This must not be reported or restated as the broader claim "interaction cannot be
+   identified from observational data in general"** — that would be a different, much stronger, and
+   unsupported conclusion. The review must explicitly confirm the narrower scope is what was actually
+   established and is what any resulting design language uses.
+4. **Adversarially attack the two-state design as its own, standalone specification:**
+   `confound_like → evidence CAP`; `indeterminate → evidence CAP`, with **no** `interaction_like`
+   escape path in v1. Specifically verify that the *absence* of found confounding is never treated,
+   anywhere downstream, as permission to promote — an `indeterminate` result must cap exactly as hard
+   as a `confound_like` result, never softer.
+5. **Check genuine-interaction semantics under the two-state design.** A genuine interaction must
+   never be misclassified `confound_like` (that would be a real, new safety-relevant error in the
+   opposite direction). Its landing in `indeterminate` is the **expected, correct v1 outcome**, not a
+   classifier false negative to be minimized — `discovery.engine` still keeps the finding
+   (unaffected by any of this, per the accepted architecture), `G16` simply declines to grant it
+   causal/policy-grade release. The review must confirm the design document states this distinction
+   clearly, not ambiguously.
+6. **Check that revoked material is genuinely inaccessible as normative specification, not merely
+   historically narrated.** §14.5's old proof, the old threshold-stability signal, and every other
+   audit-failed approach from the second revision must be written so that **an implementer cannot
+   reasonably read the document as still specifying them** — a clearly marked "REVOKED, do not
+   implement" is not sufficient if the surrounding text still reads as a live option; the review must
+   check this as a documentation-safety question, not just confirm the word "REVOKED" appears.
+
+**A specific simplification for the reviewer to investigate, named by the founder as worth pursuing
+seriously, not just checking for absence of a problem:** if both `G16` states cap identically, the
+`confound_like`/`indeterminate` distinction does no promotion-relevant work — it serves
+explainability/diagnostics only. The review should check whether the design's actual safety semantics
+reduce cleanly to: *a compound candidate contains structural composition uncertainty that available
+observational data cannot resolve; `G16` therefore sets an evidence ceiling; the reason code is
+`confound_like` if positive confounding evidence exists, `indeterminate` otherwise.* If this is what
+the design already says, confirm it; if the document is more complicated than this without
+justification, the review should say so.
+
+**Approval criterion, stated precisely — narrower than "interactions don't exist":** `APPROVED` means
+*within `G16` v1's actual information access, positive release of a compound candidate from the
+composition-risk ceiling is unidentifiable without additional assumptions, and the conservative
+two-state cap is therefore a correct consequence of the available information* — not a claim that
+genuine interactions are unidentifiable from observational data in general (check 3's own boundary).
+
+**Explicit fork:** `APPROVED` under this standard → `TASK-080`'s design is considered closed, and an
+implementation task for `G16` opens next, built to the two-state specification. **Not approved** →
+report exactly which of the six checks failed and why, following the same triage discipline every
+prior round in this chain has used (a scope/documentation-level finding is corrected without
+reopening the identifiability result itself; a genuine refutation of the non-identifiability claim
+itself would be a materially larger finding requiring its own new round, not assumed here).
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the review's scope and approval criterion
+before the review runs, specifically to prevent either an over-broad "interactions are impossible"
+conclusion or a false sense of closure from a review that only re-derives the same numbers already
+reported.
+
+**Consequences.** `TASK-080`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's six
+checks and precisely-scoped approval criterion. `TASK-057` remains paused, unaffected.
