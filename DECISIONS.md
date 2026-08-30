@@ -4548,3 +4548,78 @@ unaffected; `TASK-072`'s "not yet" stands, unaffected. `TASK-083`'s own `TASKS.m
 `ADR-083` are not modified by this ADR. No new task is opened by this ADR — if a metric-6 forensic task
 is opened next, it inherits the scope named above, on the same footing as this project's prior forensic
 tasks (`TASK-075`/`TASK-078`/`TASK-079`), as a separate decision.
+
+## ADR-085 — `TASK-084` opened: four-branch forensic on the economic-impact-estimation defect (metric 6); population-localization is the working hypothesis, not yet the established mechanism
+
+**Date:** 2026-08-30
+**Status:** Accepted — opens `TASK-084`, diagnosis only. No fix-design task is authorized by this ADR.
+
+**Decision.** `ADR-084`'s finding (median error `219.9% → 73.6%` under `TASK-059`'s
+attribution-narrowed recomputation, correlated with population dilution, `r≈+0.73`
+dilution-vs-error) is accepted as strong evidence, not proof. **Working hypothesis, stated precisely:**
+metric 6 likely measures a *mixture* of two distinct errors — affected-population-localization error
+(how much broader a candidate's full exposed population is than its overlap with the true pattern)
+and within-overlap effect-estimation error. The `219.9%→73.6%` drop and its dilution correlation make
+population mismatch the leading suspect for the *bulk* of the error; they do **not** yet establish
+that the remaining `73.6%` residual shares the same mechanism, or is even a single mechanism at all.
+
+**`TASK-084` is opened with four independent, pre-registered branches:**
+
+1. **Engine-version regression.** Reproduce the `TASK-058`-era configuration and the current
+   `v0.6.0` engine as identically as possible, varying exactly one axis at a time. Separately test
+   `beam_rules_per_structure=2` (already flagged, unresolved config-custody issue since `TASK-073`)
+   without assuming in advance it is the cause. Find the **first commit or config transition** at
+   which impact error reverts from `TASK-058`'s own `~37.5%` toward the `~200%+` this project's most
+   recent official runs show.
+2. **Error decomposition.** For every ground-truth-matched candidate, decompose its error into (at
+   minimum) a population/localization component and a within-overlap effect-estimation component.
+   Check whether dilution explains not just the aggregate correlation but the **direction and
+   magnitude of error candidate-by-candidate** — a mechanism claim needs case-level evidence, not
+   only a summary statistic.
+3. **The `73.6%` residual, treated as its own object, not assumed to share branch 2's mechanism.**
+   Read `economic_impact.py` directly: the estimand, the denominator, sign handling, the
+   exposed-count-to-economic-total scaling, heterogeneity within the overlap population itself, and
+   the representability of the candidate's surrogate rule against the exact injected true rule.
+   **The estimator must not be declared justified merely because narrowing improved the headline
+   number by a large margin** — a smaller residual can still hide its own, different defect.
+4. **Controls.** Build positive controls (a candidate's population artificially expandable at a fixed
+   true effect — dilution should predictably worsen the headline error while an overlap-conditioned
+   estimand stays comparatively stable, if the population-mismatch mechanism is real) and negative
+   controls (population changes with no expected dilution bias — the headline error should **not**
+   move for the wrong reason). This is the branch that actually tests the hypothesis rather than
+   re-describing the existing correlation.
+
+**Explicit, binding constraint on how the diagnostic-vs-official metric question is treated:**
+`TASK-059`'s attribution-narrowed metric **stays a diagnostic tool, not a new official metric**,
+regardless of how favorably it compares to the current `219.9%` figure. Official metric 6 in
+`docs/analytics/validation-contract.md`/`decision-gate.md` is **not changed by this task**. Whether
+the product should measure economic damage of the **whole found candidate subgroup** or of the **true
+affected subpopulation the candidate only approximately localizes** is a separate, later semantic/
+design decision this task does not make and must not pre-empt by quietly favoring one framing through
+its own reporting choices.
+
+**Completion criterion, fixed now:** (a) for the bulk of the `219.9%` error, determine the first
+sufficient mechanism and the architectural layer it belongs to; (b) separately classify the residual
+remaining after population-narrowing — same mechanism, a different mechanism, or several; (c)
+establish whether the engine/config regression (branch 1) is a **cause**, an **amplifier**, or merely
+a **correlated, non-causal change** — these are three different findings and must not be collapsed
+into one.
+
+**Three explicit prohibitions, binding throughout:** do not change the estimator, the search/
+discovery configuration, or metric 6's own definition; do not restore the `TASK-058`-era
+configuration merely to improve the number; do not use ground truth for any production-facing
+narrowing or estimator change — diagnostic use of ground truth to explain findings is permitted
+(matching every prior forensic task in this chain), production-facing use is not.
+
+**What this unlocks, named but not decided here:** if this forensic confirms population-localization
+as the primary mechanism, the next design question is not "how to fix the impact estimator" but the
+more precise: **how should economic impact be estimated for a discovered, broad surrogate rule when
+the true affected subpopulation is unknown?** — a distinct, later design task, not scoped or opened
+by this ADR.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the branches, the controls required to
+actually test (not merely restate) the working hypothesis, and the prohibition against quietly
+promoting a diagnostic metric to official status — all before any of the four branches has run.
+
+**Consequences.** `TASK-084` is opened in `TASKS.md`, diagnosis only. `TASK-057` remains paused,
+unaffected. No fix-design task exists yet.

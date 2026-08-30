@@ -6080,6 +6080,68 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     correctly. `FOUNDER_STRATEGY`'s next-bottleneck determination (`HANDOFF-076`'s other half) may now
     proceed, per `ADR-083`'s sequencing.
 
+### TASK-084 — Forensic: the economic-impact-estimation defect (metric 6), four independent branches (`ADR-085`, diagnosis only)
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-083` (`APPROVED`/`CONFIRMED`, `ADR-082`/`083`), `ADR-084` (`FOUNDER_STRATEGY`
+  determination naming this as the next bottleneck)
+- **Working hypothesis, stated precisely — not yet established, this task's job is to test it, not
+  assume it:** metric 6 likely measures a *mixture* of affected-population-localization error (how
+  much broader a candidate's exposed population is than its overlap with the true pattern) and
+  within-overlap effect-estimation error. `219.9% → 73.6%` under `TASK-059`'s attribution-narrowed
+  recomputation, correlated with population dilution (`r≈+0.73`), makes population mismatch the
+  leading suspect for the *bulk* of the error — it does **not** establish the remaining `73.6%`
+  residual shares the same mechanism.
+- **Four independent branches, all required:**
+  1. **Engine-version regression.** Reproduce the `TASK-058`-era configuration and the current
+     `v0.6.0` engine as identically as possible, varying exactly one axis at a time. Separately test
+     `beam_rules_per_structure=2` (unresolved config-custody issue since `TASK-073`) without assuming
+     in advance it is the cause. Find the first commit/config transition at which impact error
+     reverts from `TASK-058`'s own `~37.5%` toward the `~200%+` recent official runs show.
+  2. **Error decomposition.** For every ground-truth-matched candidate, decompose error into (at
+     minimum) a population/localization component and a within-overlap effect-estimation component.
+     Check whether dilution explains the **direction and magnitude of error candidate-by-candidate**,
+     not only the aggregate correlation.
+  3. **The `73.6%` residual, its own object.** Read `economic_impact.py` directly: estimand,
+     denominator, sign handling, exposed-count-to-economic-total scaling, heterogeneity within the
+     overlap population, and representability of the candidate's surrogate rule against the exact
+     injected true rule. **Do not declare the estimator justified merely because narrowing improved
+     the headline number by a large margin** — a smaller residual can hide its own, different defect.
+  4. **Controls.** Positive controls (artificially expandable population at fixed true effect —
+     dilution should predictably worsen the headline error while an overlap-conditioned estimand
+     stays comparatively stable, if the hypothesis is real) and negative controls (population changes
+     with no expected dilution bias — headline error should **not** move). This branch is what
+     actually tests the hypothesis, not merely re-describes the existing correlation.
+- **Explicit, binding constraint on the diagnostic-vs-official metric question:** `TASK-059`'s
+  attribution-narrowed metric **stays a diagnostic tool, not a new official metric**, regardless of
+  how favorably it compares to `219.9%`. Official metric 6 in `docs/analytics/validation-contract.md`/
+  `decision-gate.md` is **not changed by this task**. Whether the product should measure economic
+  damage of the **whole found candidate subgroup** or of the **true affected subpopulation the
+  candidate only approximately localizes** is a separate, later semantic/design decision this task
+  does not make and must not pre-empt through its own reporting framing.
+- **Completion criterion:** (a) for the bulk of the `219.9%` error, determine the first sufficient
+  mechanism and its architectural layer; (b) separately classify the residual after
+  population-narrowing — same mechanism, different mechanism, or several; (c) establish whether the
+  engine/config regression (branch 1) is a **cause**, an **amplifier**, or merely a **correlated,
+  non-causal change** — three different findings, must not be collapsed into one.
+- **Three explicit prohibitions, binding throughout:** do not change the estimator, the
+  search/discovery configuration, or metric 6's own definition; do not restore the `TASK-058`-era
+  configuration merely to improve the number; do not use ground truth for any production-facing
+  narrowing or estimator change (diagnostic use to explain findings is permitted, matching every
+  prior forensic task in this chain — production-facing use is not).
+- **Explicitly not in scope:** any fix-design task (named, not opened, only if population-localization
+  is confirmed as the primary mechanism — the resulting design question would be "how should economic
+  impact be estimated for a discovered, broad surrogate rule when the true affected subpopulation is
+  unknown," not "how to fix the impact estimator").
+- **Done when:** all four branches report evidenced findings (not assertions), the completion
+  criterion's three-way classification (cause/amplifier/correlated for branch 1) is stated explicitly,
+  the diagnostic-metric constraint is honored throughout, and `CODE_REVIEWER` independently confirms
+  before any follow-on design task is named as ready to open.
+
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
 - **Owner:** ARCHITECT
