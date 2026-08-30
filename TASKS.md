@@ -5069,6 +5069,47 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     (`scripts/diagnose_task080_composition_classifier_revision.py`); raw output
     (`docs/benchmark/task-080-composition-classifier-revision-raw.json`). No `discovery.engine`,
     `apply.py`, or gate code touched; design-only, exactly as `ADR-075` authorized.
+- **Re-review IN PROGRESS (2026-08-30, `CODE_REVIEWER`, `ADR-076`) — checkpoint after checks 1-2 of
+  5: a real, severe, generalizable safety defect found; full five-check verdict still pending.**
+  Scratch-only verification (per `TASK-079`'s own precedent), importing and calling the real,
+  unmodified `classify_atom` from `scripts/diagnose_task080_composition_classifier_revision.py`
+  (itself calling the real `_stratified_adjustment`/`DEFAULT_THRESHOLDS`/
+  `normal_approx_two_sided_p`) — no reimplementation. **Check 1 (new seeds/DGP parameterizations):**
+  the reviewed suite's confound DGP hardcodes a uniform (`P(U=1)=0.5`) prior on the confounder `U` —
+  an assumption the design's own §14.5 analytical zero-true-delta argument explicitly depends on
+  ("by construction," "uniform prior on U"). Generalizing only that one parameter (confounder
+  prevalence skewed away from `0.5`, all else identical to the reviewed DGP) reproduces a large,
+  *worsening-with-sample-size* safety failure: at `u_prior=0.2`, `concordance=0.75`, `n=1600`,
+  `interaction_like` (uncapped) in 187/200 trials; at `n=6400`, **200/200 (100%)** — a true,
+  non-vanishing bias, not sampling noise (a Type-I artifact would shrink, not grow, with `n`). One
+  example trial: `attenuation=0.167` (well under ceiling), `delta_p_value≈1e-13`, all three threshold
+  partitions agree and stay stable (`delta`≈86.4/85.3/84.1) — both positive-evidence signals fire
+  with high statistical confidence, on a DGP whose true causal effect is exactly zero everywhere by
+  construction. The failure is asymmetric in prevalence direction under the tested T-assignment
+  odds (`u_prior<0.5` fails badly; `u_prior>0.5` did not fail in this construction — direction is a
+  property of the specific odds/skew combination, not investigated to full generality yet). **Check
+  2 (signal independence outside the saturated two-covariate DGP shape):** a structurally different,
+  continuous/nonlinear 3-covariate DGP (continuous confounder `Z`, quadratic `Z²` term in the
+  outcome, logistic `T|Z` assignment, a second independent covariate `W`, continuous Gaussian proxy
+  noise instead of the reviewed DGP's binary-plus-uniform-jitter shape) reproduces the same failure
+  mode independently: 173/360 (48%) `interaction_like` on a 100%-confounded, zero-true-effect DGP,
+  at every tested proxy-noise level. Also found, from the classifier's own code
+  (`classify_atom`/`stability_ok` in the diagnostic script): signal 2 (threshold-perturbation
+  stability) structurally *requires* signal 1's own significance condition as one of its three
+  conjuncts (`all_significant` includes `delta_p < ALPHA`, the same test `heterogeneity_significant`
+  already performs) — confirmed empirically across 400 trials that `sig2-fires-without-sig1` never
+  once occurred (0/400), while `sig1-fires-without-sig2` did (51/400). Signal 2 is therefore not a
+  logically independent second test in the code as written; it is signal 1's own statistic
+  re-evaluated at two nearby partitions under an additional AND-condition — which is exactly why it
+  provides no protection against a *systematic* (not noise-driven) stratum-contrast bias: a real,
+  non-noise bias is, by definition, stable across nearby thresholds, so "stability" confirms the
+  same artifact rather than screening it out. **Net so far: the required safety property
+  (`confound_like → interaction_like` stays at `0`, generally, not just on the tested DGP shape)
+  does NOT hold** — both new-DGP checks independently reproduce large, non-noise safety failures
+  outside the narrow (binary confounder, `50/50` prior, symmetric proxy-noise) shape the revision's
+  own §14 suite tested exclusively. Checks 3-5 and a final verdict follow in a subsequent commit;
+  this checkpoint is recorded now per this review's own incremental-commit instruction (`ADR-076`'s
+  governing task note), not as a final verdict.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
