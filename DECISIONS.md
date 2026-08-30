@@ -3846,3 +3846,83 @@ reported.
 
 **Consequences.** `TASK-080`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's six
 checks and precisely-scoped approval criterion. `TASK-057` remains paused, unaffected.
+
+## ADR-079 — `TASK-081` blocked by a design/acceptance contradiction, not an implementation defect: `G16`'s unconditional `k>=2` cap measured at real product scale for the first time; a design-impact decision is required before implementation resumes
+
+**Date:** 2026-08-30
+**Status:** Accepted, contingent — blocks `TASK-081` and authorizes only the new design-impact
+decision task (`TASK-082`) below. No code, gate, threshold, or `discovery.engine` change is
+authorized by this ADR.
+
+**Decision.** Running `G16`'s merged implementation against real, previously-official candidate sets
+(not the substitute data the implementer disclosed using, for the same missing-artifact reason
+`TASK-075`'s own review already recorded) found: **every tested compound (`k>=2`) historical `PASS`
+candidate — `CAND-004`, `CAND-007`, `CAND-009`, `CAND-010`, `CAND-015` — now downgrades.** Every atom
+in every one of these candidates classifies `indeterminate` (never `confound_like`; attenuation
+`0.01`–`0.09` in each case), and because the approved two-state design (`TASK-080` §15.3, `ADR-078`)
+never grants an uncapped release on the absence of positive confounding evidence, all five are capped.
+
+**This is confirmed to be the implementation working exactly as designed, not a defect.** §15.3 itself
+already disclosed, in the abstract, that "no `k>=2` candidate can ever leave `G16` uncapped" as the
+direct, honest cost of the two-state design. What changed today is that this abstract structural
+consequence has now been **measured at real product scale, on real historical data, for the first
+time** — five of five tested historical `PASS` candidates regress, not a hypothetical edge case. This
+is new, decision-relevant information the design-approval chain (`ADR-074`–`078`) did not have in
+front of it when `G16`'s two-state design was approved.
+
+**The resulting contradiction, stated precisely:** `TASK-081`'s own acceptance requirement 8 ("the 6
+historical `PASS` candidates... must not regress") is now known to be **literally unsatisfiable**
+for any of those candidates with `k>=2`, given the already-approved, unconditional `§15.3` cap. A
+task cannot be required to satisfy two acceptance properties that are now proven mutually exclusive.
+The founder's own prior wording of requirement 8 is acknowledged here as having been written before
+this specific consequence was quantified, not as an error to quietly patch around.
+
+**Resolution, explicit and binding:**
+
+1. **`TASK-081` is marked `BLOCKED BY DESIGN CONTRADICTION`, not `FAILED`.** The implementation, to
+   the extent it faithfully reproduces §15.3, is not the cause of the block and is not to be treated
+   as defective. It is not reverted; it stays merged, pending this decision.
+2. **A narrow design-impact decision task (`TASK-082`) is opened, with no code change of any kind,**
+   to answer one question directly: *do we accept, as intentional product semantics, that `G16` v1
+   forbids any `k>=2` observational pattern from reaching its previous high evidence/policy level,
+   regardless of whether positive evidence of confounding is found?* Two honest branches, named in
+   advance:
+   - **Branch A — accept it.** §15.3 stands unchanged. `TASK-081`'s requirement 8 is acknowledged as
+     having been premature and is replaced with a **regression-characterization** requirement:
+     historical `PASS` candidates must be run and every resulting downgrade must be fully explainable
+     by `G16`'s own recorded reason — preserving the prior evidence level is explicitly **not**
+     required. Implementation then resumes and proceeds to the independent review already specified.
+   - **Branch B — the cost is unacceptable.** `TASK-081` cannot be "fixed" to satisfy this branch —
+     it would require reopening the design problem itself. `TASK-080` already proved safe positive
+     `interaction_like` release is not identifiable from the observational information this check has
+     access to; accepting Branch B means the project needs **new information or a categorically
+     weaker promotion claim**, not another heuristic fitted to the same data — e.g. a distinct,
+     named evidence tier for compound observational findings, an additional identifying information
+     source, or a human/experimental validation path. This is a new design cycle, not a revision of
+     `TASK-080`.
+3. **Explicitly forbidden actions, right now, regardless of which branch this eventually resolves
+   to:** do not weaken the cap for historical `PASS` candidates specifically; do not add a whitelist
+   or historical-candidate exemption; do not restore `interaction_like`; do not change
+   `max_adjusted_attenuation` or `min_confounder_stratum_coverage`; do not treat the absence of
+   `confound_like` as grounds for release; do not characterize the five observed downgrades as
+   "implementation regressions" to be fixed away. Every one of these would contradict evidence this
+   project has already obtained and independently reviewed.
+
+**A framing correction, recorded because it changes how this should be evaluated going forward:**
+"`G16` caps most compound candidates" understates the actual, now-confirmed specification — if §15.3
+is genuinely unconditional for `k>=2` (which `ADR-078`'s independent review already confirmed
+structurally), **`G16` caps every compound candidate it examines, by construction, with no
+exceptions.** The five historical downgrades are not a sample suggesting a high rate — they are the
+first real measurement of how expensive that already-certain guarantee is against this project's
+actual candidate distribution. This is a **product capability change** (compound observational
+findings can no longer reach `ADJUSTED_OBSERVATIONAL` or above under any circumstances in `G16` v1),
+not an ordinary regression metric, and `TASK-082` must evaluate it as such.
+
+**Anti-overfitting discipline, honoured.** This ADR authorizes no design change, no threshold change,
+and no implementation change — it only names the newly-quantified consequence, blocks the
+task whose acceptance contract it contradicts, and routes the actual semantic question back to
+design authority, exactly as the founder's own instruction requires.
+
+**Consequences.** `TASK-081`'s `TASKS.md` entry is marked `BLOCKED BY DESIGN CONTRADICTION`.
+`TASK-082` is opened next. `TASK-081` does not resume until `TASK-082` resolves Branch A or B.
+`TASK-057` remains paused, unaffected.
