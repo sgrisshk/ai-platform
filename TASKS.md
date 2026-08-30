@@ -4769,7 +4769,76 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** IN_PROGRESS — SECOND REVISION (2026-08-30, `ADR-077`). Founder reframing: the
+- **Status:** IN_PROGRESS — SECOND REVISION COMPLETE, PENDING RE-REVIEW (2026-08-30, ARCHITECT +
+  STATISTICS support, `ADR-077`). **Answer to `ADR-077`'s central question: NO — no observational
+  estimand computable from a frozen candidate's condition tuple + frame alone can provide positive
+  evidence for genuine interaction without also turning residual proxy confounding into
+  `interaction_like`, at realistic prevalence/measurement-error/nonlinearity combinations.**
+  **Recommendation: `G16` v1 drops to a two-state classification — `confound_like`
+  (unchanged) / `indeterminate` (everything else) — positive `interaction_like` is excluded
+  entirely.** Not self-approved; pending independent `CODE_REVIEWER` re-review per this task's own
+  binding instruction. Full detail in the design document's new §15
+  (`docs/analytics/task-080-candidate-composition-safety-design.md`); summary of all four required
+  directions:
+  1. **Adversarial identifiability suite** (`scripts/diagnose_task080_identifiability_suite.py`,
+     `docs/benchmark/task-080-identifiability-suite-raw.json`, plus a supplementary n-sweep script/
+     raw file isolating the treatment-odds-asymmetry axis). The `ADR-075` classifier's required
+     `n→∞` safety property does **not** hold generally, confirmed with real sample-size sweeps (not
+     one or two points): on a pure, 100%-confounded, zero-true-effect DGP with skewed confounder
+     prevalence (`u_prior=0.2`, `concordance=0.75`), `P(interaction_like)` rises from `0.067` at
+     `n=300` to a `1.000` plateau by `n=2,400` and stays there through `n=12,800` — non-vanishing
+     bias, not sampling noise. A structurally different continuous/nonlinear DGP (quadratic outcome,
+     logistic assignment, continuous Gaussian proxy noise) plateaus at `42%-50%` failure, flat across
+     a 16x `n` range. Confounder-prevalence, asymmetric-proxy-error, and overlap sweeps all reproduce
+     substantial failure away from the one symmetric point (`u_prior=0.5`) the original design
+     implicitly assumed; the genuine-interaction side stays clean under skewed modifier prevalence
+     too (`0` `confound_like` misfires).
+  2. **Estimand audit.** Closed-form derivation (verified numerically, 63 combinations) shows the
+     revoked §14.5 proof required *two* independent symmetries at once (`u_prior=0.5` **and**
+     complementary treatment-assignment odds) — breaking either alone already makes the true
+     stratum-contrast nonzero. A constructed matched-pair counterexample (a 100%-confounded DGP and a
+     genuine-interaction DGP, both `n=6,400`) produces statistically indistinguishable classifier
+     output (`interaction_like` rate `1.000` both ways; comparable mean delta and attenuation)
+     despite opposite ground truth. Every candidate signal considered — the pre-`ADR-075` implicit
+     attenuation rule, signal 1 (stratum-contrast heterogeneity), signal 2 (threshold-perturbation
+     stability), and the OLS/nested-model alternative — fails the audit: each is a functional of the
+     same low-dimensional `T x Ci` cell-mean summary that a stratum-varying confounding bias and a
+     genuine interaction can both produce.
+  3. **Two-state fallback tested as first-class candidate**, not a last resort. `interaction_like`
+     has no code path in the two-state design, so `P(interaction_like)=0` **by construction**, for
+     every DGP at every `n` — not an empirical result that a cleverer adversarial DGP could falsify.
+     `confound_like` detection is unchanged (same branch, same threshold, never the defect in any
+     review round); `0/160` genuine interactions misclassify `confound_like` across the
+     interaction-strength sweep. **Recommended for `G16` v1.** Disclosed consequence, stated plainly:
+     under this design, every `k>=2` candidate is now always capped by `G16` (either `confound_like`
+     or `composition_risk_indeterminate`, never uncapped) — the three-outcome "no cap for genuine
+     interaction" branch is gone because the mechanism that would certify it does not exist. `k==1`
+     candidates are unaffected either way.
+  4. **Positive-interaction escape hatch, gated strictly** — attempted, not skipped. Attempt A
+     (an E-value-style sensitivity bound on the stratum contrast, mirroring `G06`'s own `e_value`):
+     fails — an ordinary, plausible confound magnitude at an *unobservable* confounder prevalence
+     produces a delta comparable to a real interaction's; any safe bound would require assuming a
+     bound on that unmeasured prevalence. Attempt B (negative-control/placebo calibration): fails —
+     works only when the placebo is genuinely independent of the true unmeasured confounder, an
+     assumption unverifiable from the frozen condition tuple + frame alone (demonstrated directly: a
+     placebo sharing an upstream cause with the confounder silently produces a `12.5%` false-positive
+     rate under identical calibration logic). Neither survives without relying on a strong,
+     unobservable assumption about a variable the design never measures — per `ADR-077`'s own
+     instruction, this closes direction 4 negative.
+  - **Artifacts:** design document (`docs/analytics/task-080-candidate-composition-safety-design.md`)
+    updated in place — new §15 (all four directions, full findings, final recommendation); §14.5 and
+    §8.1's signal 2 marked **REVOKED** inline at their own locations (not merely superseded), per
+    `ADR-077`'s binding instruction; §8.1a and §13 updated to point to §15 as the current classifier
+    recommendation while the underlying three-stage architecture (§1-§5, §7) remains unrevised and
+    unreconsidered. New scripts: `scripts/diagnose_task080_identifiability_suite.py`,
+    `scripts/diagnose_task080_odds_asymmetry_nsweep.py`. New raw output:
+    `docs/benchmark/task-080-identifiability-suite-raw.json`,
+    `docs/benchmark/task-080-odds-asymmetry-nsweep-raw.json`. No `discovery.engine`, `apply.py`, or
+    gate code touched; design-only, exactly as `ADR-077` authorized. Next step, per `ADR-077`'s own
+    sequencing: independent `CODE_REVIEWER` re-review of this (simpler, two-state) design — **not
+    performed by this revision itself; this entry does not self-approve.** No implementation task
+    opens regardless of this revision's outcome, per `ADR-077`'s explicit, unchanged block.
+- **Second-revision scope authorized (2026-08-30, founder directive, `ADR-077`).** Founder reframing: the
   `ADR-076` failure worsens (not vanishes) with sample size, so this is estimand inconsistency under
   proxy/confounder imbalance, not a power/calibration bug. **Central question of this revision:**
   does an observational estimand exist, from the candidate's condition tuple + frame alone, giving
