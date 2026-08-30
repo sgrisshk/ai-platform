@@ -4769,13 +4769,21 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** IN_PROGRESS — SECOND REVISION `CODE_REVIEWER`-VERIFIED (2026-08-30, `ADR-078`):
-  **APPROVED WITH REVISION NEEDED — documentation-level only, not reopening the identifiability
-  result and not architecture/classifier-level.** The non-identifiability finding and the two-state
-  `confound_like`/`indeterminate` design are both independently confirmed sound; two narrow design-
-  document prose/consistency gaps must be fixed (neither touches the substantive finding) before an
-  implementation task opens. Full six-check record below under "`CODE_REVIEWER` final verification
-  (`ADR-078`)." **Answer to `ADR-077`'s central question: NO — no observational
+- **Status:** **CLOSED — DESIGN APPROVED (2026-08-30, founder + `CODE_REVIEWER`, `ADR-078`).**
+  Independent adversarial review (`ADR-078`) confirmed both the non-identifiability result and the
+  two-state `confound_like`/`indeterminate` design sound, with two narrow documentation-only gaps
+  (check 6) — both now corrected directly in the design document (explicit `SUPERSEDED BY §15`
+  markers added to §9/§10/§11 at the point a sequential reader would otherwise be misled into
+  implementing the retired three-outcome test plan; §15.3's unsupported "detects confounds
+  correctly... across the full prevalence sweep" claim replaced with the precise statement
+  `confound_like` is a diagnostic reason code assigned only on positive evidence, never a claim of
+  confounding's absence when withheld). Per the founder's own instruction, these corrections did not
+  require a further independent review round (`ADR-078`'s own fork: documentation-level, not
+  reopening the identifiability result or the classifier). **`TASK-080`'s design is closed.** An
+  implementation task for `G16_CANDIDATE_COMPOSITION_SAFETY`, scoped narrowly to the two-state
+  specification with no new classifier signals, thresholds, or discovery behavior, is the next task
+  to open. Full six-check review record below under "`CODE_REVIEWER` final verification (`ADR-078`)."
+  **Answer to `ADR-077`'s central question: NO — no observational
   estimand computable from a frozen candidate's condition tuple + frame alone can provide positive
   evidence for genuine interaction without also turning residual proxy confounding into
   `interaction_like`, at realistic prevalence/measurement-error/nonlinearity combinations.**
@@ -5527,6 +5535,64 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   project's own discipline); (e) confirms none of the five hard-fixed non-solutions were used, even
   partially; and `CODE_REVIEWER` independently reviews the design document before any implementation
   task is opened.
+
+### TASK-081 — Implement `G16_CANDIDATE_COMPOSITION_SAFETY` (two-state specification, `TASK-080`/`ADR-078`)
+
+- **Owner:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-080` (CLOSED — design approved, `ADR-078`)
+- **Scope, deliberately narrow — implement the approved two-state specification exactly, nothing
+  more:** no new classifier signals, no new thresholds, no `discovery.engine` behavior change of any
+  kind. This task builds `docs/analytics/task-080-candidate-composition-safety-design.md`'s §15.3
+  design (as corrected by the two documentation fixes in `TASK-080`'s closure) — nothing else.
+- **The one executable invariant this gate exists to provide, stated precisely so implementation
+  cannot drift from it:** for every compound (`k >= 2`) candidate, `G16` assigns the **same evidence
+  cap** regardless of whether the reason is `confound_like` or `indeterminate` — **the reason code
+  differs only for diagnostics, never for the cap's severity.**
+- **The key simplification this gives implementation, stated explicitly:** correctness of
+  `confound_like` *detection* is **not** a safety condition for this gate. Safety depends entirely on
+  the structural fact that every compound candidate passes through `G16` and receives the cap with
+  no escape path — the detector only ever explains *why*, where positive confounding evidence
+  happens to exist; it never determines *whether* the cap applies. Get the routing/wiring right and
+  the gate is safe even if the underlying `confound_like` heuristic itself is imperfect at
+  attribution — this materially simplifies what implementation correctness review needs to focus on.
+- **Minimum acceptance requirements, all binding:**
+  1. A genuine `GateId`/`GateSpec` entry (`G16` per the design doc's own naming) participating in
+     `GATE_SPECS`'s `evidence_ceiling` mechanism — not an ad hoc post-hoc check.
+  2. Full enumeration of every atom `1..k` in a compound candidate's condition tuple — no
+     order-dependent exclusions of any kind (the "beyond the first" phrasing `TASK-080`'s own review
+     found unsafe in an earlier recap must not appear anywhere in the implementation or its own
+     documentation).
+  3. Deterministic reason-code assignment — no randomness, no bootstrap, in either the cap decision
+     or the reason it's attributed to.
+  4. **Identical cap for both `confound_like` and `indeterminate`** — this is the one property most
+     load-bearing for safety; test it explicitly, not just implicitly via the shared code path.
+  5. An explicit invariant test proving downstream re-promotion past the cap is impossible — building
+     on, and re-verifying rather than merely trusting, `ValidationReport.__post_init__`'s existing
+     evidence/gate-results consistency invariant (`TASK-080`'s own reviews traced this twice
+     independently; this task must add the actual test, not just cite the finding).
+  6. `T05`'s own overlap-ceiling reason code stays distinct from both `G16` reasons — no conflation.
+  7. Zero changes to `discovery.engine`, `G06`, the estimator (`_stratified_adjustment`), or any
+     existing threshold value (`max_adjusted_attenuation`, `min_confounder_stratum_coverage`, or any
+     other) — confirmed by diff, not merely by intent.
+  8. Regression suite covering: the neutral synthetic form tests per the corrected `TASK-080` §10
+     item 1 (confound-like correctly capped; genuine effect modifier correctly lands `indeterminate`,
+     never `confound_like`; a structural test that `interaction_like` has no reachable code path at
+     all); all 5 traps and the 6 historical `PASS` candidates (`TASK-075`'s own negative-control set,
+     must not regress); and more than one domain, per `TASK-070`'s own precedent (not travel-only).
+- **Hard boundary, binding — the single most important constraint on this task:** **do not restore
+  `interaction_like` during implementation, under any circumstances, even if the implementer
+  discovers what appears to be an obvious additional distinguishing statistic.** `TASK-080`'s own
+  `CODE_REVIEWER` review (`ADR-078` check 1) already attempted this seriously and failed to find a
+  safe one, after testing two novel candidates beyond the design's original four. Any such discovery
+  during implementation is a **new design decision**, not an implementation detail, and requires its
+  own evidence-and-review cycle (matching every prior round in this chain) before it may be
+  incorporated — it must not be folded into this task's own scope.
+- **Done when:** all eight acceptance requirements are met and independently verified, the hard
+  boundary is honored (confirmed by the reviewer, not merely asserted by the implementer), and
+  `CODE_REVIEWER` independently approves before this gate is considered production-ready.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
