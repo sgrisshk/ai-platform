@@ -4769,7 +4769,15 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** REVISED — DESIGN COMPLETE, PENDING RE-REVIEW (2026-08-29, `ADR-075`). Revision scope
+- **Status:** NOT APPROVED — re-review complete (2026-08-30, `CODE_REVIEWER`, `ADR-076`). A real,
+  severe, generalizable safety defect found in the revised classifier: two independently-constructed
+  new DGPs (outside the reviewed suite's narrow, symmetric shape) reproduce `confound_like ->
+  interaction_like` (uncapped) at rates growing toward 100% with sample size — the exact property
+  `ADR-076` fixed as the approval bar does not hold generally. Classifier/estimand-level per the
+  `ADR-074`/`075` fork; the three-stage architecture is untouched and not reconsidered by this
+  finding. A further classifier revision is required before this document returns to review; no
+  implementation task may open. Full five-check record below under "Re-review complete." Prior
+  history: REVISED — DESIGN COMPLETE, PENDING RE-REVIEW (2026-08-29, `ADR-075`). Revision scope
   (classifier/estimand level only, three-stage architecture not reopened) executed; full record
   below under "Revision complete." Design document
   (`docs/analytics/task-080-candidate-composition-safety-design.md`) updated in place with the
@@ -5069,9 +5077,9 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     (`scripts/diagnose_task080_composition_classifier_revision.py`); raw output
     (`docs/benchmark/task-080-composition-classifier-revision-raw.json`). No `discovery.engine`,
     `apply.py`, or gate code touched; design-only, exactly as `ADR-075` authorized.
-- **Re-review IN PROGRESS (2026-08-30, `CODE_REVIEWER`, `ADR-076`) — checkpoint after checks 1-2 of
-  5: a real, severe, generalizable safety defect found; full five-check verdict still pending.**
-  Scratch-only verification (per `TASK-079`'s own precedent), importing and calling the real,
+- **Re-review complete (2026-08-30, `CODE_REVIEWER`, `ADR-076`) — all five required checks run; a
+  real, severe, generalizable safety defect found. Overall verdict: NOT APPROVED (full reasoning at
+  the end of this entry).** Scratch-only verification (per `TASK-079`'s own precedent), importing and calling the real,
   unmodified `classify_atom` from `scripts/diagnose_task080_composition_classifier_revision.py`
   (itself calling the real `_stratified_adjustment`/`DEFAULT_THRESHOLDS`/
   `normal_approx_two_sided_p`) — no reimplementation. **Check 1 (new seeds/DGP parameterizations):**
@@ -5107,9 +5115,98 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   (`confound_like → interaction_like` stays at `0`, generally, not just on the tested DGP shape)
   does NOT hold** — both new-DGP checks independently reproduce large, non-noise safety failures
   outside the narrow (binary confounder, `50/50` prior, symmetric proxy-noise) shape the revision's
-  own §14 suite tested exclusively. Checks 3-5 and a final verdict follow in a subsequent commit;
-  this checkpoint is recorded now per this review's own incremental-commit instruction (`ADR-076`'s
-  governing task note), not as a final verdict.
+  own §14 suite tested exclusively.
+  **Check 3 (genuine-interaction controls, weak/local) — property HOLDS, no undisclosed failure mode
+  found.** Swept the reviewed interaction DGP's `modifier_strength` far below its tested value
+  (`20`-`160` vs. the reviewed `260`, `n=1600`, 4 concordance points x 40 trials each, 1,120 trials
+  total): **0/1,120 `confound_like` misfires** — weak genuine interactions degrade only between
+  `interaction_like` and `indeterminate` (e.g. `modifier_strength=20`: 14 `interaction_like`/146
+  `indeterminate`/0 `confound_like`), exactly the disclosed cost `ADR-075`/§9 describe, never into
+  the dangerous class. A second, harder construction — a LOCAL/spatially-confined interaction, where
+  the true effect modification is active in only a minority slice (`local_share` `0.15`-`0.75`) of
+  the atom's own target level rather than uniformly across it, diluting the signal the way a real,
+  narrow subpopulation effect would — also produced **0/900 `confound_like` misfires** across every
+  tested `local_share`/strength combination. A large-`n` sweep (`n=1600/6400/25600`, weak
+  `modifier_strength=40`) confirms this holds at scale too: more data resolves the weak interaction
+  toward `interaction_like` (as expected, correctly) and never once produces `confound_like`. Check 3
+  is the one required check whose result is clean: the asymmetric loss function's "acceptable" side
+  (false interaction → `indeterminate`) is confirmed to behave exactly as disclosed, with no new,
+  undisclosed failure mode in this direction.
+  **Check 4 (permutation invariance, 3+ atoms; independent G16 chain re-trace) — both sub-parts
+  confirmed sound; no defect found.** *Permutation invariance:* built a 4-atom scenario (`base_i` for
+  testing a 4th atom is the AND-mask of the other three) and computed that mask under all 6 distinct
+  pairwise build orders — bit-identical in every order (boolean AND has zero order-sensitivity,
+  unlike the floating-point-summation-order risk that matters elsewhere in this codebase, but
+  verified concretely here rather than assumed). A genuine 3-atom leave-one-out scenario (`base_i`
+  literally constructed as `A AND B`, a real two-atom mask, not an abstract single column) confirmed
+  `classify_atom`'s own output is label-for-label identical whether the mask is built `A & B` or
+  `B & A`, across 360 trials spanning the same `u_prior`/`concordance` grid Check 1 used (this
+  particular 3-atom construction's `A AND B ~ U` correlation was weaker than Check 1's direct
+  single-atom case and did not itself reproduce the Check-1 safety failure at the trial counts run —
+  noted as a magnitude/power difference from diluting the T-U correlation through an AND of two
+  weakly-linked atoms, not a retraction of Check 1's finding, which used a direct, more tightly
+  correlated construction). *G16 chain, independently re-traced by reading the real code* (not citing
+  the prior review's finding without re-deriving it): confirmed in
+  `packages/analytics/src/policy_analytics/validation/contract.py` that `ALL_GATE_IDS` (`grading.py`)
+  is *derived automatically* from `GATE_SPECS` (`frozenset(spec.gate_id for spec in GATE_SPECS)`), so
+  adding a `G16` `GateSpec` entry automatically makes a `G16` `GateResult` mandatory —
+  `_result_map`'s completeness check raises `ValueError` on any omission, with no special-casing
+  required for a new gate. Confirmed `evidence_ceiling` (`grading.py`) iterates all of `GATE_SPECS`
+  generically and lowers the ceiling for any unsatisfied `CAP_EVIDENCE` gate to its
+  `max_level_on_failure` — again, no gate-specific code path, so a correctly-specified `G16`
+  (`on_failure=CAP_EVIDENCE`, `max_level_on_failure=PREDICTIVE`, per §8.1a) would participate exactly
+  like `G02` does today, automatically. Confirmed `ValidationReport.__post_init__` (`report.py`)
+  recomputes `classify_evidence_level(self.gate_results, self.identification_design)` and raises
+  `ValueError` if it does not exactly equal the claimed `evidence_level` — this closes the loop
+  independent of which gate caused the cap. **§8.1a's claim holds on independent re-derivation: once
+  wired in as specified, no separate implementation effort is needed for the invariant to apply to
+  `G16` — the existing machinery generalizes automatically.** This part of the design is sound.
+  **Check 5 (both documented limitations stay honestly disclosed) — confirmed, no creep-back.**
+  Re-read design doc §12 in full: the multi-atom/joint-composition-risk blind spot remains explicitly
+  stated as "a documented v1 limitation, not solved in this revision" with the concrete `(C1,C2,C3)`
+  counterexample retained — not quietly claimed solved anywhere in the revised text. Searched the
+  full design document for any place a low-coverage or low-attenuation `indeterminate` result is
+  characterized as evidence of the *absence* of confounding (grep for "indeterminate" combined with
+  "absence," "clean pass," "rules out," "proves" and manual re-read of §6.3/§8.1/§9/§14.7): zero
+  hits — every mention of `indeterminate` in the revised document ties it to an evidence *ceiling*
+  (capped, never promoted), consistent with the asymmetric-loss discipline `ADR-075` requires;
+  §14.7's own table explicitly labels the confound→indeterminate row "[acceptable]," not "[correct]"
+  or "[confirmed absent]." Both limitations pass.
+  **Property-based approval criterion (`ADR-076`): NOT MET.** The required property — "as confounder
+  observability degrades, the classifier degrades `confound_like → indeterminate`, never
+  `confound_like → interaction_like`, GENERALLY (including under new seeds/DGPs from checks 1-3)" —
+  is falsified by Checks 1 and 2 above: two independently constructed, differently-shaped DGPs (a
+  minimal one-parameter generalization of the reviewed suite's own DGP — non-`50/50` confounder
+  prevalence — and a structurally different continuous/nonlinear multi-covariate DGP) both reproduce
+  large, *non-noise, worsening-with-`n`* safety failures of exactly the kind `ADR-075`/`076` name as
+  the one unconditional bar this revision must clear. The root cause is traceable, not mysterious:
+  the design's own §14.5 analytical argument that the true stratum-contrast is exactly zero under
+  pure confounding explicitly assumes "uniform prior on U" and the reviewed DGP's specific symmetric
+  proxy-noise construction; that symmetry is an artifact of the one DGP shape tested, not a general
+  property of confounding, and the classifier's two positive-evidence signals cannot tell a genuine
+  interaction's stratum-contrast apart from a confound-induced stratum-contrast that is real (not a
+  Type-I fluke) whenever that symmetry does not hold — which is the generic, not the exceptional,
+  case for real confounders (unequal prevalence, nonlinear outcome relationships, non-symmetric
+  proxy error). Compounding this, Check 2 additionally found signal 2 (threshold-perturbation
+  stability) is not a logically independent second test as coded — it structurally requires signal
+  1's own significance condition as one of its three conjuncts — so it provides essentially no
+  protection specifically against a *systematic* bias of this kind, which is by definition stable
+  under nearby threshold perturbations. **Overall verdict: NOT APPROVED.** This is a classifier/
+  estimand-level finding, not an architecture-level one, per the same `ADR-074`/`075` fork that
+  governed the prior round — the three-stage separation (permissive discovery / recomputed
+  composition safety at validation / named evidence ceiling) is not touched or reconsidered by
+  anything found in this review. But the specific defect is more severe than the one the prior round
+  found and fixed: it is not confined to one adversarially-tuned concordance value, it grows *toward
+  100%* with sample size rather than vanishing, and it was produced by the most natural kind of
+  generalization (relaxing one hardcoded symmetry assumption the revision's own analytical proof
+  depended on) — meaning the headline `0/1,100`/`0/2,150` result, however honestly computed, does not
+  generalize past the narrow DGP shape it was measured on, exactly the failure mode `ADR-076`'s own
+  anti-overfitting discipline was written to catch. No implementation task should open on this
+  design as currently specified. §8.1's two-signal mechanism requires a further revision — at
+  minimum, a heterogeneity test that is robust to (or explicitly conditions on/removes) the
+  confounder-prevalence/nonlinearity-driven systematic component of the stratum contrast, not only
+  its sampling-noise component — before this document returns to `CODE_REVIEWER` review. Per this
+  task's own binding instruction, this review does not propose or implement that fix.
 - **Depends on:** `TASK-079` (`APPROVED` by adversarial `CODE_REVIEWER` review, `ADR-073`)
 - **Design-only — no implementation.** This task produces a design document and a reasoned
   recommendation, not code. Implementation, if the design calls for one, is a distinct, later task.
