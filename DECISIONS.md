@@ -4309,3 +4309,72 @@ this result, pending the separate `CODE_REVIEWER` re-derivation and `FOUNDER_STR
 Reviewer/Sign-off fields require (not performed or claimed by this ADR). `TASK-057` remains paused,
 unaffected. No new follow-on branch is opened by this ADR — the economic-impact-estimation defect (metric 6)
 is the same open problem named across every prior official entry, not a new one this run discovered.
+
+## ADR-083 — `HANDOFF-076` mandate: five independent-verification questions for `CODE_REVIEWER`, and a reframed next-bottleneck question for `FOUNDER_STRATEGY`, sequenced (reviewer first)
+
+**Date:** 2026-08-30
+**Status:** Accepted, contingent — authorizes `CODE_REVIEWER`'s independent verification now.
+`FOUNDER_STRATEGY`'s next-bottleneck determination is explicitly sequenced *after* `CODE_REVIEWER`
+completes, per the founder's own instruction, not run in parallel.
+
+**Decision.** `TASK-083` is judged a substantially more informative `FAILED` than `TASK-073` — it
+decomposes into a confirmed safety win (`0/5` traps promoted, down from `2/5`) and a separate,
+pre-existing discovery/estimation-quality problem, rather than one undifferentiated hard-disqualifier
+failure. What needs independent confirmation now is the **decomposition itself**, not merely the
+`FAILED` label.
+
+**Five required `CODE_REVIEWER` questions, founder-specified verbatim in substance:**
+
+1. **Safety.** Independently reproduce that `T03`/`CAND-014` and `T04`/`CAND-015` genuinely reach a
+   high pre-`G16` evidence level, that `G16` correctly caps both to `experiment_only`, and that none
+   of the five traps reaches a disqualifying promotion state — confirming `TASK-073`'s own hard
+   disqualifier is genuinely eliminated, not merely reported as eliminated.
+2. **Counterfactual `G16` isolation.** Prove `G00`–`G15`'s own pre-`G16` results are unchanged by
+   `TASK-081` — byte-level comparison wherever possible — so the `11 → 0` `adjusted_observational`
+   shift is strictly attributable to `G16` alone, not a hidden, unrelated change elsewhere in the
+   validation pipeline.
+3. **`FAILED` attribution.** Independently recompute the decision-gate verdict and confirm `FAILED`
+   follows from the existing, pre-registered criteria — principally the `219.9%` impact error and the
+   trap-rejection grade — and is **not** a post-hoc interpretation of `G16`'s already-expected yield
+   ceiling.
+4. **Trap-denominator semantics.** Scrutinize the "`2/5` traps appeared" claim specifically: confirm
+   the absence of the other three traps is genuinely a **discovery exposure/generation** fact, not
+   miscounted as a **validation rejection** — this distinction matters because validation must never
+   be required to reject what search never handed it in the first place.
+5. **Custody/config.** Reconfirm official run identity independently, and **separately record**
+   `beam_rules_per_structure=2` as a still-open, still-unresolved configuration-custody issue —
+   **not fixed inside this review, and not grounds to retroactively recompute `TASK-083`'s own
+   result.**
+
+**`FOUNDER_STRATEGY`'s question, reframed — explicitly not "are we ready for customer data" (`TASK-072`
+already answered that, unaffected by this entry):** *which of the remaining `FAILED` components is the
+next narrow bottleneck worth diagnosing first, without conflating safety, discovery coverage, and
+economic estimation?* Two things this question must **not** default into:
+- **Do not automatically pick "discovery" merely because `70%`/`45.2%` look attractive.** The `219.9%`
+  impact error is a separate, long-standing defect — first, determine whether it is an
+  estimand/estimator error, a representability problem, an aggregation mismatch, or a consequence of
+  the specific candidate populations actually found, before assuming which layer owns it.
+- **Do not turn "`2/5` traps appeared" into a requirement that search must find traps.** Traps are
+  negative controls, not discovery targets — a search-side "fix" motivated by trap appearance rate
+  would be exactly the kind of premature, evidence-free move this project's whole discipline exists
+  to prevent.
+
+**A conclusion this sign-off must preserve explicitly, not lose inside the word `FAILED`:** `TASK-083`
+is this project's **first positive official evidence of a working safety mechanism, recorded alongside
+a negative overall decision-gate verdict.** This does not raise the overall status — `FAILED` stands,
+per `decision-gate.md`'s own unmodified rules — but the safety result must not be allowed to
+disappear inside that single word in any future summary of this project's state.
+
+**Sequencing, explicit:** `CODE_REVIEWER` runs first. `FOUNDER_STRATEGY`'s next-bottleneck
+determination follows only after `CODE_REVIEWER` completes, and is conditioned on the reviewer *not*
+finding something more fundamental than a technical confirmation — if a more fundamental defect in
+`TASK-083` itself is found, that finding, not the founder's own currently-favored `219.9%`-first
+ordering, determines what happens next.
+
+**Anti-overfitting discipline, honoured.** This ADR authorizes no code, gate, or config change — only
+independent verification of an already-produced official result, and a strategic prioritization
+question explicitly scoped away from motivating any premature fix.
+
+**Consequences.** `HANDOFF-076`'s `CODE_REVIEWER`/`FOUNDER_STRATEGY` fields are now attached to this
+ADR's five questions and the reframed bottleneck question respectively. `TASK-057` remains paused,
+unaffected.
