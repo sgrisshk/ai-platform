@@ -5541,7 +5541,16 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** **CLEARED TO RESUME (2026-08-30, `ADR-080`, `TASK-082` `DETERMINED — Branch A`)** —
+- **Status:** **APPROVED (2026-08-30, independent adversarial `CODE_REVIEWER` review against this
+  task's own nine-check post-implementation mandate).** Full results recorded below (new bullet,
+  "Independent adversarial review result"). Evaluated explicitly per the founder's framing: the five
+  historical downgrades and the independently-reproduced `150/150` regression characterization are
+  **not** treated as defects — only structural safety, bypass-freedom, the `k==1`/`k>=2` boundary,
+  and scope discipline were graded. **A new official `TASK-015`/`TASK-019`/`TASK-028` cycle may now
+  open**, per this task's own done condition — that cycle is left to the orchestrating
+  session/founder to start, not opened here.
+- **Prior status (2026-08-30, `ADR-080`, `TASK-082` `DETERMINED — Branch A`), superseded above but
+  kept for record:** **CLEARED TO RESUME** —
   implementation itself complete and merged (not reverted, not defective; was never the cause of the
   prior block). Independent adversarial `CODE_REVIEWER` review, per this task's own already-specified
   scope, may now proceed against the **corrected requirement 8 below**; any new official run remains
@@ -5690,6 +5699,103 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   `ADR-078`/`TASK-082`-predicted effect of an accepted design decision, not, on its own, a new safety
   failure to re-investigate — unless the new run surfaces something `G16`'s own accepted scope does
   not already explain.
+- **Independent adversarial review result (2026-08-30, `CODE_REVIEWER`), per the nine-check mandate
+  above — verdict per check, all real code executed, nothing reimplemented:**
+  1. **Every `k>=2` candidate is capped, without exception — CONFIRMED, structurally and
+     behaviorally.** `classify_composition_safety` returns `satisfied=False` unconditionally for
+     `k >= 2` (the only branch point is the *reason*, never `satisfied`); `apply.py` wires this to
+     `GateOutcome.FAIL` with no `WARN`/conditional branch; `contract.py`'s `GateSpec` sets
+     `on_failure=CAP_EVIDENCE`, `max_level_on_failure=PREDICTIVE`, and `G16` is additionally listed in
+     `_LEVEL_GATES`'s `ADJUSTED_OBSERVATIONAL` cumulative set — two independent enforcement paths, not
+     one. Independently re-ran all `150` real frozen `k>=2` candidates (below, check 9) through the
+     unmodified pipeline: `150/150` capped.
+  2. **No bypass found.** Traced `apply.py` → `grading.evidence_ceiling`/`classify_evidence_level` →
+     `report.ValidationReport.__post_init__`, which recomputes `evidence_level` fresh from
+     `gate_results` on every construction and raises `ValueError` on any mismatch (pre-existing
+     machinery, unmodified by this task). `run_validation` itself computes `evidence_level` via
+     `classify_evidence_level` before constructing the report — no hardcoded/overridden value.
+     Checked every downstream reader (`scripts/promote_findings.py`,
+     `apps/api/app/findings/persistence.py`, `apps/api/app/policies/service.py`): all read
+     `report.evidence_level`/`Finding.evidence_level` as already-validated values; none recompute or
+     override it. No alternative validation entry point exists outside `_validate_one`/
+     `run_validation`.
+  3. **`k==1`/`k>=2` boundary — proven, not asserted, via an independently-authored synthetic test
+     (not the implementer's own).** Constructed two novel `k=1` candidates (`booking_lead_days < 14`;
+     `supplier eq Atlas`, neither used in the implementer's own test suite) and ran them through the
+     real, unmodified `run_validation()` against the real travel dataset. Both: `G16` outcome `PASS`,
+     `satisfied=True`, diagnostic reason `not_applicable_single_atom`. The first reached
+     `evidence_level = adjusted_observational_association` end to end — i.e. not merely "not
+     capped in isolation" but demonstrated actually climbing past the ceiling every `k>=2` candidate
+     is stuck below, real gates and all. The implementer's own equivalent test
+     (`test_single_atom_real_candidate_is_unaffected_by_g16`) independently reruns and passes too.
+  4. **Permutation/enumeration — CONFIRMED for k up to 5.** `test_g16_structural.py`'s own sweep
+     covers `k ∈ {2,3,4,5}` across 20 seeds each plus an explicit `itertools.permutations` invariance
+     test over 3 atoms; independently spot-checked `classify_atom`'s `other_masks` construction by
+     inspection — every position `!= atom_position` contributes to `base_i`, no slicing/dropped index.
+     Real 3-atom candidates (`T04`/`CAND-007`) exercised through the real pipeline in the regression
+     suite corroborate this on non-synthetic data.
+  5. **`confound_like`/`indeterminate` cap identically — CONFIRMED, not merely trusted from the
+     implementer's own test.** Independently re-derived: `evidence_ceiling` reads only
+     `GateResult.satisfied`/`spec.max_level_on_failure`, never the `CompositionSafetyReason` value,
+     which is written only into `detail`/diagnostics, never consulted by any grading function —
+     confirmed by reading `grading.py` and `report.py` in full. `test_g16_safety.py`'s own explicit
+     test constructing genuinely different confound/indeterminate cases and asserting identical
+     `evidence_ceiling` output was reproduced conceptually via this independent code trace.
+  6. **No reachable `interaction_like`, no whitelist, no trap-specific logic — CONFIRMED by grep and
+     by reading every changed line.** `interaction_like` does not appear as a live token anywhere in
+     `composition_safety.py`, `apply.py`, `contract.py`, or `__init__.py`. No candidate ID, trap ID
+     (`CAND-0xx`, `T0[1-5]`), or dataset name appears in any of `G16`'s own logic (only in doc
+     comments explaining what the design generalizes away from, matching the same
+     code/docstring-separation discipline `ADR-078` check 6 already approved for the design
+     document). `CompositionAtomClassification`/`CompositionSafetyReason` are `StrEnum`s with exactly
+     2 and 3 members respectively — no third/fourth member exists to special-case toward.
+  7. **`T05`/`G06` overlap-ceiling semantics stay distinct — CONFIRMED.** `G06`'s coverage-floor
+     failure is a structurally separate `GateResult` under a separate `GateId`, with its own detail
+     text generated independently in `apply.py`; `G16`'s reason vocabulary never appears in `G06`'s
+     `GateSpec.rule`/`.question`, confirmed both by static text search and by running a real `k=2`
+     trap candidate (`T03`/`CAND-014`) end to end and inspecting both gates' actual `GateResult`s.
+  8. **Scope discipline — CONFIRMED by diff**, not intent: `git diff 210c141 HEAD` (the commit
+     immediately before this task's first implementation commit) touches exactly
+     `validation/__init__.py`, `validation/apply.py`, `validation/composition_safety.py`,
+     `validation/contract.py` (344 insertions, 0 deletions — pure addition), plus the four new test
+     files, `TASKS.md`, `DECISIONS.md`, and this design doc. **Zero lines touched in
+     `discovery/engine.py`, `G06`'s own logic, `_stratified_adjustment`, or any existing threshold
+     value** — confirmed directly in the diff, not inferred.
+  9. **`150/150` regression characterization — independently reproduced, not re-trusted.** Loaded all
+     10 recoverable frozen `candidates.json` bundles named in this task's mandate directly from the
+     shared checkout's `artifacts/` (this worktree's own `artifacts/` is absent, gitignored, same
+     disclosed condition `ADR-080` already recorded) and ran **every one of their 150 real candidates**
+     through the actual unmodified `run_validation()` against the real travel/`b2b_sales`/`ecommerce`
+     analytical datasets: **independently confirmed `150/150` are `k ∈ {2,3}` (zero `k==1`), and
+     `150/150` are capped by `G16` (`FAIL` + evidence ceiling `<= PREDICTIVE`)** — a from-scratch
+     rerun, not a citation of `ADR-080`'s own number. Additionally, for all 6 of
+     `task-058-remediation-20260817-001`'s former `PASS` candidates, directly diffed every *other*
+     gate's outcome between the frozen pre-`G16` validation report and a fresh run under the current
+     code (robustness semantics pinned to the frozen run's own `FIXED_QUANTILE_V1` so `G12`'s
+     already-approved, unrelated `TASK-070` semantics change cannot confound the comparison): **every
+     one of the other 15 gates' outcomes is bit-identical to the frozen run; the only change in every
+     case is `G16` newly appearing as `FAIL`, moving `evidence_level` from
+     `adjusted_observational_association` to `predictive_association`** — direct, concrete evidence
+     the downgrade is attributable to `G16` alone, nothing else drifted. No tuning to hit `150`
+     specifically was found: the code has no candidate/run-count-aware logic of any kind (per check 6).
+  - **Test/lint/type results, run independently (not the implementer's own report):**
+    `uv run pytest tests/analytics/test_g16_*.py` → **56 passed, 0 failed.** Full suite
+    `uv run pytest` → **658 passed, 4 failed, 75 skipped** — all 4 failures are pre-existing
+    `FileNotFoundError`s against the same gitignored, absent `artifacts/` directory (e.g.
+    `artifacts/discovery/task-015-candidates.json`), unrelated to this task's own diff and
+    reproducible from the missing-file path alone, not any assertion difference.
+    `ruff check .` → 133 pre-existing errors, **all in `scripts/diagnose_task080_*.py`** (present
+    already at commit `210c141`, before this task's first commit); every file this task actually
+    touched (`composition_safety.py`, `apply.py`, `contract.py`, `__init__.py`, all four
+    `test_g16_*.py`) is **individually clean under `ruff check`**. `uv run pyright` (project's own
+    configured scope, `pyproject.toml`'s `[tool.pyright].include` — which does not include `tests/`)
+    → 126 pre-existing errors, **all in the same pre-existing `scripts/diagnose_task07[5,8,9]_*`/
+    `diagnose_task080_*.py` files**; `packages/analytics/src/policy_analytics/validation/` (this
+    task's own production scope) → **0 errors, 0 warnings**.
+  - **Overall verdict: APPROVED.** All nine checks hold; no bypass, no reachable third state, no
+    whitelist/trap-specific logic, and the `k==1` boundary is proven affirmatively (not just absent
+    from history) via a real, independently-authored synthetic candidate that climbed past the
+    ceiling every `k>=2` candidate is capped under. No defect found worth reporting as a finding.
 
 ### TASK-082 — Design-impact decision: is `G16`'s unconditional `k>=2` evidence cap acceptable product semantics? (`ADR-079`, no code change)
 
