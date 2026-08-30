@@ -5590,9 +5590,46 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   during implementation is a **new design decision**, not an implementation detail, and requires its
   own evidence-and-review cycle (matching every prior round in this chain) before it may be
   incorporated — it must not be folded into this task's own scope.
+- **Three implementation-control levels (founder, 2026-08-30) — binding on how this task is
+  executed, not just on what it must produce:**
+  1. **Minimal diff.** Only the changes strictly required for `G16_CANDIDATE_COMPOSITION_SAFETY`:
+     the `GateId`/`GateSpec`, the result computation, `CAP`/reason propagation, reporting, and
+     tests. **Any change to `discovery.engine`, `G06`, the estimator, existing thresholds, or any
+     other gate's semantics is a scope violation**, full stop — not a judgment call to make case by
+     case during implementation.
+  2. **The main acceptance test must be structural, not example-based.** It must prove the full
+     transition holds as a property, not merely fail to observe a counterexample in fixtures:
+     `compound candidate → G16 executed → {confound_like | indeterminate} → identical evidence CAP
+     → downstream cannot exceed CAP`. The test suite must prove the **absence of a third reachable
+     state** (`interaction_like`) — e.g. an exhaustive check over the gate's own result type/enum
+     that no code path produces anything outside `{confound_like, indeterminate}`, not merely that
+     none of the test fixtures happened to trigger one.
+  3. **Regression suite must separate safety correctness from diagnostic correctness, explicitly, as
+     two distinct test classes.** *Safety* tests must fail on any uncapped compound candidate,
+     full stop — this is the only test class allowed to be safety-critical. *Diagnostic* tests check
+     whether `confound_like` vs. `indeterminate` was the "right" call for a given constructed case —
+     **a diagnostic misclassification (confound_like ↔ indeterminate) must never be treated as a
+     safety failure**, since both states carry an identical cap. This separation exists specifically
+     to prevent implementation from silently reintroducing "classifier accuracy as promotion
+     authority" — the exact idea `TASK-080`'s own revisions rejected.
 - **Done when:** all eight acceptance requirements are met and independently verified, the hard
-  boundary is honored (confirmed by the reviewer, not merely asserted by the implementer), and
-  `CODE_REVIEWER` independently approves before this gate is considered production-ready.
+  boundary is honored (confirmed by the reviewer, not merely asserted by the implementer), the three
+  implementation-control levels above are demonstrably followed (minimal diff confirmed by review of
+  the actual changeset, not intent; the structural no-third-state proof exists and is not merely
+  example-based; safety and diagnostic tests are genuinely separated with the stated failure
+  semantics), and `CODE_REVIEWER` independently approves before this gate is considered
+  production-ready.
+- **Post-implementation review is not satisfied by self-tests, however thorough — an independent,
+  explicitly adversarial `CODE_REVIEWER` pass is required, covering at minimum:** bypassing `G16`
+  via alternative candidate paths (any way a compound candidate could reach evidence grading without
+  passing through this gate); downstream re-promotion past the cap; order/permutation behavior
+  across the full atom set; the single-atom (`k==1`) vs. compound (`k>=2`) boundary; that `T05`'s own
+  overlap-ceiling semantics stay genuinely distinct and unconflated; and a dedicated search for any
+  hidden `interaction_like`/uncapped escape path the implementation's own tests might not have
+  covered. **Only after this review is `APPROVED`** does a new official `TASK-015`/`TASK-019`/
+  `TASK-028` cycle become the next step — `TASK-073`'s `FAILED` result remains the standing
+  historical evidence and is **not retroactively recalculated or superseded** by anything in this
+  task; only a fresh official run, after `G16` is implemented and approved, produces new evidence.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
