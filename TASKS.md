@@ -6008,6 +6008,42 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
      Together these are strong evidence the `11→0` shift is `G16`-attributable alone, but this is not
      the literal cross-run byte comparison `ADR-083` asked for — recorded honestly as a caveat, not
      elided.
+  3. **`FAILED` attribution — CONFIRMED.** Recomputed `decision-gate.md`'s verdict mechanically from
+     the reviewer's own from-scratch `evaluate_benchmark.py` output (question 1): leakage `0` (hard
+     disqualifier 1 does not fire); `any_trap_promoted=False` (hard disqualifier 2 does not fire);
+     direction accuracy `100%` with zero wrong-direction findings (hard disqualifier 3 does not
+     fire). Graded bands, independently recomputed: Top-10 precision `70%` → STRONG; economic-weighted
+     recall `45.2%` → PROMISING; confounder trap rejection → PROMISING-not-STRONG (matches the
+     document's own established convention, applied identically in the 2026-08-16/17/29 entries: `2`
+     of `5` traps have a genuine active, caveated cap, the other `3` never appeared at all, so "each
+     with a stated confounding caveat" — the STRONG bar — is not clearable); direction accuracy
+     `100%` → STRONG; economic impact error median `219.9%` → FAILED (`>100%`). Weakest band = FAILED
+     (metric 6) → overall = FAILED, exactly matching the recorded verdict. **Confirmed structurally,
+     not just numerically, that metric 6 is mechanically independent of `G16`**: `G16` only ever caps
+     evidence from `adjusted_observational_association` down to `predictive_association` in this run
+     (never lower), and metric 6's own governing population (`validated_matched` in
+     `evaluate_benchmark.py`) is every candidate at `predictive_association` **or above** with a
+     matched pattern — so `G16`'s capping never removes a candidate from metric 6's population, and
+     the `economic_impact` figure it reads is a separate, earlier-computed field untouched by
+     evidence-level grading. FAILED is therefore mechanically forced by the pre-existing 219.9%
+     figure, not a post-hoc reading of `G16`'s yield ceiling — the yield ceiling and the FAILED
+     verdict are provably on two different, non-interacting computation paths.
+  4. **Trap-denominator semantics — CONFIRMED.** `evaluate_benchmark.py`'s trap-matching
+     (`_matches_trap`) is computed directly against `candidates_payload["candidates"]` — the frozen,
+     immutable discovery output — never against anything `validate_candidates.py` touched or could
+     have dropped. Independently confirmed structurally that validation drops nothing: the reviewer's
+     own from-scratch validation run produced exactly 15 verdicts for the 15 candidates in
+     `candidates.json`, none excluded. Manually cross-checked all 15 candidates' literal conditions
+     against the five traps' `apparent_feature` values read from `hidden_ground_truth.json` (legitimate
+     to open post-freeze, matching `evaluate_benchmark.py`'s own documented protocol): no candidate
+     contains `manager=Manager 2` (`T01`) or `supplier=Atlas` (`T02`) at all (two candidates carry
+     `supplier=BlueWing`, a different value); none contains `manual_exception=true` (`T05`) (one
+     candidate carries `manual_exception=False`, the opposite value). `T03`/`T04` do appear
+     (`CAND-014`, and `CAND-007`/`CAND-015` respectively). This confirms `T01`/`T02`/`T05`'s absence
+     is a **discovery exposure/generation fact** — `discovery.engine` never selected a rule containing
+     their apparent conditions into its final candidate set at all — not a validation-side rejection
+     miscounted as an absence; there is no mechanism in the real pipeline by which validation could
+     have silently dropped a trap-shaped candidate before evaluation ever saw it.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
