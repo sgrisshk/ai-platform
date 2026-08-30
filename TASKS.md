@@ -5648,16 +5648,48 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   semantics), and `CODE_REVIEWER` independently approves before this gate is considered
   production-ready.
 - **Post-implementation review is not satisfied by self-tests, however thorough — an independent,
-  explicitly adversarial `CODE_REVIEWER` pass is required, covering at minimum:** bypassing `G16`
-  via alternative candidate paths (any way a compound candidate could reach evidence grading without
-  passing through this gate); downstream re-promotion past the cap; order/permutation behavior
-  across the full atom set; the single-atom (`k==1`) vs. compound (`k>=2`) boundary; that `T05`'s own
-  overlap-ceiling semantics stay genuinely distinct and unconflated; and a dedicated search for any
-  hidden `interaction_like`/uncapped escape path the implementation's own tests might not have
-  covered. **Only after this review is `APPROVED`** does a new official `TASK-015`/`TASK-019`/
+  explicitly adversarial `CODE_REVIEWER` pass is required. Founder mandate (2026-08-30), post-`ADR-080`
+  — the reviewer must NOT evaluate this implementation against preservation of historical evidence
+  levels; the five downgrades are `TASK-082`'s own accepted consequence, not a regression to explain
+  away. Covering at minimum:**
+  1. Every `k>=2` candidate, without exception, passes through `G16` and receives a `CAP` —
+     regardless of whether the reason is `confound_like` or `indeterminate`.
+  2. Bypasses via alternative validation paths, gate ordering, grading/reporting, and downstream
+     re-promotion past the cap.
+  3. **The `k==1`/`k>=2` boundary, proven, not merely asserted from absence.** `G16` must not
+     accidentally cap a singleton candidate just because the historical corpus currently contains
+     zero singleton outputs — this specific boundary **cannot be checked against frozen history**
+     (`TASK-082`'s own 150/150 finding means no historical `k==1` candidate exists to test against).
+     **Required: a dedicated synthetic test that constructs a valid `k==1` candidate and runs it
+     through the real validation path, proving no `G16` cap is applied** — this is the one property
+     frozen history structurally cannot exercise, so it must be built, not observed.
+  4. Permutation/order invariance and full enumeration of every atom `1..k`.
+  5. `confound_like` vs. `indeterminate` affects only the diagnostic reason code, **never** the
+     ceiling itself — both cap identically, always.
+  6. **No reachable `interaction_like`, no whitelist for historical `PASS` candidates, no
+     trap-specific logic, and no other release path of any kind.**
+  7. `T05`/insufficient-overlap semantics stay genuinely distinct from `G16`'s own two reasons — not
+     conflated or silently absorbed into `composition_risk_indeterminate`.
+  8. Scope discipline: zero changes to `discovery.engine`, `G06`, the estimator, existing thresholds,
+     or any other gate's semantics — confirmed by diff, not by intent.
+  9. **Independently reproduce the regression characterization against frozen history**: all `150/150`
+     observed `k>=2` candidates across every recoverable frozen run must downgrade, attributably to
+     `G16` specifically, with no unexplained additional changes anywhere else in their verdicts.
+     **`150/150` is a characterization of what already happened, not an acceptance target the
+     implementation was written to reproduce** — the reviewer must confirm the implementation
+     contains nothing tuned to hit this specific number; the real structural acceptance bar is
+     correct behavior for an arbitrary future `k>=2` candidate, including ones frozen history has
+     never contained, which is exactly what check 3's synthetic `k==1` test and checks 1/4/5 (stated
+     as properties, not counts) are built to establish.
+  **Only after this review is `APPROVED`** does a new official `TASK-015`/`TASK-019`/
   `TASK-028` cycle become the next step — `TASK-073`'s `FAILED` result remains the standing
   historical evidence and is **not retroactively recalculated or superseded** by anything in this
   task; only a fresh official run, after `G16` is implemented and approved, produces new evidence.
+  **That next official cycle must itself be interpreted under the new semantics**: a near-total
+  disappearance of `ADJUSTED_OBSERVATIONAL`-or-above findings in current discovery output is the
+  `ADR-078`/`TASK-082`-predicted effect of an accepted design decision, not, on its own, a new safety
+  failure to re-investigate — unless the new run surfaces something `G16`'s own accepted scope does
+  not already explain.
 
 ### TASK-082 — Design-impact decision: is `G16`'s unconditional `k>=2` evidence cap acceptable product semantics? (`ADR-079`, no code change)
 
