@@ -5359,7 +5359,7 @@ up; it is not part of this handoff's own ask.
 **From:** STATISTICS
 **To:** CODE_REVIEWER, FOUNDER_STRATEGY
 
-**Status:** PARTIALLY RESOLVED (2026-08-30) — `CODE_REVIEWER` half **CONFIRMED**, full detail
+**Status:** RESOLVED (2026-08-30) — `CODE_REVIEWER` half **CONFIRMED**, full detail
 recorded in `TASK-083`'s own `TASKS.md` entry (new bullet, "`CODE_REVIEWER` independent
 re-derivation (2026-08-30), per `ADR-083`'s five questions"). Summary: independently reran
 `scripts/validate_candidates.py`/`scripts/evaluate_benchmark.py` from scratch against the frozen
@@ -5387,7 +5387,37 @@ results), both consistent with the claim. (b) `T03`/`T04` are protected by `G16`
 detection specific to them — the already-accepted `ADR-078`/`ADR-080` design, restated precisely so
 "0/5 traps promoted" is not misread as "`G16` detected the traps' confounding." **No defect found,
 technical-confirmation-level or more fundamental — `FOUNDER_STRATEGY`'s next-bottleneck determination
-may now proceed per `ADR-083`'s sequencing.** `FOUNDER_STRATEGY` half remains **OPEN**.
+may now proceed per `ADR-083`'s sequencing.**
+
+**`FOUNDER_STRATEGY` half — RESOLVED (2026-08-30), full detail in `ADR-084`.** Reran
+`scripts/validate_candidates.py`/`scripts/evaluate_benchmark.py` from scratch against the frozen
+`task-083-official-20260830-001` candidates (own independent reproduction, not a re-read of
+`ADR-082`/`CODE_REVIEWER`'s numbers) — every governing figure matched exactly. Read the real
+per-candidate `economic_impact_estimation_error` detail list and the real, already-existing `TASK-059`
+attribution-narrowed diagnostic sibling metric. Finding: the 219.9% median is sharply non-uniform (range
+6.5%–464.6% across the 9 matched candidates) and correlates strongly with population dilution (candidate
+exposed-population size vs. matched-pattern overlap size: r≈+0.73; overlap fraction vs. error: r≈−0.65).
+Narrowing to the exact overlap population (`TASK-059`'s diagnostic) collapses the median to 73.6% and the
+range to 24.9%–89.7% — a ~7× range compression consistent with a representability/population-mismatch
+defect (`ADR-083`'s options b/d), not a flat estimand/estimator bug (option a), and a direct
+reconfirmation of `task-029-benchmark-report-v1.md` §3.6's 2026-08-16 diagnosis ("candidate rules ~15–16×
+broader than the exact injected pattern population") as still the live, dominant mechanism — unsuperseded
+by `TASK-058`, `G16`, or anything since. A real, secondary, non-dilution ~52–90% residual persists in 8/9
+candidates even after narrowing (disclosed, not hidden inside the dominant finding) — a genuine but
+secondary (a)-type component. **Ranked recommendation: (1) diagnose economic-impact-estimation defect
+(metric 6) next — the sole, mechanically isolated driver of the FAILED verdict, real and now
+characterized in shape, not merely known by its aggregate; (2) low priority, non-blocking — the
+trap-rejection STRONG-band grading criterion's "5/5" wording, given `CODE_REVIEWER`'s own question 4
+finding that 3/5 traps structurally can never appear; changes no verdict, not urgent; (3) not a
+bottleneck — discovery coverage (70%/45.2%, both STRONG/PROMISING) is explicitly not selected merely
+because it looks attractive, per `ADR-083`'s first forbidden default, and the 2/5 trap-appearance count
+motivates no search-side change, per its second.** Named, but did not scope or open, what a follow-on
+metric-6 forensic task would need to cover (engine-version regression trace, residual-error
+characterization, direct reading of `economic_impact.py`'s estimator, negative/positive controls) —
+matching `TASK-075`/`TASK-078`/`TASK-079`'s own diagnosis-only discipline. Preserved explicitly:
+`TASK-083` remains this project's first positive official evidence of a working safety mechanism (0/5
+traps promoted) alongside a negative overall verdict — not lost inside "FAILED." No code, gate,
+estimator, or `decision-gate.md` band touched or recommended for tuning. Full record: `ADR-084`.
 
 **Task:** Independently re-derive `task-083-official-20260830-001`'s blind-custody chain and
 `TASK-019`/`TASK-028` outputs (`CODE_REVIEWER`), and sign off on the new `decision-gate.md` entry and

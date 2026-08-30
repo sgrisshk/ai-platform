@@ -4378,3 +4378,173 @@ question explicitly scoped away from motivating any premature fix.
 **Consequences.** `HANDOFF-076`'s `CODE_REVIEWER`/`FOUNDER_STRATEGY` fields are now attached to this
 ADR's five questions and the reframed bottleneck question respectively. `TASK-057` remains paused,
 unaffected.
+
+## ADR-084 — `FOUNDER_STRATEGY`'s `HANDOFF-076`/`ADR-083` determination: the economic-impact-estimation
+defect (metric 6) is the next narrow bottleneck to diagnose first, on real per-candidate evidence, not
+"discovery" and not trap-appearance rate
+
+**Date:** 2026-08-30
+**Status:** Accepted. Resolves the `FOUNDER_STRATEGY` half of `HANDOFF-076`. Authorizes no code, gate,
+estimator, or `decision-gate.md` band change — a prioritization determination only. Names what a
+follow-on forensic task on metric 6 would need to cover; does not open, scope, or perform that task.
+
+**Preserved first, so it is not lost inside this entry's own verdict language.** `TASK-083` is this
+project's **first positive official evidence of a working safety mechanism** — 0/5 confounding traps
+promoted, down from `TASK-073`'s 2/5, `T03`/`T04` both actively capped by `G16` with a stated reason —
+recorded **alongside** a negative overall decision-gate verdict (FAILED). `CODE_REVIEWER`'s independent
+re-derivation (`HANDOFF-076`, `ADR-083`'s five questions) confirmed this decomposition with no defect
+found, technical or fundamental. This determination does not revisit that confirmation and does not let
+the safety result disappear inside the word FAILED.
+
+**The question answered here, precisely (per `ADR-083`):** not "are we ready for customer data"
+(`TASK-072` unaffected, its "not yet" stands) — which of the remaining FAILED components is the next
+narrow bottleneck worth diagnosing first, without conflating safety, discovery coverage, and economic
+estimation.
+
+**Method.** Rather than reason from the aggregate 219.9%/6.5–464.6% figures alone, the frozen
+`task-083-official-20260830-001` candidates (`/private/tmp/policy-blind-runs/task-083-official-
+20260830-001/frozen/candidates.json` — reachable in this worktree; the repo's own gitignored
+`artifacts/evaluation/task-028-task-083-official-001.json` is **not** reachable here, the same
+`artifacts/`-absent limitation `TASK-081`/`TASK-082`/`TASK-075`/`CODE_REVIEWER`'s own `HANDOFF-076` pass
+already disclosed, disclosed again here rather than silently worked around) were independently re-run
+from scratch through the real, unmodified `scripts/validate_candidates.py` →
+`scripts/evaluate_benchmark.py` to a scratch output path. Every governing number reproduced exactly
+(Top-10 precision 70%, economic-weighted recall 45.2%, `any_trap_promoted=False`, direction accuracy
+100%, median impact error 219.9%) — matching `CODE_REVIEWER`'s own independent re-derivation and giving
+this determination the same evidentiary footing, not a re-read of prose. The real per-candidate
+`economic_impact_estimation_error` detail list, and the real, already-existing `TASK-059`
+attribution-narrowed diagnostic sibling metric (`economic_impact_estimation_error_attribution_narrowed_
+diagnostic` — computed by the same script, does not govern the decision gate, exists specifically to
+separate population dilution from per-booking effect misestimation per its own docstring and
+`HANDOFF-043`), were then read directly, not summarized from the aggregate.
+
+**Finding 1 — the error is sharply non-uniform across the 9 matched candidates, and its shape correlates
+strongly with population dilution, not a flat estimator bug.**
+
+| Candidate | Matched pattern(s) | Whole-rule relative error | Attribution-narrowed relative error | Exposed N (full rule) | Overlap N (rule ∩ true pattern) | Overlap fraction | Dilution (exposed/overlap) |
+|---|---|---|---|---|---|---|---|
+| CAND-001 | P01 | 464.6% | 71.3% | 2,595 | 132 | 5.1% | 19.7× |
+| CAND-002 | P01 | 84.5% | 52.2% | 545 | 142 | 26.1% | 3.8× |
+| CAND-003 | P01 | 280.7% | 67.2% | 1,644 | 142 | 8.6% | 11.6× |
+| CAND-004 | P01 | 314.0% | 78.6% | 1,988 | 103 | 5.2% | 19.3× |
+| CAND-005 | P01 | 412.0% | 73.6% | 2,341 | 122 | 5.2% | 19.2× |
+| CAND-006 | P01, P06 | 37.5% | 78.4% | 1,369 | 215 | 15.7% | 6.4× |
+| CAND-007 | P06 | 6.5% | 24.9% | 190 | 134 | 70.5% | 1.4× |
+| CAND-008 | P01 | 219.9% | 75.0% | 1,818 | 142 | 7.8% | 12.8× |
+| CAND-015 | P06 | 137.3% | 89.7% | 2,126 | 93 | 4.4% | 22.9× |
+
+Whole-rule error range is 6.5%–464.6% (median 219.9%, matching the frozen/official figure exactly).
+Pearson correlation across these 9 candidates: dilution factor vs. whole-rule relative error, **r ≈
++0.73**; overlap fraction vs. whole-rule relative error, **r ≈ −0.65**. The two lowest-dilution
+candidates (`CAND-007` at 1.4×, `CAND-002` at 3.8×) have the two lowest whole-rule errors (6.5%, 84.5%);
+three of the four highest-dilution candidates (`CAND-001`/`004`/`005`, 19.2–19.7×) have three of the
+four highest errors (312–465%). `CAND-006` and `CAND-015` are the visible exceptions to a clean
+monotonic relationship (disclosed, not smoothed over) — the correlation is real and strong, not perfect.
+
+**Finding 2 — narrowing to the actual overlap population collapses both the median and, far more
+tellingly, the *range*.** The `TASK-059` attribution-narrowed diagnostic — same 9 candidates, reported
+impact recomputed over only the bookings the candidate's exposed set actually shares with its matched
+pattern's true affected-record set — reproduces at median **73.6%**, range **24.9%–89.7%**. Narrowing
+drops the median by two-thirds and compresses the range by roughly 7×. A pure estimand/estimator defect
+(option a in `ADR-083`'s framing) predicts no such collapse — the same wrong formula would misfire by a
+similar proportion regardless of how the population is sliced. A population-mismatch/representability
+defect (options b/d) predicts exactly this: most of the error should evaporate once the reported and
+true numbers are computed over the same population, which is what happens here.
+
+**Determination on `ADR-083`'s four candidate mechanisms.** The dominant driver is **(b)/(d) — a
+representability problem specific to how much broader these candidates' exposed populations are than
+the true patterns' affected populations**, not a general estimand/estimator defect (a) and not
+principally an aggregation-statistic artifact (c) (median vs. mean was checked informally by inspection
+of the sorted list above; the shape — heavy right tail, several candidates 3–4.6×, one at 6.5% — is not
+an artifact that a different central-tendency choice would meaningfully change). This is not a new
+diagnosis: it is a **direct reconfirmation, on this run's own real numbers, of the mechanism
+`docs/benchmark/task-029-benchmark-report-v1.md` §3.6 named on 2026-08-16** ("candidate rules ~15–16×
+broader than the exact injected pattern population... dilutes the per-booking effect... inflates total
+exposure... same mechanism viewed from two angles"). That diagnosis is **still the live, dominant
+explanation** — nothing between 2026-08-16 and this run (including `TASK-058`'s narrowing work and `G16`)
+has superseded it, and `TASK-083`'s own dilution factors (1.4×–22.9×, several candidates in the same
+15–20× neighborhood) land in the same range originally described.
+
+**Finding 3 — a real, secondary, non-dilution component also exists and should not be hidden inside
+Finding 1's dominant story.** Even after narrowing to the exact overlap population, 8 of 9 candidates
+still show 52–90% relative error (only `CAND-007`, the least-diluted candidate, drops to 24.9%) — this
+residual is *not* explained by population mismatch, since the narrowing has already removed that
+variable. It is fairly uniform in magnitude across very different dilution levels (`CAND-002` at 3.8×
+dilution shows 52.2% narrowed error; `CAND-015` at 22.9× dilution shows 89.7%), consistent with a smaller,
+more general per-booking effect-size estimation bias sitting underneath the larger population-dilution
+effect. This is a genuine, disclosed (a)-type component — real, but secondary in magnitude to Finding 1,
+and not by itself sufficient to relabel the defect as a pure estimator bug.
+
+**An open, unexplained lead surfaced but not resolved here (explicitly not concluded, per this ADR's
+own scope).** `docs/benchmark/decision-gate.md`'s 2026-08-17 entry recorded `TASK-058`'s remediation run
+(`discovery-engine-v0.2.0`, `population_score_exponent=0.5`) at median whole-rule error **37.5%** —
+`packages/analytics/src/policy_analytics/discovery/engine.py` was read directly and confirms
+`population_score_exponent: float = 0.5` is still the current, unconditional default (unchanged since
+`TASK-058`). Yet `TASK-073`/`TASK-083` (`discovery-engine-v0.6.0`, same narrowing exponent) show the
+error back up at 204–220%. Something changed the effective population breadth between those engine
+versions despite the narrowing parameter itself being unchanged — `beam_rules_per_structure=2`
+(`TASK-064`'s tested-and-rejected value, already flagged as a still-open, unresolved configuration-
+custody issue in `ADR-082`/`ADR-083` and independently reconfirmed by `CODE_REVIEWER`) is one plausible
+contributor, not a confirmed one. This ADR does not investigate further — naming it is exactly the kind
+of lead a forensic task exists to chase, not a conclusion a prioritization pass is entitled to assert.
+
+**Ranked recommendation.**
+
+1. **Diagnose the economic-impact-estimation defect (metric 6) next.** It is the sole, mechanically
+   isolated driver of the FAILED verdict (`CODE_REVIEWER`'s own question 3 already proved this
+   structurally — `G16`'s capping never removes a candidate from metric 6's governing population, two
+   non-interacting computation paths). It is real, non-uniform, and now characterized in shape (Findings
+   1–3 above), not merely known by its aggregate. It is genuinely narrow: it does not require touching
+   `G16`, safety grading, or discovery search at all.
+2. **Low priority, non-blocking: the trap-rejection STRONG-band grading criterion's wording.**
+   `decision-gate.md`'s STRONG band requires "5/5 traps, each with a stated confounding caveat";
+   `CODE_REVIEWER`'s own question 4 already independently confirmed `T01`/`T02`/`T05`'s absence is a
+   discovery-exposure fact, not a validation-rejection miscount — structurally, 3 of 5 traps can never
+   reach that bar under current discovery selection behavior, regardless of validation quality. *If*
+   this is examined at all, it must be framed as a question about whether the STRONG band's own
+   denominator is well-specified given that structural fact — never as a reason to change what discovery
+   selects, per `ADR-083`'s explicit prohibition. It does not change any verdict either way (metric 6
+   alone already forces FAILED), so it is not urgent and is ranked well below (1).
+3. **Not a bottleneck, not recommended for diagnosis now: discovery coverage (Top-10 precision 70%,
+   economic-weighted recall 45.2%).** Both grade STRONG/PROMISING, not FAILED. Nothing in this
+   determination's own evidence implicates discovery quality — the per-candidate table above shows the
+   *same* discovered rules are directionally correct and pattern-matching correctly; their exposed
+   populations are simply broader than what they're being scored against. Per `ADR-083`'s first forbidden
+   default, this is not selected merely because its headline numbers look better, and per its second
+   forbidden default, the 2/5 trap-appearance count motivates nothing here about search behavior.
+
+**What a follow-on forensic task on metric 6 would need to cover, if opened (named, not scoped or
+performed by this ADR — matching `TASK-075`/`TASK-078`/`TASK-079`'s own diagnosis-only, no-pre-selected-
+fix discipline):**
+- Full mechanistic trace of the engine-version regression above: why does `discovery-engine-v0.6.0`
+  (`TASK-073`/`TASK-083`) produce materially higher whole-rule error than `discovery-engine-v0.2.0`'s
+  `TASK-058` remediation run, given `population_score_exponent=0.5` is confirmed unchanged as the
+  default across both — specifically test whether `beam_rules_per_structure=2` (the already-flagged,
+  still-open config-custody issue) is implicated, or whether some other change between those engine
+  versions is responsible. This is a real, open, currently unexplained regression this ADR surfaces but
+  does not resolve.
+- Full characterization of Finding 3's residual (post-narrowing) error: is its direction systematically
+  one-sided (over- vs. under-estimate) across all 9 candidates, and does it correlate with anything else
+  (which pattern matched, `k` condition count, effect magnitude) the way Finding 1's dilution correlation
+  does? This ADR established the residual's existence and rough uniformity, not its own mechanism.
+- Read `economic_impact.py`'s actual per-record-effect computation directly (this ADR did not — a
+  prioritization pass, not the forensic task itself) to determine whether the CI-midpoint reporting
+  convention, the matching/attribution window, or the per-record effect estimator itself contributes to
+  Finding 3's residual before concluding it is irreducible.
+- Apply this chain's standing negative/positive-control discipline (`TASK-075`'s own requirement): check
+  whether the dilution-correlates-with-error relationship found here is specific to true-pattern-matched
+  candidates or holds generally, and whether it is sensitive to `MATCH_RECALL_THRESHOLD`'s own 0.5 value.
+- Hard rule, identical in force to every prior task in this chain: diagnosis only. No
+  `discovery.engine`, `G06`/`G16` gate, estimator, or `decision-gate.md` band may be tuned, chosen, or
+  justified by reference to that task's own outcome.
+
+**Anti-overfitting discipline, honoured.** No code, gate, estimator, or `decision-gate.md` threshold is
+touched, tuned, or recommended for tuning by this ADR. The ranked recommendation is a prioritization
+call, backed by real per-candidate numbers newly extracted from the frozen run in this pass — not a
+hedge, and not a proposal to fix anything.
+
+**Consequences.** Resolves `HANDOFF-076`'s `FOUNDER_STRATEGY` half. `TASK-057` remains paused,
+unaffected; `TASK-072`'s "not yet" stands, unaffected. `TASK-083`'s own `TASKS.md` entry, `ADR-082`, and
+`ADR-083` are not modified by this ADR. No new task is opened by this ADR — if a metric-6 forensic task
+is opened next, it inherits the scope named above, on the same footing as this project's prior forensic
+tasks (`TASK-075`/`TASK-078`/`TASK-079`), as a separate decision.
