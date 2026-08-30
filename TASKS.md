@@ -6086,7 +6086,54 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** ARCHITECT
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** DONE — diagnostic complete (2026-08-30, Statistics), pending independent
+  `CODE_REVIEWER` confirmation per this task's own Reviewer field (not self-marked approved here).
+  Full four-branch report: `docs/benchmark/task-084-economic-impact-forensics.md`. Raw computed
+  output: `docs/benchmark/task-084-branch1-engine-regression-raw.json`,
+  `docs/benchmark/task-084-branch2-3-error-decomposition-raw.json`,
+  `docs/benchmark/task-084-branch4-controls-raw.json`. Scripts:
+  `scripts/diagnose_task084_branch1_engine_regression.py`,
+  `scripts/diagnose_task084_branch2_3_error_decomposition.py`,
+  `scripts/diagnose_task084_branch4_controls.py`.
+  **Completion criterion, answered:** (a) the bulk of the 219.9% error's first sufficient mechanism
+  is surrogate-rule confounding under population dilution — a discovered candidate's full exposed
+  population is far broader than the true pattern's affected population, and because the surrogate
+  condition that admits the extra records generically carries its own, non-true-pattern association
+  with the outcome, the validation/estimator layer's `harm_per_booking × exposed_total` computation
+  (`apply.py`/`economic_impact.py`, not discovery search composition) inflates without bound as
+  dilution grows — causally demonstrated by branch 4's synthetic controls (positive control
+  r≈0.998 dilution-vs-error; negative control r≈0.07, ruling out population size alone). (b) The
+  73.6% residual after `TASK-059`'s attribution-narrowing is the SAME mechanism in a different,
+  partial-coverage sub-form, not an independent per-booking estimation defect: a new
+  "doubly-narrowed" diagnostic (recomputing the per-record effect itself, not just the population
+  count, over the exact overlap population) drops the median further to 5.45%, and the remaining
+  residual correlates at r≈0.94 with `recall_of_true_pattern` — a structural, fully-explained
+  undershoot when a candidate only partially covers its matched true pattern, not a new mechanism.
+  (c) The engine/config regression: `beam_rules_per_structure=2` (the already-flagged,
+  previously-untested-in-isolation config-custody issue since `TASK-073`/`081`/`083`) is a
+  demonstrated **AMPLIFIER** (+33.8pp in a controlled, one-axis ablation), not the sole cause (the
+  defect is already present at 186–209% under every discovery configuration tested, including the
+  literal reconstructed `TASK-058` configuration, verified faithful against `TASK-058`'s own
+  disclosed literal candidate conditions); the dataset-version bump (v1.0.0→v1.1.0) is **merely
+  correlated, non-causal** (zero measurable effect); `TASK-060`'s diversity-selection mechanism is
+  neither cause nor correlate of the worsening (it moves metric 6 in the *opposite*, improving
+  direction while costing Top-10 precision). An open, unresolved, evidenced lead is disclosed but
+  not closed: `TASK-058`'s own exact discovery configuration, reconstructed and verified faithful,
+  scores 209.4% under today's validation/evaluation pipeline — not the ~37.5% originally reported —
+  pointing at validation-contract evolution (not discovery search config) as the more probable
+  locus of the remaining historical gap; the original `task-058-remediation-20260817-001` frozen
+  artifact is not reachable in this worktree to confirm it directly (disclosed limitation, matching
+  `TASK-075`/`078`/`079`/`ADR-084`'s own established `artifacts/`-gitignore pattern).
+  **Follow-on fix-design task, named per this task's own explicit-not-in-scope clause (not opened
+  or scoped here):** population-localization is confirmed as the primary mechanism (both (a) and
+  (b) above), so the next design question is "how should economic impact be estimated for a
+  discovered, broad surrogate rule when the true affected subpopulation is unknown" —
+  `docs/benchmark/task-084-economic-impact-forensics.md` §6 details what it would need to cover.
+  **Three prohibitions honored:** no estimator, search/discovery configuration, or metric 6
+  definition changed anywhere; `beam_rules_per_structure`/`population_score_exponent`/any other
+  discovery default left exactly as shipped (`engine.py` untouched — every branch-1 configuration
+  is a `DiscoveryConfig` parameter override in a diagnostic script); ground truth opened only for
+  diagnostic decomposition/synthetic-control comparison, never production-facing.
 - **Depends on:** `TASK-083` (`APPROVED`/`CONFIRMED`, `ADR-082`/`083`), `ADR-084` (`FOUNDER_STRATEGY`
   determination naming this as the next bottleneck)
 - **Working hypothesis, stated precisely — not yet established, this task's job is to test it, not
