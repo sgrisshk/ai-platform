@@ -3926,3 +3926,145 @@ design authority, exactly as the founder's own instruction requires.
 **Consequences.** `TASK-081`'s `TASKS.md` entry is marked `BLOCKED BY DESIGN CONTRADICTION`.
 `TASK-082` is opened next. `TASK-081` does not resume until `TASK-082` resolves Branch A or B.
 `TASK-057` remains paused, unaffected.
+
+## ADR-080 — `TASK-082` determined: **Branch A** — `G16`'s unconditional `k>=2` cap is accepted as
+intentional product semantics; `TASK-081`'s requirement 8 corrected to a regression-characterization
+requirement and `TASK-081` cleared to resume
+
+**Date:** 2026-08-30
+**Status:** Accepted
+
+**Decision.** `TASK-082`'s determination is **Branch A — accept it.** `TASK-080` §15.3's two-state
+design stands entirely unchanged: `G16` v1 caps every `k>=2` candidate it examines, under
+`confound_like` or `composition_risk_indeterminate`, with no third, uncapped state, regardless of
+whether positive confounding evidence is found. `TASK-081`'s requirement 8 is corrected from
+"the 6 historical `PASS` candidates must not regress" (now proven literally unsatisfiable for any
+`k>=2` candidate) to a **regression-characterization** requirement: every historical `PASS` candidate
+that downgrades must have its downgrade fully explained by `G16`'s own recorded reason code; preserving
+the prior evidence level is explicitly **not** required. `TASK-081` is cleared to resume immediately
+under the corrected requirement and proceeds to the independent adversarial review it already
+specifies. No code, gate, threshold, or `discovery.engine` change is made or authorized by this ADR —
+matching `TASK-082`'s own binding scope.
+
+**This determination is reached only after actually measuring, not assuming, the cost `ADR-079` named
+in the abstract — the four questions `TASK-082` was opened to answer, in order:**
+
+**1. Magnitude and nature of the cost — measured directly against this project's own real candidate
+distribution, not estimated.** `task-073-official-20260829-001`'s own frozen candidate artifacts
+(`artifacts/blind/task-073-official-20260829-001.*`) are confirmed **not recoverable in this
+worktree** — checked directly in both this review's own worktree and the shared main checkout's
+`artifacts/` directory (gitignored, not tracked in git history at all); this is the identical
+missing-artifact condition `TASK-075`'s own review already disclosed, re-confirmed here rather than
+re-asserted. In its place, every other frozen candidate set this project actually has was read and
+measured directly: `task-015-official-20260816-015`, `task-058-remediation-20260817-001`,
+`task-060-remediation-20260818-001`, `task-060-iteration-20260820-002/003/004`,
+`task-064-beam-20260822-001`, `task-065-b2b-comparable-20260822-001`, and
+`task-068-ecommerce-baseline-20260827-001`/`task-068-ecommerce-cap-20260827-001` — 10 frozen official
+runs, spanning travel (six variants), `b2b_sales`, and `ecommerce` (two variants). **Every one of
+these 10 runs' 15-candidate frozen sets is 100% `k>=2`: 150/150 candidates across all 10 runs, zero
+`k==1`.** This is a stronger, independently-obtained confirmation of the same conclusion `ADR-079`'s
+`5/5` downgrade finding pointed at, from a different, broader evidence base (every recoverable frozen
+candidate set this project has ever produced, not just the five re-tested historical `PASS`
+candidates) — the cost is not a narrow tax on rare edge cases; **`G16` caps this discovery mechanism's
+entire observed historical output, without a single counter-example in the record this project can
+actually check.**
+
+**Why this is not incidental — it is how `discovery.engine`'s own selection stage is written.**
+`packages/analytics/src/policy_analytics/discovery/engine.py`'s final top-K assembly explicitly ranks
+compound rules (`interactions`) ahead of single-atom rules (`singles`) and only falls back to singles
+if interactions do not already fill the requested top-K (`"Prefer interactions; singletons remain
+eligible fallbacks and diagnostics"`, and separately, `"singles are never touched at all when
+interactions alone already fill the top-K (the common case)"` — the engine's own comment names filling
+top-K from interactions alone as the *common* case, not an edge case). With `top_k=15` and thousands of
+eligible compound rules at every tested depth/domain, this is exactly what the 150/150 measurement
+confirms empirically: singles are a structurally deprioritized fallback this project's real search
+space essentially never needs.
+
+**2. What `k==1` candidates still can achieve, unaffected by `G16`.** In principle, everything —
+`G16`'s per-atom loop never applies to a single-atom candidate (§8.1, unchanged). In this project's
+actual measured output, this is not a meaningful remaining class: **0 of 150** candidates across every
+recoverable frozen run are `k==1`. `G16` leaving single-atom candidates untouched is a real, honest
+design property, but it offers no practical relief against this cost, because this discovery
+mechanism's own selection stage, as currently configured, does not produce single-atom candidates in
+practice.
+
+**3. Whether `TASK-080`'s non-identifiability proof forecloses Branch A's alternative absolutely, or
+only within `G16`'s current information access.** Re-read directly: `ADR-078` check 3 fixes the proven
+claim's scope precisely — *within the information `G16` actually has access to (a candidate's condition
+tuple plus the frame) and the admissible DGP class tested, without additional identifying
+assumptions,* positive interaction release is not identifiable — explicitly **not** the broader claim
+that interaction is unidentifiable from observational data in general. §15.6 (`TASK-080`'s own design
+document) names three concrete, in-principle-real paths a future revision would need: an actual
+instrument/natural experiment for the candidate atom; a genuinely bounded, independently domain-derived
+prior on unmeasured-confounder prevalence; or a verified (not merely assumed) negative control. §15.4
+already shows the readily-available, data-only versions of the latter two both fail, specifically
+because they reduce to an assumption about an *unmeasured* variable that is unverifiable from data this
+design already has — meaning a real Branch B path requires new information genuinely external to this
+project's current data model (real domain knowledge, a real instrument, or real customer-side
+verification), not a cleverer function of the same frozen condition tuple. This is a real, findable
+path in principle — it is not a dead end conceptually — but it is not a path this project can walk
+today with what it currently has access to.
+
+**4. Product/business consequence, given this project's actual current state.** `TASK-057` (customer
+outreach) remains paused (`ADR-063`); `TASK-072` already determined the pipeline is "not yet" ready for
+a first real customer dataset (`ADR-066`); and `TASK-073`'s own official run already `FAILED`, not on
+this issue, but on a *different*, prior confounding-trap-promotion failure (`T03` via `CAND-014`, `T04`
+via `CAND-015`, both compound, both reaching `shadow_policy` with no genuine matched pattern or under
+ambiguous overlap) that `G16` exists specifically to close. Accepting the cap blocks no active customer
+commitment — none currently exists. A `k>=2` candidate `G16` caps is not deleted or hidden; per §15.3 it
+remains available descriptively at `PREDICTIVE`-or-below evidence level, exactly the same evidence
+ceiling `G02` already applies to a structurally analogous circularity concern. Reopening the design now
+(Branch B) would not produce a working alternative sooner — `TASK-080`'s own second revision
+(`ADR-077`), independently adversarially re-reviewed (`ADR-078`), already spent two full rounds
+searching for a same-data escape hatch and found none that survives without an unverifiable assumption;
+a third round fitted to the same information would repeat, at larger scale, exactly the
+premature-fix/overfitting mistake this project's own discipline (`ADR-007`/`ADR-012`, and this specific
+chain's `ADR-074`–`078`) exists to prevent. Given no new information source is available now, and none
+is on a near-term path given `TASK-057`'s pause, blocking `TASK-081`'s already-complete, twice
+adversarially-reviewed, structurally-safe implementation indefinitely purchases no additional safety —
+the discovery mechanism is not currently customer-facing either way — while definitely re-delaying an
+already-long design effort.
+
+**The determination, stated plainly, with the cost disclosed rather than softened.** This is a real
+product capability limit, not a narrow implementation footnote: **as currently built and as this
+project's own discovery mechanism actually behaves, essentially none of its real output can be
+certified to `ADJUSTED_OBSERVATIONAL` or above under `G16` v1**, because the search stage's own
+selection logic overwhelmingly favors compound rules and `G16` caps every compound rule it examines,
+unconditionally, by design. This project accepts that limit now, deliberately, because (a) the
+non-identifiability finding it rests on is structural and has survived two independent adversarial
+review rounds, not a calibration gap; (b) no better alternative is available with the information this
+project currently has; (c) the cost lands at a moment when the pipeline is not serving any active
+customer commitment; and (d) the compound findings this caps are not destroyed, only held at a lower,
+honestly-labeled evidence tier, preserving the option to promote them later if and when new,
+genuinely external identifying information becomes available.
+
+**Explicitly not concluded here, per `TASK-082`'s own binding prohibitions — confirmed, not
+reinterpreted:** the cap is not weakened for historical `PASS` candidates; no whitelist or
+historical-candidate exemption is introduced; `interaction_like` is not restored;
+`max_adjusted_attenuation`/`min_confounder_stratum_coverage` are unchanged; the absence of
+`confound_like` is not treated as grounds for release; the five downgrades `ADR-079` recorded, and the
+150/150 measurement recorded here, are not characterized as an implementation regression to be fixed
+away — they are the accurate, now fully-quantified cost of a design this project's own review chain
+already approved on its merits.
+
+**Branch B, named for a possible future design cycle — not opened, not scoped, not designed here.**
+Per `TASK-082`'s own instruction, only named: a future revision would need one of §15.6's three
+directions — a real instrument/natural experiment for a candidate atom, a genuinely domain-derived
+(not data-fitted) bound on unmeasured-confounder prevalence, or an independently verified negative
+control — none of which this project's current data model supplies. The most plausible trigger for
+reopening this is a future resumption of real customer/domain engagement (i.e., `TASK-057` or its
+successor), which is the only currently-named path in this project toward genuinely new identifying
+information rather than another function of the same frozen condition tuple. Opening and scoping that
+task is left to the orchestrating session/founder, not performed here.
+
+**Anti-overfitting discipline, honoured.** This ADR changes no code, gate, threshold, or
+`discovery.engine` behavior. It accepts an already-approved design's already-disclosed consequence,
+corrects one acceptance requirement that consequence made unsatisfiable, and declines to fit a new
+heuristic to the same information two prior adversarial rounds already exhausted.
+
+**Consequences.** `TASK-082`'s `TASKS.md` entry is marked `DETERMINED — Branch A`. `TASK-081`'s
+`TASKS.md` entry has its requirement 8 corrected in place and its Status updated to reflect it is
+cleared to resume implementation review (independent adversarial `CODE_REVIEWER` pass, per its own
+already-specified scope) — actually resuming that review and any subsequent official run remains a
+separate, later step for the orchestrating session, not performed by this ADR. `TASK-057` remains
+paused, unaffected.

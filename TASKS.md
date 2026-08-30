@@ -5541,21 +5541,25 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** **BLOCKED BY DESIGN CONTRADICTION (2026-08-30, `ADR-079`)** — implementation itself
-  complete and merged (not reverted, not defective); independent review and any new official run are
-  paused pending `TASK-082`'s resolution. Testing the merged implementation against real historical
-  candidates (not the substitute data the implementer disclosed using, for the same missing-artifact
-  reason `TASK-075`'s review already recorded) found every tested compound (`k>=2`) historical `PASS`
-  candidate (`CAND-004`, `007`, `009`, `010`, `015`) now downgrades — every atom in every one
-  classifies `indeterminate` (never `confound_like`; attenuation `0.01`–`0.09`), and the approved
-  two-state design never releases on the absence of positive confounding evidence. **This is `G16`
-  working exactly as designed (§15.3's own disclosed consequence), not an implementation defect** —
-  but this task's own acceptance requirement 8 ("6 historical `PASS` candidates must not regress") is
-  now proven literally unsatisfiable for any of them with `k>=2`, given the already-approved,
-  unconditional cap. **`TASK-081` does not resume until `TASK-082` resolves which of two branches
-  applies — see `ADR-079` for the full record and the explicit list of forbidden interim actions
-  (no whitelist, no cap-weakening, no `interaction_like` restoration, no threshold change, no
-  characterizing the five downgrades as an implementation regression to be fixed away).**
+- **Status:** **CLEARED TO RESUME (2026-08-30, `ADR-080`, `TASK-082` `DETERMINED — Branch A`)** —
+  implementation itself complete and merged (not reverted, not defective; was never the cause of the
+  prior block). Independent adversarial `CODE_REVIEWER` review, per this task's own already-specified
+  scope, may now proceed against the **corrected requirement 8 below**; any new official run remains
+  gated on that review's `APPROVED` outcome, unchanged from this task's original done condition.
+  Testing the merged implementation against real historical candidates (not the substitute data the
+  implementer disclosed using, for the same missing-artifact reason `TASK-075`'s review already
+  recorded) found every tested compound (`k>=2`) historical `PASS` candidate (`CAND-004`, `007`, `009`,
+  `010`, `015`) now downgrades — every atom in every one classifies `indeterminate` (never
+  `confound_like`; attenuation `0.01`–`0.09`), and the approved two-state design never releases on the
+  absence of positive confounding evidence. **This is `G16` working exactly as designed (§15.3's own
+  disclosed consequence), not an implementation defect.** `TASK-082` independently confirmed this cost
+  against this project's entire recoverable historical candidate record (150/150 candidates across 10
+  frozen runs are `k>=2`; zero `k==1`) and determined, with full reasoning recorded in `ADR-080`, that
+  the cap is accepted as intentional product semantics. The prior block (`ADR-079`) is resolved:
+  requirement 8 is corrected (below) rather than left unsatisfiable, and the explicit list of forbidden
+  actions `ADR-079`/`TASK-082` both name (no whitelist, no cap-weakening, no `interaction_like`
+  restoration, no threshold change, no characterizing the five downgrades as an implementation
+  regression to be fixed away) remains fully binding going forward, not just during the block.
 - **Depends on:** `TASK-080` (CLOSED — design approved, `ADR-078`)
 - **Scope, deliberately narrow — implement the approved two-state specification exactly, nothing
   more:** no new classifier signals, no new thresholds, no `discovery.engine` behavior change of any
@@ -5591,11 +5595,21 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   7. Zero changes to `discovery.engine`, `G06`, the estimator (`_stratified_adjustment`), or any
      existing threshold value (`max_adjusted_attenuation`, `min_confounder_stratum_coverage`, or any
      other) — confirmed by diff, not merely by intent.
-  8. Regression suite covering: the neutral synthetic form tests per the corrected `TASK-080` §10
-     item 1 (confound-like correctly capped; genuine effect modifier correctly lands `indeterminate`,
-     never `confound_like`; a structural test that `interaction_like` has no reachable code path at
-     all); all 5 traps and the 6 historical `PASS` candidates (`TASK-075`'s own negative-control set,
-     must not regress); and more than one domain, per `TASK-070`'s own precedent (not travel-only).
+  8. **(Corrected 2026-08-30, `ADR-080`/`TASK-082` `DETERMINED — Branch A` — supersedes the original
+     wording below verbatim, which is proven literally unsatisfiable for any `k>=2` candidate under
+     the already-approved unconditional cap; not a weakening, a regression-characterization
+     requirement instead.)** Regression suite covering: the neutral synthetic form tests per the
+     corrected `TASK-080` §10 item 1 (confound-like correctly capped; genuine effect modifier
+     correctly lands `indeterminate`, never `confound_like`; a structural test that `interaction_like`
+     has no reachable code path at all); all 5 traps and the 6 historical `PASS` candidates
+     (`TASK-075`'s own negative-control set) run and **fully characterized** — every candidate that
+     downgrades from its prior evidence level must have that downgrade **fully explained by `G16`'s
+     own recorded reason code** (no unexplained regression permitted); preserving the prior evidence
+     level is explicitly **not** required, and is not expected for any `k>=2` candidate among them,
+     per `ADR-080`'s own measured cost. And more than one domain, per `TASK-070`'s own precedent (not
+     travel-only).
+     - *Original wording, superseded, kept for record:* "the 6 historical `PASS` candidates... must
+       not regress."
 - **Hard boundary, binding — the single most important constraint on this task:** **do not restore
   `interaction_like` during implementation, under any circumstances, even if the implementer
   discovers what appears to be an obvious additional distinguishing statistic.** `TASK-080`'s own
@@ -5650,7 +5664,24 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Owner:** FOUNDER_STRATEGY
 - **Support:** ARCHITECT, STATISTICS
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** **DETERMINED (2026-08-30) — Branch A: accept it.** Full reasoning, evidence, and the
+  four-question analysis this task was scoped to perform: `ADR-080`. Summary: every recoverable frozen
+  candidate set this project has ever produced (10 official runs across travel, `b2b_sales`, and
+  `ecommerce` — `task-073-official-20260829-001`'s own artifacts confirmed **not recoverable** in this
+  worktree, same disclosed limitation `TASK-075` already recorded) is **150/150 `k>=2`, zero `k==1`** —
+  `discovery.engine`'s own selection stage explicitly prefers compound rules and only falls back to
+  singletons when compound rules do not already fill top-K, which its own code comment names as the
+  common case being avoided, not the norm. `G16`'s cap therefore reaches essentially all of this
+  project's real historical discovery output, not a narrow edge case — measured, not softened. Accepted
+  anyway because: `TASK-080`'s non-identifiability finding is structural, survived two independent
+  adversarial reviews (`ADR-077`/`078`), and no better alternative exists with information this project
+  currently has (`ADR-078` check 3's own narrower scope confirms a real alternative *could* exist, but
+  only via new information genuinely external to this project's current data model — an instrument, a
+  domain-derived confounder-prevalence bound, or a verified negative control, per `TASK-080` §15.6 —
+  none of which this project has); the cost lands while the pipeline serves no active customer
+  commitment (`TASK-057` paused, `ADR-063`; `TASK-072` "not yet" ready, `ADR-066`); and capped
+  compound findings are not destroyed, only held at `PREDICTIVE`-or-below evidence pending future new
+  information. `TASK-081`'s requirement 8 corrected below; `TASK-081` cleared to resume.
 - **Depends on:** `TASK-081` (`BLOCKED BY DESIGN CONTRADICTION`, `ADR-079`)
 - **No code, gate, threshold, or `discovery.engine` change of any kind is authorized by this task.**
   This is a strategy/design-authority determination, not an implementation task — matching this
@@ -5701,7 +5732,14 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   with the founder's own sign-off, following this project's own discipline (`TASK-072`'s precedent)
   of giving a real answer even when it is the harder one. If Branch A: `TASK-081`'s requirement 8 is
   corrected and it resumes. If Branch B: a new design-cycle task is named (not opened or scoped here)
-  and `TASK-081` stays blocked pending that cycle's own outcome.
+  and `TASK-081` stays blocked pending that cycle's own outcome. **Met (2026-08-30) — Branch A, see
+  Status above and `ADR-080` for the full determination, the candidate-distribution evidence
+  (150/150 recoverable historical candidates `k>=2`, zero `k==1`), and the reasoning against all four
+  of this task's own scope questions. Branch B is named, not opened: a future design cycle, if and
+  when new information genuinely external to this project's current data becomes available (most
+  plausibly via a future resumption of real customer/domain engagement, e.g. `TASK-057` or its
+  successor — per `TASK-080` §15.6's three named directions), left for the orchestrating
+  session/founder to open and scope.**
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
