@@ -5964,6 +5964,50 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   `ADR-081` pre-registration items, independently `CODE_REVIEWER`-verified and
   `FOUNDER_STRATEGY`-signed, with the safety-vs-yield distinction (`ADR-081`'s central framing)
   stated explicitly in the entry's own text — not left for a reader to infer.
+- **`CODE_REVIEWER` independent re-derivation (2026-08-30), per `ADR-083`'s five questions — verdict
+  per question below, all checks against the real frozen candidates and the real, unmodified
+  `validate_candidates.py`/`evaluate_benchmark.py`/`grading.py`, not a re-read of the report:**
+  1. **Safety — CONFIRMED.** Independently re-ran `scripts/validate_candidates.py` against the
+     frozen `/private/tmp/policy-blind-runs/task-083-official-20260830-001/frozen/candidates.json`
+     (`--blind-compliant --founder-block-lifted`, own scratch `--output`) and
+     `scripts/evaluate_benchmark.py` against that fresh report — both from scratch, no reuse of the
+     originally-frozen validation/evaluation artifacts (which are, in any case, not recoverable in
+     this worktree, the same disclosed `artifacts/`-absent condition `TASK-081`/`TASK-082`/`TASK-075`
+     already recorded). Result: `CAND-014` (`T03`) and `CAND-015` (`T04`) both independently
+     reproduce `evidence_level=predictive_association`, `policy_readiness=experiment_only`,
+     `G16` outcome `fail` with reason `composition_risk_indeterminate` in the persisted
+     `gate_results`. Forcing `G16`'s `GateResult` to `PASS` and re-calling the real, unmodified
+     `grading.classify_evidence_level` on both candidates' own real `G00`–`G15` results (own script,
+     not the implementer's) independently shows both would reach
+     `adjusted_observational_association` absent `G16` — confirming "genuinely reach a high
+     pre-`G16` evidence level" is real, not asserted. `evaluate_benchmark`'s own
+     `confounder_trap_rejection.trap_promoted` recomputes to `{T01: false, T02: false, T03: false,
+     T04: false, T05: false}` — independently reproduced, not re-read — so no trap reaches a
+     disqualifying promotion state and `TASK-073`'s own hard disqualifier 2 (`T03` reaching
+     `shadow_policy`) is genuinely eliminated on this run, not merely reported as eliminated. One
+     honest caveat, already disclosed identically by `TASK-081`'s own approved design: both traps are
+     capped via the **`indeterminate`** reason (absence of positive confounding evidence), not
+     `confound_like` (detected confounding) — `G16`'s uncondional `k>=2` cap is what protects them,
+     not a demonstrated confounding finding specific to these two candidates. This is the accepted,
+     already-reviewed `ADR-078`/`ADR-080` design, not a new finding, but worth restating precisely so
+     "0/5 traps promoted" is not misread as "`G16` detected the traps' confounding."
+  2. **Counterfactual `G16` isolation — CONFIRMED WITH ONE DISCLOSED CAVEAT.** True byte-level
+     comparison against `TASK-073`'s own frozen `G00`–`G15` outputs was **not possible in this
+     worktree** — `task-073-official-20260829-001`'s artifacts are not recoverable here, the same
+     limitation `TASK-081`'s own independent review and `TASK-082`/`ADR-080` already disclosed (not a
+     new gap this review introduces). Two independent substitutes were used instead: (a) `git diff
+     210c141 86fb95b -- packages/analytics/src/policy_analytics/validation/` (the commit range
+     spanning `TASK-081`'s entire implementation, before `G16` existed through
+     `CODE_REVIEWER`-approval) shows **344 insertions, 0 deletions** across
+     `validation/__init__.py`, `apply.py`, `composition_safety.py`, `contract.py` — structurally
+     proving no `G00`–`G15` gate logic was modified, only `G16` added; (b) within this run itself, for
+     all 15 candidates, re-calling `classify_evidence_level` over each candidate's own real,
+     persisted `G00`–`G15` results with only `G16`'s own `GateResult` forced to `PASS` reproduces the
+     exact reported pre-`G16`/final split (`11`/`1`/`3` pre-`G16`; `0`/`12`/`3` final) — the shift is
+     reproduced as a pure function of `G16`'s own bit, holding every other gate's real result fixed.
+     Together these are strong evidence the `11→0` shift is `G16`-attributable alone, but this is not
+     the literal cross-run byte comparison `ADR-083` asked for — recorded honestly as a caveat, not
+     elided.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
