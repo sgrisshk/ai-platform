@@ -4769,15 +4769,33 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT APPROVED — re-review complete (2026-08-30, `CODE_REVIEWER`, `ADR-076`). A real,
-  severe, generalizable safety defect found in the revised classifier: two independently-constructed
-  new DGPs (outside the reviewed suite's narrow, symmetric shape) reproduce `confound_like ->
-  interaction_like` (uncapped) at rates growing toward 100% with sample size — the exact property
-  `ADR-076` fixed as the approval bar does not hold generally. Classifier/estimand-level per the
-  `ADR-074`/`075` fork; the three-stage architecture is untouched and not reconsidered by this
-  finding. A further classifier revision is required before this document returns to review; no
-  implementation task may open. Full five-check record below under "Re-review complete." Prior
-  history: REVISED — DESIGN COMPLETE, PENDING RE-REVIEW (2026-08-29, `ADR-075`). Revision scope
+- **Status:** IN_PROGRESS — SECOND REVISION (2026-08-30, `ADR-077`). Founder reframing: the
+  `ADR-076` failure worsens (not vanishes) with sample size, so this is estimand inconsistency under
+  proxy/confounder imbalance, not a power/calibration bug. **Central question of this revision:**
+  does an observational estimand exist, from the candidate's condition tuple + frame alone, giving
+  positive evidence for genuine interaction without turning residual proxy confounding (any
+  prevalence/measurement-error/nonlinearity) into `interaction_like`? **If not, positive
+  `interaction_like` is dropped from `G16` v1 entirely — `confound_like`/`indeterminate` only — a
+  fully acceptable outcome, not a failure.** §14.5's zero-true-delta proof and signal 2
+  (threshold-perturbation stability) are both explicitly revoked as evidence, not merely
+  superseded. Four required directions: (1) adversarial identifiability suite across prevalence/
+  proxy-error/nonlinearity/strength/overlap/n, safety property `n→∞` ⇒ `P(interaction_like)` on pure
+  confounds does not increase, ideally →0; (2) estimand audit — any signal whose observable
+  distribution a genuine interaction and residual confounding can both produce does not qualify as
+  positive evidence alone; (3) the two-state fallback (`confound_like`/`indeterminate` only) tested
+  as a first-class candidate, not a last resort; (4) a positive-interaction escape hatch only if a
+  stronger estimand survives the full adversarial suite, and no signal counts as independent if it
+  logically includes or is a stable transform of another. Success criterion is behavioral, not a
+  benchmark number (see `ADR-077`). No implementation task opens regardless of outcome; the result
+  goes back to independent review either way. Full detail: `ADR-077`. Prior history: NOT APPROVED —
+  re-review complete (2026-08-30, `CODE_REVIEWER`, `ADR-076`). A real, severe, generalizable safety
+  defect found in the revised classifier: two independently-constructed new DGPs (outside the
+  reviewed suite's narrow, symmetric shape) reproduce `confound_like -> interaction_like` (uncapped)
+  at rates growing toward 100% with sample size — the exact property `ADR-076` fixed as the approval
+  bar does not hold generally. Classifier/estimand-level per the `ADR-074`/`075` fork; the
+  three-stage architecture is untouched and not reconsidered by this finding. Full five-check record
+  below under "Re-review complete." Prior history: REVISED — DESIGN COMPLETE, PENDING RE-REVIEW
+  (2026-08-29, `ADR-075`). Revision scope
   (classifier/estimand level only, three-stage architecture not reopened) executed; full record
   below under "Revision complete." Design document
   (`docs/analytics/task-080-candidate-composition-safety-design.md`) updated in place with the
