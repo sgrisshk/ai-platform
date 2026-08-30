@@ -5887,6 +5887,9 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Sign-off:** FOUNDER_STRATEGY (`docs/benchmark/decision-gate.md` is that document's own owner)
 - **Priority:** P0
 - **Status:** OFFICIAL RESULT RECORDED — FAILED, but not by a hard disqualifier (2026-08-30).
+  **`CODE_REVIEWER` independent re-derivation: CONFIRMED (2026-08-30, `ADR-083`'s five questions —
+  full detail in the dedicated bullet below).** `FOUNDER_STRATEGY` sign-off (`HANDOFF-076`'s other
+  half) remains open.
   `task-083-official-20260830-001` (contract v1.3.0 + `G16`, engine `discovery-engine-v0.6.0`, same
   seed/config/dataset identity as `TASK-073`) ran the full `ADR-008`/`051`/`052` protocol end to end
   (rehearsal → issue → verify → launch → freeze), independently custody-re-verified in the same pass
@@ -6044,6 +6047,38 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
      their apparent conditions into its final candidate set at all — not a validation-side rejection
      miscounted as an absence; there is no mechanism in the real pipeline by which validation could
      have silently dropped a trap-shaped candidate before evaluation ever saw it.
+  5. **Custody/config — CONFIRMED (custody); still open, unresolved (config, unchanged, no fix
+     proposed here).** Independently re-derived, not re-read: all three frozen output files'
+     SHA-256 (`candidates.json`, `discovery_metrics.json`, `run_report.md`, via `shasum -a 256`)
+     match `frozen/hashes.json` and `provenance.json` exactly. `engine.py`'s current SHA-256 in this
+     checkout matches `provenance.json`'s recorded hash exactly — no drift. The dataset manifest's
+     `dataset_identity_sha256` matches the run's recorded identity exactly. The manifest's
+     `evaluator_signature` was independently re-derived from a standalone script (not importing
+     `tools/blind_agent/core.py`'s own `_sign_manifest`/`_verify_manifest_signature`) reimplementing
+     `SIGNATURE_DOMAIN + canonical_json(unsigned)` → `hmac.new(signing_key, message,
+     hashlib.sha256).hexdigest()` against the real evaluator signing key at
+     `/private/tmp/policy-blind-evaluator/signing.key` — matches exactly. Separately, read
+     `engine.py`'s `DiscoveryConfig` directly: `beam_rules_per_structure: int = 2` is still the
+     unconditional default; `scripts/run_discovery.py`'s own `DiscoveryConfig(...)` call passes only
+     `seed`/`max_feature_identity_fraction`; no `beam_rules_per_structure` flag exists in
+     `tools/blind_agent/` or the `Makefile`. **Recorded here, per `ADR-083`, as a still-open,
+     still-unresolved configuration-custody issue — not fixed by this review, and not used as
+     grounds to recompute or reinterpret `TASK-083`'s own result.**
+  - **Overall verdict: CONFIRMED.** The decomposition holds under independent re-derivation: the
+    safety win (0/5 traps promoted, `TASK-073`'s hard disqualifier genuinely eliminated) and the
+    separate, pre-existing, `G16`-independent economic-impact-estimation defect (219.9%, mechanically
+    the sole driver of the weakest-band FAILED verdict) are both real and correctly kept distinct. No
+    defect was found, technical-confirmation-level or more fundamental — every number in `ADR-082`
+    and the 2026-08-30 `decision-gate.md` entry reproduces exactly from a from-scratch rerun of the
+    real, unmodified pipeline. Two disclosed caveats (not defects): (a) question 2's cross-run
+    byte-comparison against `TASK-073`'s own artifacts could not be performed (artifacts not
+    recoverable in this worktree, a pre-existing, already-disclosed limitation); substituted with a
+    diff-based no-`G00`–`G15`-changes proof plus an in-run counterfactual reconstruction, both
+    consistent with the claim. (b) `T03`/`T04` are protected by `G16`'s unconditional `indeterminate`
+    cap, not by a demonstrated confounding detection specific to them — already the accepted,
+    disclosed `ADR-078`/`ADR-080` design, restated here precisely so "0/5 traps promoted" is read
+    correctly. `FOUNDER_STRATEGY`'s next-bottleneck determination (`HANDOFF-076`'s other half) may now
+    proceed, per `ADR-083`'s sequencing.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 

@@ -5359,7 +5359,35 @@ up; it is not part of this handoff's own ask.
 **From:** STATISTICS
 **To:** CODE_REVIEWER, FOUNDER_STRATEGY
 
-**Status:** OPEN.
+**Status:** PARTIALLY RESOLVED (2026-08-30) — `CODE_REVIEWER` half **CONFIRMED**, full detail
+recorded in `TASK-083`'s own `TASKS.md` entry (new bullet, "`CODE_REVIEWER` independent
+re-derivation (2026-08-30), per `ADR-083`'s five questions"). Summary: independently reran
+`scripts/validate_candidates.py`/`scripts/evaluate_benchmark.py` from scratch against the frozen
+`task-083-official-20260830-001` candidates (not a re-read of the frozen report) — every number in
+`ADR-082`/the 2026-08-30 `decision-gate.md` entry reproduces exactly (Top-10 precision 70%,
+economic-weighted recall 45.2%, `any_trap_promoted=False`, direction accuracy 100%, median impact
+error 219.9%, pre-`G16`/final evidence-level split `11/1/3` → `0/12/3`). `CAND-014`/`CAND-015`
+independently confirmed to reach `adjusted_observational_association` pre-`G16` and cap to
+`predictive_association`/`experiment_only` with reason `composition_risk_indeterminate`; `TASK-073`'s
+hard disqualifier 2 genuinely eliminated. `T01`/`T02`/`T05`'s absence independently confirmed to be a
+discovery exposure/generation fact (manual literal-condition check against all 15 candidates), not a
+validation-side rejection — validation drops nothing (15 candidates in, 15 verdicts out). `FAILED`
+verdict independently recomputed and confirmed mechanically forced by metric 6 (219.9%), structurally
+proven independent of `G16`'s capping (which never removes a candidate from metric 6's governing
+population). Custody (hashes, HMAC signature, dataset identity) independently re-derived from
+scratch, all match; `beam_rules_per_structure=2` reconfirmed as the still-open, unresolved
+configuration-custody issue, not touched. **Two disclosed caveats, neither a defect:** (a) question
+2's literal byte-level comparison against `TASK-073`'s own frozen `G00`–`G15` outputs could not be
+performed — those artifacts are not recoverable in this worktree, the same pre-existing limitation
+`TASK-081`/`TASK-082`/`TASK-075` already disclosed — substituted with a diff-based proof
+(344 insertions, 0 deletions, no `G00`–`G15` logic touched across `TASK-081`'s implementation range)
+plus an in-run counterfactual reconstruction (`G16` forced to `PASS` on the run's own real `G00`–`G15`
+results), both consistent with the claim. (b) `T03`/`T04` are protected by `G16`'s unconditional
+`indeterminate` cap (absence of positive confounding evidence), not a demonstrated confounding
+detection specific to them — the already-accepted `ADR-078`/`ADR-080` design, restated precisely so
+"0/5 traps promoted" is not misread as "`G16` detected the traps' confounding." **No defect found,
+technical-confirmation-level or more fundamental — `FOUNDER_STRATEGY`'s next-bottleneck determination
+may now proceed per `ADR-083`'s sequencing.** `FOUNDER_STRATEGY` half remains **OPEN**.
 
 **Task:** Independently re-derive `task-083-official-20260830-001`'s blind-custody chain and
 `TASK-019`/`TASK-028` outputs (`CODE_REVIEWER`), and sign off on the new `decision-gate.md` entry and
