@@ -4068,3 +4068,86 @@ cleared to resume implementation review (independent adversarial `CODE_REVIEWER`
 already-specified scope) — actually resuming that review and any subsequent official run remains a
 separate, later step for the orchestrating session, not performed by this ADR. `TASK-057` remains
 paused, unaffected.
+
+## ADR-081 — Pre-registration for the first official `TASK-015`/`TASK-019`/`TASK-028` cycle under `G16`: separating "is the pipeline safe" from "is there still useful evidence yield," fixed before any run
+
+**Date:** 2026-08-30
+**Status:** Accepted, pre-registered before any run — genuinely fixed before anyone has seen a
+result, matching this project's own `docs/benchmark/decision-gate.md` discipline.
+
+**Decision.** With a clean evidence chain now in place — `TASK-080` design → `TASK-082` Branch A →
+`TASK-081` implementation, independently `APPROVED` — a fresh official cycle is authorized. No further
+intermediate diagnostic run is required first. This ADR fixes the pre-registration items the founder
+specified, **before** the run, so the result cannot be reinterpreted after the fact.
+
+**The two questions this cycle must keep separate, stated precisely — this is the central discipline
+of this ADR:**
+1. **Is the pipeline safe after `G16`?** `TASK-081`'s own independent review already answered this —
+   not re-litigated by this cycle.
+2. **Is there still enough useful evidence yield once this safety is introduced?** No official cycle
+   has ever answered this under `G16`. This cycle answers it for the first time, and its answer may
+   honestly be "very little, because of a measured capability/yield ceiling" — that is a valid,
+   informative result, not a failure of this task.
+
+**Nine pre-registered items, binding on how the run is conducted and reported:**
+
+1. **Engine/config custody.** Run the pipeline's actual current production/default configuration and
+   record it in full. Given `TASK-073`'s own history (a rejected experimental value —
+   `beam_rules_per_structure` — silently remained the unconditional default for eight days), this
+   cycle must **separately verify** no rejected experimental parameter has again become the default,
+   disclosed explicitly in the run's own record, not merely assumed clean.
+2. **Contract identity.** The validation contract version (with `G16` present) and the exact
+   commit/code version must be recorded in the run artifacts, not just narrated in prose.
+3. **`G16` expectation, named in advance.** A drop in `ADJUSTED_OBSERVATIONAL`-or-above findings for
+   `k>=2` candidates is the expected `Branch A` (`ADR-080`) outcome. **This is not, on its own,
+   `FAILED`** — the decision-gate's own hard-disqualifier/metric rules still apply in full (item 9
+   below); this item only forbids treating the drop itself as a surprise requiring explanation.
+4. **Safety criterion, unchanged and still hard.** Known traps must not reach an evidence/policy
+   state above what `G16`'s ceiling permits. Any cap bypass is still a hard disqualifier, exactly as
+   `docs/benchmark/decision-gate.md` already specifies — `G16` changes what evidence compound
+   candidates can reach, not the trap-safety bar itself.
+5. **Discovery metrics, computed in full regardless of `G16`'s effect on evidence grading.**
+   Top-K precision, direction accuracy, raw and economic-weighted recall, and candidate composition
+   must all still be computed and reported. **`G16` must never be used to wave away a genuine
+   discovery-quality degradation as "expected downgrade"** — these are a different question from
+   evidence-level capping and must not be conflated.
+6. **Evidence metrics, reported as two distinct distributions.** The evidence-level distribution
+   *before* `G16`'s ceiling is applied, and the *final* distribution after — both, separately. Without
+   this split, it becomes impossible to distinguish the underlying validation quality (`G00`–`G15`'s
+   own behavior) from `Branch A`'s intentional cap. This is the single most important reporting
+   requirement this ADR adds beyond `decision-gate.md`'s existing format.
+7. **Singleton accounting, explicit.** Record the count of `k==1` and `k>=2` candidates produced.
+   If the current engine again produces zero `k==1` candidates (matching `TASK-082`'s own 150/150
+   finding), that is an important, disclosed **operational fact about `discovery.engine`'s current
+   selection behavior** — not a `G16` failure, and not to be silently omitted.
+8. **Historical comparability preserved, not overwritten.** `TASK-073`'s `FAILED` result is not
+   rewritten, adjusted, or reinterpreted by this cycle. This is a new official evidence point under
+   new validation semantics (`v1.3.0` plus `G16`), appended to `docs/benchmark/decision-gate.md`'s
+   own append-only log exactly as every prior entry has been.
+9. **Decision-gate rules applied exactly as they stand — not fitted to the expected `G16` effect.**
+   The overall verdict (`STRONG`/`PROMISING`/`WEAK`/`FAILED`) follows `decision-gate.md`'s own
+   pre-registered hard-disqualifier and graded-metric rules, unmodified by this ADR. If the honest
+   result is `FAILED` on, say, economic-weighted recall because almost nothing clears `G16`'s ceiling,
+   that is reported as `FAILED` under the existing rule — not softened because the cause is
+   understood in advance.
+
+**What a result showing near-total `ADJUSTED_OBSERVATIONAL`-and-above disappearance would mean, named
+explicitly so it cannot be misread later:** if traps are genuinely blocked (item 4 holds) but actual
+discovery output stays at `PREDICTIVE`-or-below because of near-100% compound composition (matching
+`TASK-082`'s own 150/150 measurement), **this is not an implementation failure.** It is a measured
+**capability/yield ceiling** of the current combination of discovery semantics and the observational
+information available to `G16` — exactly the fact the next product decision needs, and exactly what
+question 2 above exists to answer for the first time.
+
+**Explicit constraint: no changes of any kind between this pre-registration and the run itself.** No
+`discovery.engine`, `G06`, `G16`, estimator, or threshold change may occur between this ADR and the
+run's own freeze — the run measures the system exactly as `TASK-081` left it, independently approved.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the run's reporting structure and the
+"safety vs. yield" question separation *before* any result exists, specifically so a low-yield result
+cannot later be explained away as unexpected, and so a genuinely bad discovery-quality result cannot
+be laundered through `G16`'s already-expected evidence-capping effect.
+
+**Consequences.** `TASK-083` is opened next, executing this pre-registration exactly. `TASK-057`
+remains paused, unaffected. `docs/benchmark/decision-gate.md` gains its next entry only once this run
+completes, scored, and reported per items 1–9 above.

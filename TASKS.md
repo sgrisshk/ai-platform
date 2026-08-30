@@ -5879,6 +5879,60 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   successor — per `TASK-080` §15.6's three named directions), left for the orchestrating
   session/founder to open and scope.**
 
+### TASK-083 — Official rerun under `G16`: fresh `TASK-015`/`TASK-019`/`TASK-028` cycle, pre-registered per `ADR-081`
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT
+- **Reviewer:** CODE_REVIEWER
+- **Sign-off:** FOUNDER_STRATEGY (`docs/benchmark/decision-gate.md` is that document's own owner)
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-081` (`APPROVED`, `G16` implemented and independently reviewed)
+- **Pre-registration is `ADR-081`, fixed before this run starts — read it in full before doing
+  anything.** No `discovery.engine`, `G06`, `G16`, estimator, or threshold change may occur between
+  `ADR-081` and this run's own freeze.
+- **The two questions this cycle keeps separate, per `ADR-081`:** (1) is the pipeline safe after
+  `G16` — already answered by `TASK-081`'s own independent review, not re-litigated here; (2) is
+  there still useful evidence yield once that safety is introduced — **this cycle answers it for the
+  first time**, and a low-yield answer is a valid, informative result, not a failure of this task.
+- **Scope, mirroring `TASK-073`'s own procedure exactly, with `ADR-081`'s nine reporting additions:**
+  1. Fresh `TASK-015`-equivalent blind discovery run on travel under the current default engine
+     configuration, following the full `ADR-008`/`051`/`052` blind-custody protocol (issue → verify
+     → launch → freeze → sign → independently verify), matching `TASK-073`'s own precedent.
+  2. **Engine/config custody, disclosed explicitly, not merely assumed clean** — given `TASK-073`'s
+     own discovered `beam_rules_per_structure` history, separately verify no rejected experimental
+     parameter is again the unconditional default.
+  3. Validate under the current contract (`v1.3.0` plus `G16`) via the real
+     `scripts/validate_candidates.py` — not a diagnostic script.
+  4. Score via `scripts/evaluate_benchmark.py`.
+  5. **Report two distinct evidence-level distributions** — pre-`G16`-ceiling and final — per
+     `ADR-081` item 6, not just the final graded metrics.
+  6. **Report `k==1`/`k>=2` candidate counts explicitly** per `ADR-081` item 7.
+  7. **Compute and report the full discovery-metric set regardless of `G16`'s effect** (Top-K
+     precision, direction accuracy, raw and economic-weighted recall, candidate composition) per
+     `ADR-081` item 5 — never waved away as "expected `G16` downgrade."
+  8. Append exactly one new entry to `docs/benchmark/decision-gate.md`'s "Post-benchmark comparison"
+     (append-only, per that document's own convention) — the overall verdict follows the existing
+     hard-disqualifier/graded-metric rules exactly, **not fitted to the expected `G16` effect**
+     (`ADR-081` item 9). State the contract version, engine version, and `G16`'s presence explicitly.
+  9. Independent custody-chain re-verification within this same pass (as `TASK-073` performed) —
+     not a substitute for the separate `CODE_REVIEWER`/`FOUNDER_STRATEGY` sign-off this task's own
+     Reviewer/Sign-off fields require.
+- **Hard rule (same force as every prior task in this chain):** no discovery-engine parameter,
+  scoring term, or eligibility/validation-gate value may be tuned, chosen, or justified by reference
+  to this run's own outcome. A real, disclosed `FAILED` or `WEAK` verdict — including one driven
+  entirely by `G16`'s already-expected capping effect — is this task succeeding at its job, not a
+  reason to retune anything before reporting it.
+- **`TASK-073`'s own `FAILED` result is not rewritten, adjusted, or reinterpreted by this task** —
+  this is a new, separate official evidence point under new validation semantics.
+- **Explicitly not in scope:** any change to `discovery.engine`, `G06`, `G16`, or any gate; any
+  non-travel domain (travel-only, matching `decision-gate.md`'s own existing scope); resolving
+  `TASK-057`'s pause.
+- **Done when:** a new, real (non-diagnostic) `decision-gate.md` entry exists reflecting all nine
+  `ADR-081` pre-registration items, independently `CODE_REVIEWER`-verified and
+  `FOUNDER_STRATEGY`-signed, with the safety-vs-yield distinction (`ADR-081`'s central framing)
+  stated explicitly in the entry's own text — not left for a reader to infer.
+
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
 - **Owner:** ARCHITECT
