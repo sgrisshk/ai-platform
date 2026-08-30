@@ -4769,15 +4769,19 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** IN_PROGRESS — SECOND REVISION COMPLETE, PENDING RE-REVIEW (2026-08-30, ARCHITECT +
-  STATISTICS support, `ADR-077`). **Answer to `ADR-077`'s central question: NO — no observational
+- **Status:** IN_PROGRESS — SECOND REVISION `CODE_REVIEWER`-VERIFIED (2026-08-30, `ADR-078`):
+  **APPROVED WITH REVISION NEEDED — documentation-level only, not reopening the identifiability
+  result and not architecture/classifier-level.** The non-identifiability finding and the two-state
+  `confound_like`/`indeterminate` design are both independently confirmed sound; two narrow design-
+  document prose/consistency gaps must be fixed (neither touches the substantive finding) before an
+  implementation task opens. Full six-check record below under "`CODE_REVIEWER` final verification
+  (`ADR-078`)." **Answer to `ADR-077`'s central question: NO — no observational
   estimand computable from a frozen candidate's condition tuple + frame alone can provide positive
   evidence for genuine interaction without also turning residual proxy confounding into
   `interaction_like`, at realistic prevalence/measurement-error/nonlinearity combinations.**
   **Recommendation: `G16` v1 drops to a two-state classification — `confound_like`
   (unchanged) / `indeterminate` (everything else) — positive `interaction_like` is excluded
-  entirely.** Not self-approved; pending independent `CODE_REVIEWER` re-review per this task's own
-  binding instruction. Full detail in the design document's new §15
+  entirely.** Full detail in the design document's new §15
   (`docs/analytics/task-080-candidate-composition-safety-design.md`); summary of all four required
   directions:
   1. **Adversarial identifiability suite** (`scripts/diagnose_task080_identifiability_suite.py`,
@@ -4838,6 +4842,144 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
     sequencing: independent `CODE_REVIEWER` re-review of this (simpler, two-state) design — **not
     performed by this revision itself; this entry does not self-approve.** No implementation task
     opens regardless of this revision's outcome, per `ADR-077`'s explicit, unchanged block.
+- **`CODE_REVIEWER` final verification (2026-08-30, `ADR-078`): APPROVED WITH REVISION NEEDED —
+  documentation-level only.** Six required checks run, independently, not a re-run of the committed
+  scripts alone. **Neither the non-identifiability result nor the two-state design's safety is in
+  question; the finding is narrower than that.**
+  1. **Attempted refutation of the non-identifiability claim directly — did not succeed; independent
+     verification of both hidden symmetries strengthens the claim.** Re-derived the closed-form
+     stratum-contrast from scratch using exact-fraction (non-floating-point) arithmetic over 63
+     `(u_prior, concordance, t_odds)` combinations: confirmed `true_delta = 0` **only** at the
+     `(u_prior=0.5, complementary-odds)` double-symmetric point; breaking either symmetry alone
+     already produces nonzero `true_delta` in every case tested — bit-for-bit consistent with §15.2.1.
+     **Seriously attempted to find a distinguishing statistic for the matched pair (§15.2.2),
+     computable only from `(T, Ci, Y)`, trying multiple approaches beyond the design's own four
+     tested signals:** (a) a "T=0-stratum variance/mixture" signal (hypothesis: a binary unobserved
+     confounder leaks residual mixture structure into `Y | T=0`, while the design's own genuine-
+     interaction DGP, having no main effect for the modifier, does not) — **found this DOES separate
+     the specific constructed matched pair** (`0.022` vs `0.0003` mean variance-explained-by-`Ci` at
+     `T=0`), but is **not safe or general**: constructing a still-fully-non-confounded interaction DGP
+     (`T` still independent of the modifier `D`) where `D` merely has an ordinary direct main effect
+     on `Y` reproduces the same signal magnitude the confound DGP shows (`0.025`-`0.148` as main-
+     effect strength grows from `40` to `150`) — using it would misclassify real interactions with a
+     main-effected modifier as confound-like, the exact wrong-direction safety failure this whole
+     `ADR-074`-`078` chain exists to prevent. (b) A "does `T` marginally associate with `Ci`" balance
+     signal — separates the specific matched pair cleanly (`0.126` vs `0.002` gap at `n=6,400`), but
+     constructing an adversarial regime with a small treatment-odds gap (`(0.56, 0.50)`) and extreme
+     prevalence skew (`u_prior=0.08`) shows the same growth-with-`n` failure this whole suite
+     documents (`interaction_like` rate `0.000` at `n=12,800` -> `0.525` at `n=51,200`) while the
+     candidate signal's own magnitude stays small (`~0.008`) even as it becomes statistically
+     significant — it reduces to the same "true bias survives, standard error shrinks" structural
+     problem as signal 1, not an escape from it. **No statistic was found that safely, generally
+     distinguishes the matched pair without relying on an assumption unverifiable from the data this
+     design has access to.** The non-identifiability conclusion is not closed by this review; if
+     anything, it is now on firmer ground than the design document alone established.
+  2. **Independently reproduced the asymptotic counterexample — confirmed, with fresh code.** Built
+     an independent skewed-prevalence DGP/classifier (own variable names, own control flow, own seed
+     scheme, not copied from the committed script) targeting the same adversarial point
+     (`u_prior=0.2`, `concordance=0.75`, `t_odds=(0.75,0.25)`, `confound_strength=220`, zero true
+     effect), calling the real, unmodified `_stratified_adjustment`/`normal_approx_two_sided_p`.
+     Result: `interaction_like` rate `0.08` at `n=300` rising to `1.00` by `n=2,400` and staying
+     there through `n=9,600` — the same shape and plateau point as the design document's own
+     `0.067 -> 1.000` result, confirmed with independent code. **Stated explicitly, per the review's
+     own mandate: no amount of threshold or significance-level tuning can conceptually fix this — a
+     true, non-vanishing population-level bias whose statistical detectability only grows with `n`
+     is not a calibration problem, it is what non-identifiability looks like empirically.**
+  3. **Claim's boundary is not over-read — confirmed.** §15.5's own stated conclusion ("no
+     observational estimand, computable from a frozen candidate's condition tuple plus the frame
+     alone... at realistic prevalence, measurement-error, and nonlinearity combinations") is the
+     narrow, correctly-scoped claim ADR-078 requires — not the broader "interaction is unidentifiable
+     from observational data in general." `TASKS.md`'s own recap (above) and `ADR-077`/`ADR-078`
+     themselves also state the narrow form consistently. No instance found, anywhere in the design
+     document or its own scripts/raw output, of the broader claim being asserted.
+  4. **Adversarially attacked the two-state design as its own standalone specification — confirmed
+     safe, both states cap identically, no escape path.** Traced the actual proposed logic (not just
+     prose): `classify_atom`'s `label_two_state` branch (script, both committed scripts) is
+     `confound_like` if-and-only-if `coverage_ok and confound_positive_evidence`, else
+     `indeterminate` — unconditionally, with no third branch and no route back to a lifted cap.
+     §8.1a's superseded note confirms the `GateId`/`GateSpec` wiring: `satisfied=True` only for the
+     vacuous `k==1` case; `False` for every `k>=2` candidate regardless of which of the two reasons
+     fired, triggering the identical `CAP_EVIDENCE`/`PREDICTIVE` ceiling either way. Absence of found
+     confounding evidence is never, anywhere in the traced logic, treated as permission to promote —
+     `indeterminate` caps exactly as hard as `confound_like`, never softer, confirmed by tracing code
+     paths, not assumed from prose.
+  5. **Genuine-interaction semantics — confirmed, and independently stress-tested beyond the design's
+     own DGPs.** §15.3's own `0/160` genuine-interaction-misclassified-`confound_like` finding
+     reproduced in spirit; additionally ran the real classifier logic (own re-implementation) against
+     a genuine-interaction DGP extended with a direct modifier main effect (strengths `0`, `90`,
+     `200`, still zero confounding by construction — `T` independent of the modifier throughout) —
+     **`confound_like` never fired in `180` trials across all three variants**, output stayed
+     `interaction_like` or degraded to `indeterminate` only, never `confound_like`. This is a broader
+     DGP class than the design document's own §15.1.7 (which varied modifier prevalence, not modifier
+     main-effect strength) and confirms the same safety property under it. The design document states
+     this distinction clearly (§15.3, §9 criterion 2, §12) — landing in `indeterminate` is correct/
+     expected, not a false negative to be minimized; `discovery.engine` keeps every finding unaffected
+     either way.
+  6. **Revoked material — genuinely inaccessible as normative specification where it is marked, but a
+     real, narrow documentation-consistency gap exists elsewhere.** §14.5 and §8.1's old signal 2 are
+     each marked with a prominent, explanatory `[REVOKED, ADR-077/§15 — ...]` bracket at the *start*
+     of the passage (not a trailing footnote), immediately followed by the reason it is wrong and an
+     explicit instruction not to rely on it — read as an implementer would, this is unambiguous.
+     **However: §9 (acceptance-criteria matrix), §10 (test specification for a later implementation
+     task), and §11 (hard-fixed non-solutions) carry no "superseded by §15" marker at their own
+     location**, unlike §6, §8.1/§8.1a, §13, and §14, which all do. §10 in particular is the section a
+     later implementation task would most plausibly read as its literal build/test checklist (item 1:
+     "the mechanism must classify (a) confound-like and (b) interaction-like"; item 6: "the
+     classifier's primary failure mode... must be `confound_like -> indeterminate`, never
+     `confound_like -> interaction_like`") — both phrased as if the three-state classifier is still
+     live, with no pointer at that location to §15's two-state supersession. The document's own
+     top banner and `TASKS.md`'s own recap are both unambiguous about the current recommendation, so
+     the practical risk is mitigated at the task-management level today — but this is a real, findable
+     documentation-safety gap in the design document itself, not merely a hypothetical one. **A second,
+     narrower documentation-accuracy issue, found independently by auditing the raw JSON behind §15.3's
+     own claim:** §15.3 states the two-state fallback "still detect[s] confounds correctly... at
+     concordance `>=0.85` across the full prevalence sweep" — but the cited `1b_prevalence_sweep`
+     panel shows `confound_like` firing `0/280` times at concordance `0.85` across all seven tested
+     prevalence points (verified directly from `docs/benchmark/task-080-identifiability-suite-raw.json`).
+     The phrase "matches the `v075` classifier's `confound_like` branch exactly" is literally true
+     (`0` = `0`), but "detect confounds correctly" overstates what that specific panel shows — the
+     `1b` sweep's own concordance range (`0.65`-`0.85`) apparently sits below the range where this
+     estimator's limited adjustment power (already disclosed in §6.2 point 2) lets attenuation clear
+     the `0.50` bar for this particular `n=3,200`/`confound_strength=220` parameterization; the
+     original `ADR-075` ladder (§14.2, different `n`/DGP shape) does show `confound_like` firing
+     reliably at concordance `>=0.90`. **Neither of these two findings is safety-relevant** — both
+     `confound_like` and `indeterminate` cap identically regardless (per check 4), so a confound
+     landing in `indeterminate` instead of `confound_like` changes only the reason code, never the
+     promotion outcome — but both are genuine, correctable documentation-level gaps.
+  - **Named simplification, investigated per `ADR-078`'s own instruction: CONFIRMED, and reinforced
+    by check 6's second finding above.** Traced every place the design document specifies the
+    rule-level outcome (§8.1's three-branch text, §8.1a's superseded note, §15.3): the
+    `confound_like`/`indeterminate` distinction is, in every instance found, a reason-code-only
+    distinction — both trigger the identical `CAP_EVIDENCE`/`PREDICTIVE` ceiling, with no
+    downstream logic anywhere that treats them differently for promotion purposes. The document
+    does not state this reduction as a single explicit summary sentence the way `ADR-078` poses it,
+    but its actual mechanics already are exactly that: *a compound candidate contains structural
+    composition uncertainty that available observational data cannot resolve; `G16` sets an evidence
+    ceiling; the reason code is `confound_like` if positive confounding evidence exists,
+    `indeterminate` otherwise.* Check 6's `1b`-sweep finding (confound_like firing `0/280` at
+    concordance `0.85`) makes this even more true in practice than the document states — real
+    confounds will often land `indeterminate` rather than `confound_like` at realistic proxy
+    quality, making the distinction's practical footprint smaller, not larger, than implied. A one-
+    sentence explicit statement of this reduction (and a citation correction in §15.3) would improve
+    clarity but is not a functional gap.
+  - **Overall verdict: APPROVED WITH REVISION NEEDED — documentation-level only.** Neither the non-
+    identifiability result (checks 1-3) nor the two-state design's standalone safety (checks 4-5) is
+    reopened or weakened by any finding above — both are independently confirmed, including under
+    adversarial attempts and DGP classes the design document itself did not test. What requires
+    correction, per check 6, before an implementation task opens: (a) add "superseded by §15" inline
+    markers to §9, §10, and §11 (mirroring §6/§8/§13/§14's existing practice), so a future
+    implementation task cannot read §10's test specification as still describing a live three-state
+    classifier; (b) correct §15.3's "detect confounds correctly... across the full prevalence sweep"
+    claim to accurately reflect its own cited evidence (`0/280` at concordance `0.85` in the `1b`
+    panel), either by citing the `ADR-075`-era ladder's higher-concordance evidence instead or by
+    stating the actual rate and its (non-safety-relevant) interpretation honestly. Both corrections
+    are narrow, textual, and require no new empirical work, no re-running of any suite, and no
+    reopening of the identifiability result itself — per `ADR-078`'s own explicit fork, this is
+    exactly the "scope/documentation-level finding... corrected without reopening the identifiability
+    result" case, not the "genuine refutation... requiring its own new round" case. Whether to make
+    these two corrections as a standalone edit before opening an implementation task, or as part of
+    that task's own design-document touch-up, is left to the orchestrating session/founder, per this
+    review's own instruction not to open or scope an implementation task itself.
 - **Second-revision scope authorized (2026-08-30, founder directive, `ADR-077`).** Founder reframing: the
   `ADR-076` failure worsens (not vanishes) with sample size, so this is estimand inconsistency under
   proxy/confounder imbalance, not a power/calibration bug. **Central question of this revision:**
