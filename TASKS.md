@@ -6227,14 +6227,139 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** **DESIGN COMPLETE (2026-08-31, `ADR-088`), PENDING `CODE_REVIEWER` REVIEW.** Full design:
-  `docs/analytics/task-085-economic-impact-target-population-semantics.md`. **Recommendation: (a) +
-  (c) combined — not (a) alone, not (b).** (a) rename is necessary but insufficient on its own (the
-  customer-facing "exposure not savings" wording is already correct per `validation-contract.md` §8/
-  `finding-product-contract.md`; the gap is internal field/metric naming — `historical_impact`,
-  `decision-gate.md`'s own metric-6 name — and the benchmark comparison itself). (b) partial-
-  identification bound for attributable impact is **not achievable without a new, unverifiable
-  assumption** — the strongest candidate-internal avenue inherits `TASK-080`/`ADR-077`'s
+- **Status:** **APPROVED WITH REVISION NEEDED (2026-08-31, independent adversarial `CODE_REVIEWER`
+  review against `ADR-089`'s six specified checks and precisely-scoped approval criterion).** The
+  central mandate — are `O1`/`O2`/`O3` genuinely distinct estimands, never silently conflated — **holds
+  up under independent re-derivation on all six checks plus the seventh.** One narrow, concrete defect
+  is found in the three-tier ladder's own literal specification (check 3) that does **not** breach the
+  approval criterion (no `O1`/`O2` conflation results from it) but must be corrected, or explicitly
+  disclosed as a stated assumption, before an implementation task builds tier 2 as currently written.
+  Verdict per check:
+  1. **`O1 ≠ O3`, independently traced — CONFIRMED.** Read `apply.py` lines 857–898 and
+     `evaluate_benchmark.py` lines 536–556 directly (not the design doc's paraphrase). `O1`'s
+     population is `full_mask` (the candidate's own `rule_expr`, combined dev+validation+
+     future_holdout window); its effect quantity is `split_stats`'s raw observational group-mean
+     difference (`harm_per_booking`, confirmed **not** `adjusted_effect`); its aggregation is
+     `per_record_value × exposed_total`. `O3`'s population is `hidden_ground_truth.json`'s own
+     `affected_booking_ids` for the matched pattern(s); its effect quantity is a structural
+     counterfactual (`mean(factual − counterfactual_with_only_this_pattern_disabled)`, read directly
+     from the ground-truth file, e.g. pattern `P01`: 142 affected records, €141,765.41). A further,
+     design-doc-unstated confirmation: several patterns (`P02`/`P04`/`P09`) restrict `O3`'s own true
+     effect to specific `active_booking_months`, while `O1`'s combined window carries no such
+     restriction — a genuine time-horizon mismatch beyond what the design doc itself argues. All four
+     dimensions (population, effect quantity, aggregation, time horizon) independently confirmed
+     different, not merely differently named.
+  2. **Prospective retirement follows from estimand mismatch, not from `219.9%` — CONFIRMED,
+     constructively.** Two adversarial synthetic cases built from the real, unmodified `split_stats`/
+     `summarize_group`/`raw_difference`/`harm_score` functions, composed with metric 6's own published
+     formula (`scripts/review_task085_check2_metric6_adversarial.py`,
+     `docs/benchmark/task-085-review-check2-adversarial-metric6-raw.json`). Case A: candidate
+     population `E` shares **zero** members with true population `A`, yet metric 6 reports **0.0%**
+     relative error — pure numeric coincidence of an unrelated confound's magnitude (250 records ×
+     ~€447.62 lands exactly on 100 × €1,000). Case B: candidate's per-record effect estimate is
+     **exactly, provably unbiased** (0.0 EUR bias against the true per-record effect) for the
+     population its own condition actually captures, yet metric 6 reports **60%** relative error,
+     solely because that population is a by-design strict subset of `A` (partial coverage,
+     `recall_of_true_pattern < 1`, matching `TASK-084`'s own finding). Both constructible → metric 6 is
+     proven invalid as a quality gate independent of any specific benchmark result, exactly `ADR-089`'s
+     stated standard, not merely "the number was bad."
+  3. **Three-tier ladder, checked literally (population → effect → aggregation → permitted claim) —
+     tiers 1 and 3 PASS; tier 2 contains a real, undisclosed internal inconsistency.** Tier 1: exact
+     match to today's unchanged computation, claim stays "value at stake," matches
+     `validation-contract.md` §8's own final paragraph verbatim. Tier 3: population is explicitly `A`
+     (design-identified), not `E` — the design correctly ties `O2`'s availability to actual population
+     coincidence "by construction," never to an evidence-level proxy; independently confirmed in code
+     that `G13`/`G14` (`apply.py` lines 848–855) are **hardcoded `False`** today, so no live path to
+     tier 3 exists — the "always-empty slot" claim is not just asserted, it is unconditionally true in
+     the current codebase. **Tier 2 finding:** the design doc's own §5.2/§7 claims tier 2's
+     `adjusted_effect` substitution stays "over `E`, not a narrower population" — traced directly,
+     this is false as literally specified. `adjusted_effect` (`G06`'s confounder-adjusted per-record
+     term) is computed by `_stratified_adjustment(binned_dev_frame, dev_mask, ...)` — **development
+     split only** — while tier 1/2's aggregation multiplier (`exposed_total`) is `combined_stats.
+     n_exposed` over the **combined dev+validation+future_holdout window** (confirmed: no
+     combined-window `adjusted_effect` exists anywhere in `apply.py`/`report.py`). Implemented exactly
+     as specified, tier 2 would multiply a development-split-fit effect by an all-splits exposure
+     count — an undisclosed, undefended generalization assumption (that the dev-split's adjusted
+     effect is stable across validation/future_holdout) that tier 1 never had to make, and that this
+     product's own `G10` temporal-stability gate exists specifically because that assumption is not
+     always safe. This does **not** cause any `O1`/`O2` conflation (tier 2 stays "exposure" language
+     throughout, never upgrades to "attributable") and so does not itself breach `ADR-089`'s approval
+     criterion — but it is a concrete, previously-unflagged defect in the design's own literal claim
+     that must be corrected (recompute `adjusted_effect` over the combined window, restrict tier 2's
+     own population to development-split only and disclose why, or explicitly state and defend the
+     generalization assumption) before an implementation task proceeds from tier 2 as currently
+     written.
+  4. **Level 4–5 empty-slot semantics — CONFIRMED, no proxy-promotion fallback anywhere.** §5.3
+     explicitly restricts `G16`'s per-atom classification to "never a numeric adjustment to the
+     reported exposure figure, only a disclosed, qualitative caveat" — checked against the design
+     doc's own text line by line, no bridge from "evidence level is high" to "treat as attributable"
+     exists anywhere in §5.2–§5.4. Reinforced independently by check 3's own code confirmation that
+     `G13`/`G14` are hardcoded `False` — there is, today, no mechanism even capable of being gamed
+     into a false tier-3 promotion.
+  5. **Non-identifiability reuse, independently re-verified — CONFIRMED, not accepted by citation.**
+     Read `TASK-080`'s own §15 (`ADR-077`) in full, independently re-derived the correspondence rather
+     than accepting the design doc's framing: `G16`'s leave-one-out mechanism stratifies `E` by one of
+     the candidate's **own rule atoms** `Ci` and asks whether the resulting stratum-contrast reflects
+     genuine effect concentration or residual confounding — proven (§15.2's closed-form audit,
+     matched-pair counterexample) to be a functional of the same low-dimensional `T×Ci` cell-mean
+     summary that both stories can produce indistinguishably, using only "a frozen candidate's
+     condition tuple + frame alone." `TASK-085` §4.1's `π`/`δ_A`/`δ_C` decomposition is the same
+     inferential act one level up: is `O1`'s excess over `O2` genuine concentration or dilution-
+     confounding, using the identical information set. The correspondence is exact for compound
+     (`k≥2`) rules using a rule atom as the stratifier (direct reuse of `ADR-077`'s own proof, same
+     information set, confirmed); it extends soundly (not by hand-wave) to `§4.4`'s arbitrary-covariate
+     heterogeneity case because `TASK-080` §15.2's closed-form derivation is generic in the
+     stratifying covariate `C`, not specific to "`C` is a rule atom" — this independently justifies the
+     design doc's own §4.4 reduction rather than merely trusting it. **No new observable constraint
+     appears anywhere in `TASK-085`'s proposed `O2` avenues that `TASK-080` didn't have**: §4.2 uses
+     only the identical information set (correspondence holds cleanly); §4.3 (cross-candidate overlap)
+     is correctly **not** claimed to inherit `ADR-077`'s proof (explicitly evaluated fresh, since it is
+     a genuinely new information source outside `ADR-077`'s own stated scope) and is separately shown
+     unreliable on practical, not formal-impossibility, grounds; §4.5 (Manski bound) is evaluated
+     independently on its own terms. `adjusted_effect`/`G16`'s classification (introduced in §5.1 for
+     the reporting ladder) are explicitly and correctly **not** used to sneak past the `O2`
+     non-identifiability finding — the design states plainly that neither identifies `O2`. One minor
+     completeness note: the design doc's §4.2 text scopes its citation of `ADR-077` to compound (`k≥2`)
+     rules only, leaving the `k=1` case's coverage implicit in §4.4's reduction rather than stated
+     explicitly — the reduction is sound (confirmed above) but a future revision of this design should
+     state the `k=1` coverage path explicitly rather than leaving it to be inferred.
+  6. **Historical custody — CONFIRMED.** `TASK-073` and `TASK-083`'s own `TASKS.md` entries
+     (independently re-read, not merely trusted from the design doc's own claim) both still read
+     **FAILED**, unmodified by this design or its review. `ADR-015`'s cited precedent independently
+     re-read and confirmed genuinely on point: "The already-frozen 2026-08-14 `TASK-019` dry-run
+     artifact... is left exactly as written and is not re-graded" — the same prospective-only,
+     no-retroactive-recomputation pattern the design proposes for metric 6. `decision-gate.md` carries
+     no formal version field to anchor a boundary against (confirmed by direct inspection); the design
+     correctly defers the literal edit and its version boundary to whichever future task is authorized
+     to touch `decision-gate.md`, consistent with how this project's append-only decision-gate.md
+     entries already work in practice (e.g. `TASK-073`'s own "new decision-gate.md entry").
+  **Seventh question (migration constraint, scoped as a future implementation concern, not
+  pass/fail):** the design doc (§3, "What it costs") explicitly states the internal/persistence rename
+  will be "versioned per `ECONOMIC_IMPACT_CONTRACT_VERSION`, following this project's own `ADR-015`/
+  `ADR-064` precedent for versioning a corrected semantic **without silently re-grading old
+  artifacts**" — this satisfies the minimum bar (a migration constraint is stated: old frozen runs stay
+  interpretable) without being required to fully solve the implementation question here, exactly as
+  `ADR-089` scoped it.
+  **What doesn't hold, precisely (why not a clean `APPROVED`):** tier 2 of the reporting ladder
+  (§5.2/§7), as literally specified, computes its per-record effect term and its population-count
+  aggregation term from two different underlying populations (development-split-only vs. the combined
+  dev+validation+future_holdout window) while the design doc's own text asserts they are "the same
+  population `E`." This is a real, code-confirmed inaccuracy in the design's own description, not a
+  speculative concern — it must be corrected (or explicitly disclosed as a stated, defended assumption)
+  before an implementation task builds tier 2 as currently written. It does **not** undermine the
+  central `O1`/`O2`/`O3` non-conflation architecture, `ADR-089`'s actual approval standard, which holds
+  on independent re-derivation.
+  Full independent-verification detail is recorded inline above (per-check); adversarial construction
+  script and raw output: `scripts/review_task085_check2_metric6_adversarial.py`,
+  `docs/benchmark/task-085-review-check2-adversarial-metric6-raw.json`.
+- **Prior status (2026-08-31, `ADR-088`), superseded above:** DESIGN COMPLETE, PENDING `CODE_REVIEWER`
+  REVIEW. Full design: `docs/analytics/task-085-economic-impact-target-population-semantics.md`.
+  **Recommendation: (a) + (c) combined — not (a) alone, not (b).** (a) rename is necessary but
+  insufficient on its own (the customer-facing "exposure not savings" wording is already correct per
+  `validation-contract.md` §8/`finding-product-contract.md`; the gap is internal field/metric naming —
+  `historical_impact`, `decision-gate.md`'s own metric-6 name — and the benchmark comparison itself).
+  (b) partial-identification bound for attributable impact is **not achievable without a new,
+  unverifiable assumption** — the strongest candidate-internal avenue inherits `TASK-080`/`ADR-077`'s
   already-independently-reviewed non-identifiability result by direct structural correspondence (same
   decomposition problem, same information source); two further avenues named in `ADR-087`
   (cross-candidate overlap, within-candidate heterogeneity) and a classical Manski-style
