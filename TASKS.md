@@ -6227,8 +6227,19 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** **APPROVED WITH REVISION NEEDED (2026-08-31, independent adversarial `CODE_REVIEWER`
-  review against `ADR-089`'s six specified checks and precisely-scoped approval criterion).** The
+- **Status:** **CLOSED — DESIGN APPROVED (2026-08-31, founder + independent `CODE_REVIEWER`,
+  `ADR-089`).** Corrected directly, no new review round required (documentation/specification-level
+  finding, `ADR-089`'s own fork): tier 2's population is now normatively `E_dev` (development-split
+  only, matching exactly where `adjusted_effect` is fit), never silently transported to the combined
+  window — see the design document's own inline correction note in §5.2 and the restated `O1`
+  estimand in §7. The independently-found `active_booking_months` time-horizon divergence is folded
+  into §8.1 as further, independent confirmation `O1 ≠ O3`. `TASK-086` (implementation of the
+  approved reporting semantics) and `TASK-087` (a separate, later design task for a genuinely new
+  like-with-like economic-calibration metric) are opened next, kept deliberately apart — no new
+  benchmark gate is designed inside the reporting-semantics implementation.
+- **Prior review verdict (2026-08-31, independent adversarial `CODE_REVIEWER` review against
+  `ADR-089`'s six specified checks and precisely-scoped approval criterion, before the correction
+  above):** APPROVED WITH REVISION NEEDED. The
   central mandate — are `O1`/`O2`/`O3` genuinely distinct estimands, never silently conflated — **holds
   up under independent re-derivation on all six checks plus the seventh.** One narrow, concrete defect
   is found in the three-tier ladder's own literal specification (check 3) that does **not** breach the
@@ -6434,6 +6445,73 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   legitimate outcome per this project's own discipline), the prohibited easy path is confirmed
   unused, the decision-gate metric's fate is addressed as a reasoned consequence not an assumption,
   and `CODE_REVIEWER` independently reviews the design before any implementation task opens.
+
+### TASK-086 — Implement `TASK-085`'s approved reporting semantics (rename + evidence-tiered ladder; no new benchmark gate)
+
+- **Owner:** STATISTICS
+- **Support:** ARCHITECT
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-085` (`CLOSED — DESIGN APPROVED`, `ADR-089`)
+- **Scope, built exactly to `TASK-085`'s corrected specification — nothing invented here:**
+  1. Internal/persistence rename: `historical_impact`/`EconomicImpactResult`/comparable fields moved
+     to `O1`-honest naming ("candidate exposure"), versioned per `ECONOMIC_IMPACT_CONTRACT_VERSION`
+     (design doc §3) — old frozen artifacts stay interpretable, not re-graded.
+  2. Tier 1 (unchanged computation, `E`, raw `harm_per_booking`) and tier 2 (`E_dev`-scoped,
+     `G06`'s `adjusted_effect`, **as corrected 2026-08-31** — never transported to the combined
+     window) implemented per the design doc's §5.2/§7 exactly as written after correction.
+  3. Tier 3's "always-empty slot" semantics: no fallback bridging evidence level to
+     attributable-impact language in the absence of a real `G13`/`G14` design — implemented as a
+     structural absence (matching `G16`'s own "no reachable state" discipline, `TASK-081`'s own
+     precedent), not a conditional that could someday silently activate on the wrong basis.
+  4. User-facing disclosure text per §5.3 (the qualitative `G16` caveat, the plain
+     non-identifiability statement) — reusing already-computed quantities only.
+- **Explicitly not in scope, hard rule:** no new `GateId`/`GateSpec`; no change to
+  `decision-gate.md`'s own metric bands or its metric-6 entry (that is `TASK-087`'s territory, not
+  this task's); no new benchmark-comparison logic of any kind — this task changes reporting/naming
+  and the tiered-availability logic only, never what gets graded or how.
+- **Migration constraint, binding (per `TASK-085` §3):** old frozen validation/evaluation artifacts
+  must remain loadable and interpretable under their own recorded contract version — no silent
+  re-grading, matching `ADR-015`'s and `ADR-064`'s own precedent.
+- **Done when:** all four scope items are implemented and tested (synthetic form tests plus the
+  historical-artifact-reproducibility check per the migration constraint), the tier-2 fix from
+  `TASK-085`'s correction is verified against the real code (not merely re-implemented per the design
+  doc's prose), and `CODE_REVIEWER` independently confirms before this is considered production-ready.
+
+### TASK-087 — Design a like-with-like economic-impact calibration metric (successor to retired metric 6; design-only)
+
+- **Owner:** ARCHITECT
+- **Support:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P1
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-085` (`CLOSED — DESIGN APPROVED`, `ADR-089` — establishes that old metric 6
+  compares two different estimands and should retire prospectively)
+- **Explicitly separate from `TASK-086`** — no new benchmark gate is designed inside the reporting-
+  semantics implementation task, per the founder's own explicit instruction.
+- **Starting point, already sketched (not specified) in `TASK-085` §8.3 — investigate, do not assume
+  it is sufficient as written:** an out-of-sample calibration check for `O1` against its own realized
+  value on the same candidate-defined population `E`, in the `future_holdout` window — analogous in
+  spirit to `G10`'s existing temporal-stability check, but for the impact quantity specifically. Uses
+  only the candidate's own defined population and the dataset's realized outcomes — no ground-truth
+  pattern membership anywhere in it.
+- **Explicit, binding prohibition, carried forward:** do not propose narrowing `O1`'s population using
+  `O3`'s own membership information as any part of this metric — that is the prohibited easy path
+  `ADR-087`/`ADR-089` already rejected, and it is prohibited here too, not just in `TASK-085`.
+- **Scope questions to resolve, not assumed:** whether this belongs in `decision-gate.md`'s six-metric
+  slot at all, or is better owned by a regression/form-test suite (`TASK-085` §8.3's own observation
+  that "is `O1` well-calibrated for its own stated target" mostly re-confirms a property `TASK-084`
+  already established, better suited to a form test than a founder-level go/no-go gate, per this
+  project's `G05`/`G12` precedent); what `O2`'s tier-3 "accurately predicts `O3`" comparison (§8.3
+  question 2) would need once a level 4–5 candidate first exists, given it has no live population to
+  grade against today; whether `decision-gate.md` should carry five graded metrics instead of six, or
+  a differently-shaped sixth.
+- **Explicitly not in scope:** any implementation, any `discovery.engine`/estimator/gate code change.
+  If this design calls for one, it is a distinct, later task.
+- **Done when:** a specific, disclosed recommendation exists for what (if anything) replaces metric
+  6's slot, addressing the scope questions above, with `CODE_REVIEWER` independent review before any
+  implementation task opens.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
