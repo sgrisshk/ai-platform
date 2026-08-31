@@ -6227,7 +6227,34 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P0
-- **Status:** NOT_STARTED
+- **Status:** **DESIGN COMPLETE (2026-08-31, `ADR-088`), PENDING `CODE_REVIEWER` REVIEW.** Full design:
+  `docs/analytics/task-085-economic-impact-target-population-semantics.md`. **Recommendation: (a) +
+  (c) combined — not (a) alone, not (b).** (a) rename is necessary but insufficient on its own (the
+  customer-facing "exposure not savings" wording is already correct per `validation-contract.md` §8/
+  `finding-product-contract.md`; the gap is internal field/metric naming — `historical_impact`,
+  `decision-gate.md`'s own metric-6 name — and the benchmark comparison itself). (b) partial-
+  identification bound for attributable impact is **not achievable without a new, unverifiable
+  assumption** — the strongest candidate-internal avenue inherits `TASK-080`/`ADR-077`'s
+  already-independently-reviewed non-identifiability result by direct structural correspondence (same
+  decomposition problem, same information source); two further avenues named in `ADR-087`
+  (cross-candidate overlap, within-candidate heterogeneity) and a classical Manski-style
+  support-restriction bound are each checked and also do not clear the bar. (c) evidence-dependent
+  reporting is adopted: a three-tier ladder (raw "candidate exposure" at level 1+; "adjustment-
+  consistent candidate exposure," same population, `G06`'s already-computed `adjusted_effect` in place
+  of raw `harm_per_booking`, at level 3+; "attributable harmful impact," reachable only via a genuine
+  `G13`/`G14` identification design at level 4-5, currently an honestly-empty slot since no candidate
+  has ever reached that level) reusing only already-computed quantities — no new gate, no new
+  threshold. Formal estimands for all three objects (observed candidate exposure / attributable
+  harmful impact / latent affected-population impact) stated in the design doc §7. **Metric 6's fate,
+  reached as a consequence:** as currently defined it compares the candidate's own exposure (`O1`)
+  against the latent ground-truth pattern's own impact (`O3`) — two different estimands, confirmed by
+  reading `evaluate_benchmark.py` directly — and should be retired from the decision gate
+  prospectively; `TASK-073`'s and `TASK-083`'s historical `FAILED` verdicts are **not** rewritten. A
+  like-with-like replacement is sketched (§8.3: an out-of-sample calibration check for `O1` against its
+  own realized population, never a ground-truth-overlap narrowing) but not specified or implemented —
+  gate/threshold changes are out of this task's scope; naming the follow-on task is left to whoever is
+  authorized to edit `decision-gate.md`. Prohibited easy path ("fix metric 6 to compare candidate
+  overlap with ground truth") confirmed unused throughout.
 - **Depends on:** `TASK-084` (`APPROVED`, `ADR-086` — the estimator is confirmed arithmetically
   correct against the current contract; the error is a mismatch between what's measured and what's
   claimed)

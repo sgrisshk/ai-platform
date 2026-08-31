@@ -4767,3 +4767,66 @@ the design from quietly collapsing back into "make the benchmark number look bet
 
 **Consequences.** `TASK-085` is opened in `TASKS.md`, design-only. `TASK-057` remains paused,
 unaffected. No implementation task exists yet.
+
+## ADR-088 — `TASK-085` design produced: economic-impact reporting recommends rename + evidence-tiered
+disclosure; partial-identification bound found not achievable; metric 6 recommended for retirement
+(design-only, pending `CODE_REVIEWER` review)
+
+**Date:** 2026-08-31
+**Status:** Design submitted for independent review. **Not yet reviewed or approved** —
+`CODE_REVIEWER`'s independent verification, not performed by this ADR or by `ARCHITECT`, is required
+before any implementation task opens, matching `ADR-087`'s own binding instruction and this project's
+decide/implement/review separation.
+
+**Decision.** `TASK-085`'s design is complete:
+`docs/analytics/task-085-economic-impact-target-population-semantics.md`. All three objects `ADR-087`
+fixed (observed candidate exposure `O1`, attributable harmful impact `O2`, latent affected-population
+impact `O3`) are given names, target populations, and formal estimands (design doc §7). All three
+candidate semantics were investigated on the merits, none preselected:
+
+- **(a) Rename only.** Found necessary but insufficient: `validation-contract.md` §8's "exposure, not
+  savings" rule is already correctly implemented at the customer-facing product layer
+  (`finding-product-contract.md`'s impact-framing-label rule) — the actual gap is internal/persistence
+  field naming (`historical_impact`, `EconomicImpactResult`) and `decision-gate.md`'s own metric-6
+  vocabulary, plus the benchmark comparison methodology itself, none of which a rename alone fixes.
+- **(b) Partial-identification bound for `O2`.** Investigated seriously, not assumed answerable or
+  unanswerable going in. **Finding: not achievable without introducing a new, unverifiable
+  assumption.** The strongest candidate-internal avenue (using the candidate's own condition structure)
+  is shown to be the same decomposition problem, using the same information source, that `TASK-080`/
+  `ADR-077`'s own independently `CODE_REVIEWER`-approved (`ADR-078`) non-identifiability result already
+  resolved negatively — applied here by direct structural correspondence, not re-derived from scratch.
+  Two further avenues `ADR-087` named (cross-candidate overlap, within-candidate heterogeneity) and a
+  classical Manski-style support-restriction bound were each checked independently and also do not
+  clear the bar without an external assumption.
+- **(c) Evidence-dependent reporting.** Adopted, combined with (a). A three-tier ladder keyed to the
+  existing evidence levels: raw "candidate exposure" (level 1+, unchanged computation); "adjustment-
+  consistent candidate exposure" (level 3+, substitutes `G06`'s already-computed `adjusted_effect` for
+  raw `harm_per_booking` over the *same* population — explicitly not claimed to solve the population/
+  dilution problem, only to make the per-record term more defensible); "attributable harmful impact"
+  (level 4-5 only, reachable exclusively through a genuine `G13`/`G14` identification design, honestly
+  disclosed as an empty slot today since no candidate in this project's history has ever reached that
+  level). No new gate, threshold, or statistical machinery — reuses only already-computed quantities
+  (`adjusted_effect`, `G16`'s per-atom `confound_like`/`indeterminate` classification).
+
+**Metric 6's fate — reached as a consequence of the above, not assumed going in.** Reading
+`evaluate_benchmark.py` directly confirms metric 6 compares `O1` (`reported_point`, the candidate's own
+midpoint exposure) against `O3` (`truth_impact`, the ground-truth pattern's own realized impact) — two
+different estimands under the design's own semantics. **Recommendation: retire metric 6 as currently
+defined from the decision gate, prospectively only.** `TASK-073`'s and `TASK-083`'s own historical
+`FAILED` verdicts are **not rewritten** — they stand exactly as recorded under the contract that
+governed them, per `ADR-015`'s versioning precedent, which this design does not deviate from. A
+like-with-like replacement direction is sketched (an out-of-sample calibration check for `O1` against
+its own realized population in the future_holdout window, structurally analogous to `G10` but for the
+impact quantity — explicitly **not** a ground-truth-overlap narrowing, the prohibited easy path) but is
+not specified or built here: `decision-gate.md` itself is not edited by this design, since gate/
+threshold changes are outside `TASK-085`'s own scope. Naming and building that replacement, if pursued,
+is a distinct, later task opened only after this design's own review completes.
+
+**Prohibited easy path, confirmed unused.** No part of this design proposes narrowing `O1`'s reported
+population using `O3`'s own membership information, in the benchmark comparison or anywhere else — the
+design doc's §8.3 states explicitly what is and is not proposed for exactly this reason.
+
+**Consequences.** `TASK-085`'s `TASKS.md` entry is updated to `DESIGN COMPLETE, PENDING CODE_REVIEWER
+REVIEW`. No implementation task is opened by this ADR — `CODE_REVIEWER` review is required first, per
+`ADR-087`'s own binding instruction. `decision-gate.md`, `validation-contract.md`, `economic_impact.py`,
+`apply.py`, and `discovery.engine` are all unchanged by this ADR or by the design it records.
