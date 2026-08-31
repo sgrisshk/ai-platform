@@ -4687,3 +4687,83 @@ correlations without testing whether the underlying causal/architectural claim a
 
 **Consequences.** `TASK-084`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's five
 checks and precisely-scoped approval criterion. `TASK-057` remains paused, unaffected.
+
+## ADR-087 — `TASK-085` opened: economic-impact target-population semantics design (not an estimator fix); three objects that must not be conflated
+
+**Date:** 2026-08-31
+**Status:** Accepted — opens `TASK-085`, design-only. No implementation task is authorized by this
+ADR.
+
+**Decision.** `TASK-084`'s `APPROVED` (`ADR-086`) decomposition localized the problem precisely: the
+estimator is arithmetically correct against the current contract — it estimates "value at stake" for
+exactly the records the candidate rule defines (`validation-contract.md` §8's own definition). The
+error arises from comparing that quantity against the economic impact of the latent true affected
+population. **The next question is genuinely semantic, not statistical:** what is the product entitled
+to call the "economic impact" of a discovered surrogate pattern?
+
+**Three objects `TASK-085` must keep distinct — never conflated into one number or one name:**
+
+1. **Observed candidate exposure.** The economic quantity for the whole population the candidate
+   rule actually defines. Observable in production, matches the current estimand exactly — and is
+   **not** an estimate of the true latent mechanism's harm.
+2. **Attributable harmful impact.** The portion of observed candidate exposure that can be
+   *justifiably* linked to the actual discovered harmful mechanism. `TASK-084` already showed this
+   cannot be derived automatically from a broad surrogate rule.
+3. **Latent affected-population impact.** The quantity the synthetic benchmark knows via injected
+   ground truth — which production, in general, does not know. **Ground truth must never become a
+   production narrowing procedure**; its only legitimate role remains benchmark-side comparison.
+
+**Central design question, fixed now:** what economic quantity can be **honestly reported to a user**
+for a discovered surrogate rule, when the system observes the candidate population but does not
+identify the latent affected subpopulation?
+
+**At least three candidate semantics `TASK-085` must investigate, none preselected as the answer:**
+
+- **(a) Keep the current estimate, rename it accurately** — from a causal-sounding "impact" to
+  something like "candidate value-at-stake" or "candidate exposure" — changing only the claim
+  language, not the computation.
+- **(b) Partial-identification interval/bound for attributable impact**, if one can be derived
+  *without introducing new, unverifiable assumptions* — investigate whether this is achievable at
+  all before assuming it is.
+- **(c) Evidence-dependent reporting.** Descriptive exposure is always available; an *attributable*
+  economic-impact claim is only made available when additional identifying information exists to
+  support it (mirroring this project's own evidence-level ladder discipline).
+
+**Explicit prohibition, carried forward from `TASK-084`/`ADR-086`'s own finding:** the doubly-narrowed
+diagnostic `TASK-084` built must **not** be used as proof of the absence of estimator bugs, and must
+**not** become a production estimator. `ADR-086`'s own review already constructed a class of
+independent errors this specific diagnostic transformation can mask. Its role stays forensic evidence
+for `TASK-084`'s own case, not a general-purpose tool this design may reuse as-is.
+
+**Acceptance for this design task — explicitly not benchmark-number-oriented.** The design must state:
+the name of each quantity; its target population; its formal estimand; the evidence claim it
+permits; behavior under a broad surrogate/partial-coverage rule; what is shown to a user when
+attribution is not possible; how the benchmark metric should compare like-with-like (not currently
+the case, per `TASK-084`'s own finding); and what additional data source, if any, could unlock a
+stronger claim in the future.
+
+**Explicit, binding prohibition on the easy path:** do **not** propose "fix metric 6 to compare the
+candidate's overlap with ground truth" as a design outcome. That would improve the benchmark number
+while measuring the system's ability to use information a production system does not actually have
+access to — exactly the premature-precision failure mode this project's whole discipline
+(`ADR-007`/`012`) exists to prevent.
+
+**The decision-gate metric's own fate is in scope, but only as a consequence, not a starting
+assumption.** `TASK-083` failed specifically on metric 6. If the current `219.9%` figure is shown to
+compare two genuinely different estimands, that may mean metric 6 is semantically invalid as a
+product-quality gate as currently defined — but this conclusion, if reached, must **follow from**
+this design's own reasoning, not be assumed going in. **`TASK-073`'s and `TASK-083`'s own historical
+`FAILED` verdicts are not rewritten** — they remain accurate records under the contract that governed
+them at the time; any metric-definition change this design produces applies only prospectively, per
+this project's own versioning discipline (`ADR-015`'s precedent).
+
+**Explicitly not in scope:** any implementation, estimator change, or `discovery.engine` change.
+Implementation, if this design calls for one, is a distinct, later task, opened only after
+independent review.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the three objects, the candidate semantics
+to investigate, and the prohibited easy path before any design work begins — specifically to prevent
+the design from quietly collapsing back into "make the benchmark number look better."
+
+**Consequences.** `TASK-085` is opened in `TASKS.md`, design-only. `TASK-057` remains paused,
+unaffected. No implementation task exists yet.

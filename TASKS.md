@@ -6221,6 +6221,68 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   the diagnostic-metric constraint is honored throughout, and `CODE_REVIEWER` independently confirms
   before any follow-on design task is named as ready to open.
 
+### TASK-085 — Economic-impact target-population semantics design (`ADR-087`; design-only, no estimator/implementation change)
+
+- **Owner:** ARCHITECT
+- **Support:** STATISTICS
+- **Reviewer:** CODE_REVIEWER
+- **Priority:** P0
+- **Status:** NOT_STARTED
+- **Depends on:** `TASK-084` (`APPROVED`, `ADR-086` — the estimator is confirmed arithmetically
+  correct against the current contract; the error is a mismatch between what's measured and what's
+  claimed)
+- **Central design question:** what economic quantity can be honestly reported to a user for a
+  discovered surrogate rule, when the system observes the candidate population but does not identify
+  the latent affected subpopulation?
+- **Three objects that must stay distinct — never conflated into one number or one name:**
+  1. **Observed candidate exposure** — the economic quantity for the whole population the candidate
+     rule actually defines. Observable in production, matches the current estimand exactly, and is
+     **not** an estimate of the true latent mechanism's harm.
+  2. **Attributable harmful impact** — the portion of observed candidate exposure that can be
+     *justifiably* linked to the actual discovered harmful mechanism. `TASK-084` already showed this
+     cannot be derived automatically from a broad surrogate rule.
+  3. **Latent affected-population impact** — the quantity the synthetic benchmark knows via injected
+     ground truth, which production, in general, does not know. **Ground truth must never become a
+     production narrowing procedure** — its only legitimate role stays benchmark-side comparison.
+- **At least three candidate semantics to investigate, none preselected as the answer:**
+  1. Keep the current estimate, rename it accurately (causal-sounding "impact" → "candidate
+     value-at-stake"/"candidate exposure") — claim-language change only, computation unchanged.
+  2. Partial-identification interval/bound for attributable impact, **if achievable without
+     introducing new, unverifiable assumptions** — investigate whether this is possible at all before
+     assuming it is.
+  3. Evidence-dependent reporting — descriptive exposure always available; an attributable
+     economic-impact claim made available only when additional identifying information exists to
+     support it, mirroring this project's own evidence-level ladder discipline.
+- **Explicit prohibition, carried forward from `TASK-084`/`ADR-086`:** the doubly-narrowed diagnostic
+  `TASK-084` built must not be used as proof of the absence of estimator bugs, and must not become a
+  production estimator — `ADR-086`'s own review already constructed a class of independent errors
+  that specific diagnostic transformation can mask. It stays forensic evidence for `TASK-084`'s own
+  case, not a general-purpose tool this design may reuse as-is.
+- **Acceptance for this design task, explicitly not benchmark-number-oriented — must state:** the
+  name of each quantity; its target population; its formal estimand; the evidence claim it permits;
+  behavior under a broad surrogate/partial-coverage rule; what is shown to a user when attribution is
+  not possible; how the benchmark metric should compare like-with-like (not currently the case, per
+  `TASK-084`'s own finding); and what additional data source, if any, could unlock a stronger claim in
+  the future.
+- **Explicit, binding prohibition on the easy path:** do not propose "fix metric 6 to compare the
+  candidate's overlap with ground truth" as a design outcome — that improves the benchmark number
+  while measuring the system's ability to use information a production system does not actually have.
+- **The decision-gate metric's own fate is in scope, but only as a consequence, not a starting
+  assumption.** If the current `219.9%` figure is shown to compare two genuinely different estimands,
+  metric 6 may be semantically invalid as a product-quality gate as currently defined — but this
+  conclusion, if reached, must follow from this design's own reasoning, not be assumed going in.
+  **`TASK-073`'s and `TASK-083`'s own historical `FAILED` verdicts are not rewritten** — any
+  metric-definition change this design produces applies only prospectively (`ADR-015`'s
+  versioning precedent).
+- **Explicitly not in scope:** any implementation, estimator change, or `discovery.engine` change.
+  Implementation, if this design calls for one, is a distinct, later task, opened only after
+  independent review.
+- **Done when:** all acceptance items above are addressed with a specific, disclosed recommendation
+  (or an honest disclosure that no candidate semantics clears the requirements yet, itself a
+  legitimate outcome per this project's own discipline), the prohibited easy path is confirmed
+  unused, the decision-gate metric's fate is addressed as a reasoned consequence not an assumption,
+  and `CODE_REVIEWER` independently reviews the design before any implementation task opens.
+
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
 - **Owner:** ARCHITECT
