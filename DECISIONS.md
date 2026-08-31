@@ -4830,3 +4830,72 @@ design doc's §8.3 states explicitly what is and is not proposed for exactly thi
 REVIEW`. No implementation task is opened by this ADR — `CODE_REVIEWER` review is required first, per
 `ADR-087`'s own binding instruction. `decision-gate.md`, `validation-contract.md`, `economic_impact.py`,
 `apply.py`, and `discovery.engine` are all unchanged by this ADR or by the design it records.
+
+## ADR-089 — Adversarial review of `TASK-085`'s design: six checks, centered on `O1`/`O2`/`O3` semantic non-conflation
+
+**Date:** 2026-08-31
+**Status:** Accepted, contingent — authorizes only the independent `CODE_REVIEWER` review now. Neither
+implementation nor `metric 6`'s retirement is authorized until this review's verdict.
+
+**Decision.** `TASK-085`'s design (rename + three-tier evidence-dependent reporting; `metric 6`
+recommended for prospective retirement as a cross-estimand comparison) is judged mature enough for
+independent review. The review is centered on whether the design's central claim — `O1` (observed
+candidate exposure), `O2` (attributable harmful impact), `O3` (latent affected-population impact) are
+genuinely distinct estimands, never silently conflated — actually holds.
+
+**Six required checks, founder-specified verbatim in substance:**
+
+1. **`O1 ≠ O3`.** Independently trace `evaluate_benchmark.py` to both quantities and prove `metric 6`
+   genuinely compares candidate-population exposure against ground-truth affected-population impact —
+   check not just naming but the population mask, the effect quantity, the aggregation, and the time
+   horizon each side actually uses.
+2. **Prospective retirement of `metric 6` follows from estimand mismatch, not from an inconvenient
+   `219.9%`.** Adversarial test: construct a case where the old `metric 6` looks *good* by accident
+   under strong population mismatch, and another where it looks *bad* under otherwise-correct `O1`
+   calibration. If both are constructible, the metric is invalid as a quality gate independent of any
+   specific benchmark result — that is the standard to clear, not merely "the number was bad."
+3. **The three-tier reporting ladder, checked literally at each level:** population → effect →
+   aggregation → permitted claim. Specifically verify level 3 (substituting `G06`'s `adjusted_effect`
+   for raw `harm_per_booking` on the *same* candidate population) does not silently become a claim
+   about the attributable *affected* population — it must remain candidate exposure,
+   adjustment-consistent, nothing more.
+4. **Level 4–5 empty-slot semantics.** Confirm the absence of a real `G13`/`G14` identification design
+   today does not create a fallback like "evidence level is high, so treat `O1`/`O2` as attributable
+   impact anyway." The slot must stay genuinely unavailable until an actual identification design
+   exists — not quietly bridged by evidence-level proxy reasoning.
+5. **Non-identifiability reuse, independently re-verified, not accepted by citation.** The design
+   claims a structural correspondence between the rejected partial-identification-through-condition-
+   structure approach (`O2`) and `TASK-080`/`ADR-077`'s already-reviewed non-identifiability result.
+   The reviewer must independently confirm the *same* insufficient information set is actually being
+   used, and that no new observable constraint has appeared that would make the correspondence
+   inapplicable — citing `ADR-077` is not itself proof.
+6. **Historical custody.** `TASK-073`/`TASK-083` must remain unchanged `FAILED` under the gate that
+   governed them at the time. Any prospective `metric 6` retirement must have an explicit
+   contract/version boundary — no retroactive recomputation of history, matching `ADR-015`'s own
+   precedent for how this project versions contract changes.
+
+**A seventh question, raised but explicitly scoped as a future implementation concern, not part of
+this review's pass/fail:** is renaming internal types/fields alone safe, or does it break
+reproducibility of old frozen artifacts/API contracts? A real implementation may need a semantic
+alias/versioning approach rather than a physical rename. The design must at minimum state a migration
+constraint — old frozen runs stay interpretable — without being required to solve the full
+implementation question here.
+
+**Approval criterion, stated precisely:** `O1`, `O2`, and `O3` have explicitly distinct target
+populations/claims; the system nowhere silently promotes `O1`/`O2` to attributable impact without new
+identifying information; the old `metric 6` is proven a cross-estimand comparison independent of its
+specific numeric result; its retirement applies only prospectively.
+
+**Explicit sequencing, binding:** if `APPROVED`, the next steps are **not** an immediate jump to
+implementing the sketched holdout-calibration replacement metric. Two separate tasks follow instead:
+(1) implementation of the reporting semantics this design settles, and (2) a distinct, later design
+task for a genuinely new like-with-like economic-calibration metric — named, not opened or scoped by
+this ADR.
+
+**Anti-overfitting discipline, honoured.** This ADR fixes the review's six checks and precise approval
+standard before the review runs, specifically so a review cannot declare success by re-reading the
+design's own claims without independently re-deriving the population/effect/aggregation trace and the
+non-identifiability correspondence it depends on.
+
+**Consequences.** `TASK-085`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's six
+checks and approval standard. `TASK-057` remains paused, unaffected.
