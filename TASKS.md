@@ -6454,6 +6454,11 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Priority:** P0
 - **Status:** NOT_STARTED
 - **Depends on:** `TASK-085` (`CLOSED — DESIGN APPROVED`, `ADR-089`)
+- **Confirmed by the founder (2026-08-31/2026-09-01) as ready for direct implementation — design
+  authority is closed, scope stays mechanical.** Runs in parallel with `TASK-087`; the two tasks do
+  not depend on each other (`TASK-087`'s object is a future quality metric's validity, not this
+  task's naming/reporting API). **No change of any kind to tier 1's computational semantics, `G06`,
+  any gate, or any benchmark band** — this task is reporting/naming/tiered-availability only.
 - **Scope, built exactly to `TASK-085`'s corrected specification — nothing invented here:**
   1. Internal/persistence rename: `historical_impact`/`EconomicImpactResult`/comparable fields moved
      to `O1`-honest naming ("candidate exposure"), versioned per `ECONOMIC_IMPACT_CONTRACT_VERSION`
@@ -6488,17 +6493,50 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Status:** NOT_STARTED
 - **Depends on:** `TASK-085` (`CLOSED — DESIGN APPROVED`, `ADR-089` — establishes that old metric 6
   compares two different estimands and should retire prospectively)
-- **Explicitly separate from `TASK-086`** — no new benchmark gate is designed inside the reporting-
-  semantics implementation task, per the founder's own explicit instruction.
+- **Explicitly separate from `TASK-086`, runs in parallel, no dependency either direction.** No new
+  benchmark gate is designed inside the reporting-semantics implementation task — this task's object
+  is a future quality metric's *validity*, never the naming/reporting API `TASK-086` implements.
+- **Central criterion, preregistered now, stricter than a loose "future-holdout like-with-like"
+  (founder, 2026-09-01) — protects specifically against a new, differently-shaped instance of `O1≠O3`:**
+  the new metric must evaluate the **calibration of the exact economic quantity the production system
+  actually predicts**, for the **same target population and time support**, using **only information
+  available at prediction time** — and the realized comparator must become available **only after**
+  that prediction time. Any design that lets the comparator side use information the production
+  prediction itself could not have used is out, regardless of how it's framed.
 - **Starting point, already sketched (not specified) in `TASK-085` §8.3 — investigate, do not assume
   it is sufficient as written:** an out-of-sample calibration check for `O1` against its own realized
   value on the same candidate-defined population `E`, in the `future_holdout` window — analogous in
   spirit to `G10`'s existing temporal-stability check, but for the impact quantity specifically. Uses
   only the candidate's own defined population and the dataset's realized outcomes — no ground-truth
   pattern membership anywhere in it.
-- **Explicit, binding prohibition, carried forward:** do not propose narrowing `O1`'s population using
-  `O3`'s own membership information as any part of this metric — that is the prohibited easy path
-  `ADR-087`/`ADR-089` already rejected, and it is prohibited here too, not just in `TASK-085`.
+- **Seven required checks for this design, all binding:**
+  1. **Identical population masks on both sides** of the comparison — the predicted-side population
+     and the realized-side population must be the same mask, not merely similar or overlapping.
+  2. **Identical economic unit and time horizon** on both sides — no unit or window mismatch of the
+     kind `TASK-085`'s own §8.1 found between `O1` and `O3`.
+  3. **No ground-truth overlap or narrowing anywhere** — the prohibited easy path
+     `ADR-087`/`ADR-089` already rejected for `TASK-085`, binding here too, not just there.
+  4. **No leakage from `future_holdout` into discovery, fitting, or the calibration target itself** —
+     the realized comparator must be genuinely unavailable at the moment the prediction is formed, not
+     merely unused by convention.
+  5. **Defined behavior under population drift** — state explicitly what the metric does when the
+     candidate-defined population's own composition shifts between the prediction window and the
+     realization window, rather than leaving this undefined.
+  6. **Calibration error kept separate from candidate-localization quality** — a metric that
+     conflates "is the predicted quantity well-calibrated for its own stated population" with "is the
+     candidate's population a good localization of the true mechanism" would reintroduce exactly the
+     kind of estimand conflation this whole chain (`TASK-084`/`085`) exists to eliminate.
+  7. **Synthetic adversarial cases, modeled on `TASK-085`'s own Case A/B** (`ADR-089` Check 2 — a case
+     that looks good by accidental numeric coincidence despite zero true overlap, and a case that
+     looks bad despite a provably unbiased estimator) — the design must show the new metric
+     distinguishes a well-calibrated `O1` from a poorly-calibrated `O1` **independent of** that
+     candidate's overlap with latent ground truth, which the old metric 6 could not do.
+- **Explicit, binding boundary — "no valid replacement" is an acceptable outcome, not a failure to
+  avoid at cost:** this task is **not** obligated to produce a working replacement metric. If the
+  available historical data does not support honestly constructing a prospective, out-of-sample
+  comparator meeting all seven checks above, the correct outcome is **`NO VALID REPLACEMENT YET`**,
+  disclosed plainly. A decision gate with one fewer graded metric is a better outcome than a new
+  metric that quietly reintroduces a cross-estimand comparison under a different name.
 - **Scope questions to resolve, not assumed:** whether this belongs in `decision-gate.md`'s six-metric
   slot at all, or is better owned by a regression/form-test suite (`TASK-085` §8.3's own observation
   that "is `O1` well-calibrated for its own stated target" mostly re-confirms a property `TASK-084`
@@ -6509,9 +6547,13 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
   a differently-shaped sixth.
 - **Explicitly not in scope:** any implementation, any `discovery.engine`/estimator/gate code change.
   If this design calls for one, it is a distinct, later task.
-- **Done when:** a specific, disclosed recommendation exists for what (if anything) replaces metric
-  6's slot, addressing the scope questions above, with `CODE_REVIEWER` independent review before any
-  implementation task opens.
+- **Sequencing note, binding on the orchestrating session:** a new official `TASK-015`/`TASK-019`/
+  `TASK-028` cycle only makes sense once this task's fate is resolved (a working replacement design,
+  or a disclosed `NO VALID REPLACEMENT YET`) — otherwise the decision gate's economic-quality
+  component stays deliberately, silently incomplete rather than honestly absent.
+- **Done when:** a specific, disclosed recommendation exists — a design meeting all seven checks, or
+  an honest `NO VALID REPLACEMENT YET` — addressing the scope questions above, with `CODE_REVIEWER`
+  independent review before any implementation task opens.
 
 ### TASK-076 — Configuration custody: reconcile `TASK-064`'s "not adopted as default" closure with `beam_rules_per_structure`'s actual code default; determine whether an automated binding is needed (`ADR-069` Branch 2)
 
