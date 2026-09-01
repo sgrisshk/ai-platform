@@ -6490,7 +6490,29 @@ TASK-003, TASK-005, and TASK-018 may proceed independently, but their owners mus
 - **Support:** STATISTICS
 - **Reviewer:** CODE_REVIEWER
 - **Priority:** P1
-- **Status:** NOT_STARTED
+- **Status:** DESIGN COMPLETE, PENDING `CODE_REVIEWER` REVIEW (2026-09-01). Full determination, all
+  seven checks worked with real evidence, and the scope-question recommendation:
+  `docs/analytics/task-087-economic-impact-calibration-metric-design.md`. Summary: a working design
+  was found — an out-of-sample, per-record-rate calibration check comparing a
+  development(+validation)-fit `O1` effect against the same candidate-defined population's realized
+  effect in `future_holdout` (formalizing this task's own §8.3 starting sketch into an
+  interval-coverage test). Checks 1/2/3/5/6/7 pass cleanly, each with committed diagnostic evidence
+  (`scripts/diagnose_task087_check4_future_holdout_leakage.py`,
+  `scripts/diagnose_task087_check5_7_calibration_adversarial.py`, and their raw JSON output under
+  `docs/benchmark/`). Check 4 carries one disclosed, quantified, **pre-existing** caveat, not a newly
+  introduced one: `discovery/engine.py`'s `stability_credit_weight` (default `0.5`, unmodified by
+  `scripts/run_discovery.py`) already reads `future_holdout`'s own sign during candidate *selection*,
+  before any `O1` prediction is computed — a real code channel, empirically found to have **zero**
+  measured effect on the actual top-15 candidate set for the real dataset/seed tested, and a property
+  this design does not introduce (`G10`'s own existing temporal-stability gate already carries it).
+  Given that caveat plus this task's own §8.3 observation that the design mostly reconfirms an
+  estimator property `TASK-084` already established, the recommendation is: build this as a
+  form-test/regression-suite check (`G05`/`G12` precedent), **never** a `decision-gate.md` graded
+  metric — `decision-gate.md` should carry **five** graded metrics, not six, with no differently-
+  shaped sixth. `O2`'s tier-3 "predicts `O3`" comparison remains deferred to a future task, pending a
+  first level 4–5 candidate. **`NO VALID REPLACEMENT YET` was not invoked** — a real, disclosed
+  design was reached. `CODE_REVIEWER` review required before any implementation task
+  (e.g. building the recommended `tests/analytics/test_o1_temporal_calibration.py`) opens.
 - **Depends on:** `TASK-085` (`CLOSED — DESIGN APPROVED`, `ADR-089` — establishes that old metric 6
   compares two different estimands and should retire prospectively)
 - **Explicitly separate from `TASK-086`, runs in parallel, no dependency either direction.** No new
