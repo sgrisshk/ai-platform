@@ -4899,3 +4899,78 @@ non-identifiability correspondence it depends on.
 
 **Consequences.** `TASK-085`'s `Reviewer: CODE_REVIEWER` field is now attached to this ADR's six
 checks and approval standard. `TASK-057` remains paused, unaffected.
+
+## ADR-090 — Parallel adversarial review of `TASK-086` (semantic migration, not just rename) and `TASK-087` (like-with-like property attack); each independently gated, no content dependency
+
+**Date:** 2026-09-01
+**Status:** Accepted, contingent — authorizes both independent `CODE_REVIEWER` reviews now, in
+parallel. No follow-on task (persistence integration for `TASK-086`, implementation for `TASK-087`)
+opens until each review's own verdict lands.
+
+**Decision.** `TASK-086` and `TASK-087` are confirmed to have no content dependency between them and
+run their reviews in parallel. Each gets its own mandate, stated separately.
+
+**`TASK-086` review mandate — the central question is whether this is a genuine semantic migration,
+not merely a rename:**
+
+1. **Tier 1 preserves the prior `O1` arithmetic exactly** — independently confirm the unchanged
+   computation reproduces today's real numbers, not merely that the type/field names changed.
+2. **Tier 2 is genuinely restricted to `E_dev` across every code path, not only in one test
+   fixture.** The reviewer must trace every place tier 2's exposure is computed, not trust a single
+   passing end-to-end test as sufficient coverage.
+3. **Tier 3 is provably unreachable without a real `G13`/`G14` identification result** — re-confirm
+   this structurally, independent of the implementer's own exhaustive-enum test.
+4. **`v1.0.0` frozen artifacts are read strictly under their own recorded version, never
+   reinterpreted under the new `v2.0.0` semantics.**
+5. **No downstream site still silently uses the old `historical_impact` field with its former,
+   `O3`-adjacent framing** — search for any remaining reference, not just the ones already renamed.
+
+**Explicit, binding scope boundaries for this review:**
+- **The two pre-existing test failures must be independently confirmed to predate `TASK-086`** — the
+  reviewer must verify this itself (e.g. against the commit immediately after `TASK-081`'s merge), not
+  merely accept the implementer's own claim. They are **not** to be fixed inside this review.
+- **The Pydantic persistence gap** (`apps/api/app/findings/contracts.py`/`schemas.py` still expecting
+  the old flat shape) **is not, by itself, a `TASK-086` defect**, provided its ownership/scope boundary
+  was genuinely pre-declared (it was, in `TASK-086`'s own `packages/analytics`-only scope). The
+  reviewer must still **confirm the boundary and its consequence explicitly**: a fresh `v2`
+  `CandidateExposureResult` is **not** currently end-to-end promotable through Finding persistence.
+  This consequence must be stated plainly in the review's own record, not glossed over — reporting
+  migration is not "fully deployed" until a separate integration task closes this gap.
+
+**`TASK-087` review mandate — attack the like-with-like property of the proposed calibration
+metric directly:**
+
+1. Identical population and time support on both sides of the comparison, independently re-verified.
+2. No `future_holdout` leakage into discovery, fitting, or the calibration target — re-derive the
+   reviewer's own trace of the disclosed `stability_credit_weight` channel, don't just accept the
+   "empirically null" finding by citation.
+3. Defined behavior when candidate membership changes between development and holdout — attack this
+   specifically with a constructed case, not just accept the design's own stated behavior.
+4. Calibration error genuinely kept separate from candidate-localization quality.
+5. The adversarial Case C/D constructions are genuinely independent — build the reviewer's own version
+   or a materially different one, not merely re-run the implementer's script and trust its output.
+- **The reviewer retains full authority to return `NO VALID REPLACEMENT YET`** — the existence of a
+  retired metric 6 is not, by itself, grounds to force a replacement design through review. If the
+  reviewer finds the proposed metric fails any of the five checks above, that failure stands on its
+  own merits regardless of whether an alternative is available.
+
+**One coupling check, explicitly not requiring sequential execution — either reviewer may perform it
+independently:** `TASK-087`'s calibration metric must be designed against `TASK-085`'s own approved
+`O1`/`O2` semantics, never against `TASK-086`'s specific serialization/API/field-naming choices. If
+the design document's own reasoning depends on any `TASK-086` implementation detail (a specific field
+name, a specific persistence shape) rather than the underlying estimand, that is a defect in
+`TASK-087`'s own review, independent of whether `TASK-086` itself is `APPROVED`.
+
+**Explicit fork, both tasks:** if `TASK-086` is `APPROVED`, the next follow-on is scoped narrowly as
+**`v2 CandidateExposureResult` persistence/API integration** — no statistical changes, matching the
+already-disclosed Pydantic-layer gap. If `TASK-087` is `APPROVED` with a valid replacement metric,
+only then does a separate implementation task open for it; a `NO VALID REPLACEMENT YET` verdict opens
+no follow-on task at all — `decision-gate.md` simply carries five graded metrics, not six, per
+`TASK-087`'s own already-stated recommendation.
+
+**Anti-overfitting discipline, honoured.** Both mandates are fixed before either review runs,
+specifically so neither review can declare success merely by re-reading the implementer's own claims
+or by treating "an answer exists" as sufficient without checking it independently.
+
+**Consequences.** `TASK-086`'s and `TASK-087`'s `Reviewer: CODE_REVIEWER` fields are now attached to
+this ADR's respective mandates. `TASK-057` remains paused, unaffected.
